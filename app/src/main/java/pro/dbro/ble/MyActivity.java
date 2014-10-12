@@ -4,17 +4,31 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.CompoundButton;
+import android.widget.ToggleButton;
+
+import butterknife.ButterKnife;
+import butterknife.InjectView;
 
 
-public class MyActivity extends Activity {
+public class MyActivity extends Activity implements CompoundButton.OnCheckedChangeListener {
 
-    BLEScanner mScanner;
+    BLECentral mScanner;
+    BLEPeripheral mAdvertiser;
+
+    @InjectView(R.id.scanToggle)      ToggleButton mScanToggle;
+    @InjectView(R.id.advertiseToggle) ToggleButton mAdvertiseToggle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
-        mScanner = new BLEScanner(this);
+        mScanner = new BLECentral(this);
+        mAdvertiser = new BLEPeripheral(this);
+
+        ButterKnife.inject(this);
+        mScanToggle.setOnCheckedChangeListener(this);
+        mAdvertiseToggle.setOnCheckedChangeListener(this);
     }
 
 
@@ -40,14 +54,34 @@ public class MyActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
-
-        mScanner.start();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
 
-        mScanner.stop();
+        if (mScanner.isIsScanning()) mScanner.stop();
+
+        if (mAdvertiser.isAdvertising()) mAdvertiser.stop();
+    }
+
+    @Override
+    public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
+        if (compoundButton == mScanToggle)
+        {
+            if (checked)
+                mScanner.start();
+            else
+                mScanner.stop();
+        }
+        else if (compoundButton == mAdvertiseToggle)
+        {
+            if (checked)
+                mAdvertiser.start();
+            else
+                mAdvertiser.stop();
+
+        }
+
     }
 }

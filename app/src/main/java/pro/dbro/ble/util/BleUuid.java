@@ -17,6 +17,10 @@ package pro.dbro.ble.util;
 
 /** BLE UUID Strings */
 public class BleUuid {
+    // MeshChat
+    public static final String MESH_CHAT_SERVICE_UUID = "96F22BCA-F08C-43F9-BF7D-EEBC579C94D2";
+    public static final String MESH_CHAT_CHARACTERISTIC_UUID = "21C7DE8E-B0D0-4A41-9B22-78221277E2AA";
+
 	// 180A Device Information
 	public static final String SERVICE_DEVICE_INFORMATION = "0000180a-0000-1000-8000-00805f9b34fb";
 	public static final String CHAR_MANUFACTURER_NAME_STRING = "00002a29-0000-1000-8000-00805f9b34fb";

@@ -8,5 +8,9 @@
     <string name="ble_not_supported">Bluetooth not supported</string>
     <string name="scan_started">Scan Started</string>
     <string name="scan_stopped">Scan Stopped</string>
+    <string name="stop_scanning">Stop Scanning</string>
+    <string name="start_scanning">Start Scanning</string>
+    <string name="stop_advertising">Stop Advertising</string>
+    <string name="start_advertising">Start Advertising</string>
 
 </resources>

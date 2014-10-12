@@ -1,45 +1,48 @@
 package pro.dbro.ble;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
+import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import pro.dbro.ble.util.BleUtil;
+import pro.dbro.ble.util.BleUuid;
 
 /**
- * A basic BLE Scanner hardcoded to scan for Service Name = TEST
+ * A basic BLE Central device hardcoded to scan for Service Name = TEST
  *
  * Created by davidbrodsky on 10/2/14.
  */
-public class BLEScanner {
-    public static final String TAG = "BLEScanner";
+public class BLECentral {
+    public static final String TAG = "BLECentral";
 
     private Context mContext;
     private BluetoothAdapter mBTAdapter;
     private ScanCallback mScanCallback;
-    private BluetoothLeScanner mBTAScanner;
+    private BluetoothLeScanner mScanner;
 
     private boolean mIsScanning = false;
 
     // <editor-fold desc="Public API">
 
-    public BLEScanner(@NonNull Context context) {
+    public BLECentral(@NonNull Context context) {
         mContext = context;
         init();
         setScanCallback();
@@ -53,6 +56,9 @@ public class BLEScanner {
         stopScanning();
     }
 
+    public boolean isIsScanning() {
+        return mIsScanning;
+    }
     // </editor-fold>
 
     //<editor-fold desc="Private API">
@@ -78,14 +84,44 @@ public class BLEScanner {
 
     private void setScanCallback() {
         mScanCallback = new ScanCallback() {
+            final String TAG = "ScanCallback";
+
+            private boolean connecting = false;
+
             @Override
             public void onAdvertisementUpdate(ScanResult scanResult) {
-                String toLog = String.format("Attempting GATT Connection to %s", scanResult.getDevice().getName());
+                String toLog = String.format("Scanned %s", scanResult.getDevice().getName());
                 Log.i(TAG, toLog);
+
+//                Only attempt one connection at a time
+                if (connecting) return;
+                Log.i(TAG, "Got first connection");
+                connecting = true;
                 scanResult.getDevice().connectGatt(mContext, true, new BluetoothGattCallback() {
                     @Override
                     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-                        Log.i(TAG, "onConnectionStateChange");
+                        final String TAG = "onConnectionStateChange";
+
+                        if (status == BluetoothGatt.GATT_SUCCESS) {
+                            Log.i(TAG, "status indicates GATT Connection Success!");
+                        } else {
+                            Log.i(TAG, "status indicates GATT Connection not yet successful");
+                        }
+
+                        switch (newState) {
+                            case BluetoothProfile.STATE_DISCONNECTED:
+                                Log.i(TAG, "newState indicates GATT disconnected");
+                                break;
+                            case BluetoothProfile.STATE_CONNECTED:
+                                Log.i(TAG, "newState indicates GATT connected!");
+                                break;
+                        }
+
+                        boolean discovering = gatt.discoverServices();
+                        Log.i(TAG, "Discovering services : " + discovering);
+                        UUID characteristicUUID = UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_UUID);
+                        boolean readResult = gatt.readCharacteristic(new BluetoothGattCharacteristic(characteristicUUID, 0, 0));
+                        Log.i(TAG, "Attempting to read characteristic " + characteristicUUID.toString());
                         super.onConnectionStateChange(gatt, status, newState);
                     }
 
@@ -97,7 +133,7 @@ public class BLEScanner {
 
                     @Override
                     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                        Log.i(TAG, "onCharacteristicRead");
+                        Log.i(TAG, "onCharacteristicRead " + characteristic.toString());
                         super.onCharacteristicRead(gatt, characteristic, status);
                     }
 
@@ -149,17 +185,18 @@ public class BLEScanner {
 
     private void startScanning() {
         if ((mBTAdapter != null) && (!mIsScanning)) {
-            if (mBTAScanner == null) {
-                mBTAScanner = mBTAdapter.getBluetoothLeScanner();
+            if (mScanner == null) {
+                mScanner = mBTAdapter.getBluetoothLeScanner();
             }
-            mBTAScanner.startScan(createScanFilters(), createScanSettings(), mScanCallback);
+            mScanner.startScan(createScanFilters(), createScanSettings(), mScanCallback);
             Toast.makeText(mContext, mContext.getString(R.string.scan_started), Toast.LENGTH_SHORT).show();
         }
     }
 
     private static List<ScanFilter> createScanFilters() {
         ScanFilter.Builder builder = new ScanFilter.Builder();
-        builder.setName("Test");
+//        builder.setName("Test");
+//        builder.setServiceUuid(ParcelUuid.fromString(BleUuid.MESH_CHAT_SERVICE_UUID));
         ArrayList<ScanFilter> scanFilters = new ArrayList<>();
         scanFilters.add(builder.build());
         return scanFilters;
@@ -173,8 +210,8 @@ public class BLEScanner {
     }
 
     private void stopScanning() {
-        if (mBTAScanner != null) {
-            mBTAScanner.stopScan(mScanCallback);
+        if (mScanner != null) {
+            mScanner.stopScan(mScanCallback);
             Toast.makeText(mContext, mContext.getString(R.string.scan_stopped), Toast.LENGTH_SHORT).show();
         }
         mIsScanning = false;

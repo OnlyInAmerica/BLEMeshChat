@@ -37,4 +37,6 @@ public class BleUtil {
     public static BluetoothManager getManager(Context context) {
         return (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
     }
+
+
 }
