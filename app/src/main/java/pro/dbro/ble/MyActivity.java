@@ -5,25 +5,28 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.CompoundButton;
+import android.widget.TextView;
 import android.widget.ToggleButton;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
 
 
-public class MyActivity extends Activity implements CompoundButton.OnCheckedChangeListener {
+public class MyActivity extends Activity implements CompoundButton.OnCheckedChangeListener, LogConsumer {
 
     BLECentral mScanner;
     BLEPeripheral mAdvertiser;
 
     @InjectView(R.id.scanToggle)      ToggleButton mScanToggle;
     @InjectView(R.id.advertiseToggle) ToggleButton mAdvertiseToggle;
+    @InjectView(R.id.log)             TextView mLog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
         mScanner = new BLECentral(this);
+        mScanner.setLogConsumer(this);
         mAdvertiser = new BLEPeripheral(this);
 
         ButterKnife.inject(this);
@@ -45,7 +48,8 @@ public class MyActivity extends Activity implements CompoundButton.OnCheckedChan
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_clear) {
+            mLog.setText("");
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -80,8 +84,16 @@ public class MyActivity extends Activity implements CompoundButton.OnCheckedChan
                 mAdvertiser.start();
             else
                 mAdvertiser.stop();
-
         }
+    }
 
+    @Override
+    public void onLogEvent(final String event) {
+        mLog.post(new Runnable() {
+            @Override
+            public void run() {
+                mLog.append(event + "\n");
+            }
+        });
     }
 }

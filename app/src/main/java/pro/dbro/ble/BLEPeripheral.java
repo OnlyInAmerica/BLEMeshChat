@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
@@ -21,6 +22,7 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import pro.dbro.ble.util.BleUtil;
 import pro.dbro.ble.util.BleUuid;
@@ -92,7 +94,7 @@ public class BLEPeripheral {
 
         // BT check
         BluetoothManager manager = BleUtil.getManager(mContext);
-        manager.openGattServer(mContext, new BluetoothGattServerCallback() {
+        BluetoothGattServer server = manager.openGattServer(mContext, new BluetoothGattServerCallback() {
             @Override
             public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
                 StringBuilder event = new StringBuilder();
@@ -144,6 +146,13 @@ public class BLEPeripheral {
                 super.onExecuteWrite(device, requestId, execute);
             }
         });
+
+        BluetoothGattService chatService = new BluetoothGattService(UUID.fromString(BleUuid.MESH_CHAT_SERVICE_UUID), BluetoothGattService.SERVICE_TYPE_PRIMARY);
+        BluetoothGattCharacteristic chatCharacteristic = new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_UUID), BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
+        chatCharacteristic.setValue("Bonjour");
+        chatService.addCharacteristic(chatCharacteristic);
+        server.addService(chatService);
+
         if (manager != null) {
             mBTAdapter = manager.getAdapter();
         }

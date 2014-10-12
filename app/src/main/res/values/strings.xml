@@ -12,5 +12,6 @@
     <string name="start_scanning">Start Scanning</string>
     <string name="stop_advertising">Stop Advertising</string>
     <string name="start_advertising">Start Advertising</string>
+    <string name="clear_logs">Clear logs</string>
 
 </resources>
