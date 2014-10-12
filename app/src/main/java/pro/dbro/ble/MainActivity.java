@@ -7,6 +7,7 @@ import android.support.v7.widget.RecyclerView;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.CompoundButton;
+import android.widget.TextView;
 import android.widget.ToggleButton;
 
 import butterknife.ButterKnife;
@@ -23,8 +24,8 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
 
     @InjectView(R.id.scanToggle)      ToggleButton mScanToggle;
     @InjectView(R.id.advertiseToggle) ToggleButton mAdvertiseToggle;
-    @InjectView(R.id.recyclerView)    RecyclerView mRecyclerView;
-//    @InjectView(R.id.log)             TextView mLog;
+//    @InjectView(R.id.recyclerView)    RecyclerView mRecyclerView;
+    @InjectView(R.id.log)             TextView mLog;
 
     private BleClientAdapter mAdapter;
 
@@ -35,14 +36,15 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
         mScanner = new BLECentral(this);
         mScanner.setLogConsumer(this);
         mAdvertiser = new BLEPeripheral(this);
+        mAdvertiser.setLogConsumer(this);
 
         ButterKnife.inject(this);
         mScanToggle.setOnCheckedChangeListener(this);
         mAdvertiseToggle.setOnCheckedChangeListener(this);
 
         mAdapter = new BleClientAdapter(new String[] {"Device1", "Device2"});
-        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        mRecyclerView.setAdapter(mAdapter);
+//        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+//        mRecyclerView.setAdapter(mAdapter);
     }
 
 
@@ -60,7 +62,7 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_clear) {
-//            mLog.setText("");
+            mLog.setText("");
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -100,11 +102,11 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
 
     @Override
     public void onLogEvent(final String event) {
-//        mLog.post(new Runnable() {
-//            @Override
-//            public void run() {
-//                mLog.append(event + "\n");
-//            }
-//        });
+        mLog.post(new Runnable() {
+            @Override
+            public void run() {
+                mLog.append(event + "\n");
+            }
+        });
     }
 }

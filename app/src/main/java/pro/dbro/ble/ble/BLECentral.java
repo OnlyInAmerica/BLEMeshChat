@@ -24,11 +24,13 @@ import java.util.UUID;
 
 import pro.dbro.ble.LogConsumer;
 import pro.dbro.ble.R;
+import pro.dbro.ble.model.BLEMessage;
+import pro.dbro.ble.model.BLEPeer;
 import pro.dbro.ble.util.BleUtil;
 import pro.dbro.ble.util.BleUuid;
 
 /**
- * A basic BLE Central device
+ * A basic BLE Central device that discovers peripherals
  *
  * Created by davidbrodsky on 10/2/14.
  */
@@ -41,6 +43,7 @@ public class BLECentral {
     private ScanCallback mScanCallback;
     private BluetoothLeScanner mScanner;
     private LogConsumer mLogger;
+    private BLEMeshManager.BLEMeshManagerCallback mCallback;
 
     private boolean mIsScanning = false;
 
@@ -54,6 +57,10 @@ public class BLECentral {
 
     public void setLogConsumer(LogConsumer consumer) {
         mLogger = consumer;
+    }
+
+    public void setCallback(BLEMeshManager.BLEMeshManagerCallback cb) {
+        mCallback = cb;
     }
 
     public void start() {
@@ -113,7 +120,7 @@ public class BLECentral {
 //                            Log.i(TAG, "status indicates GATT Connection Success!");
                             logEvent("status indicates GATT Connection Success!");
                         } else {
-                            if (REPORT_NON_SUCCESSES) mLogger.onLogEvent("status indicates GATT Connection not yet successful");
+//                            if (REPORT_NON_SUCCESSES) mLogger.onLogEvent("status indicates GATT Connection not yet successful");
                         }
 
                         switch (newState) {
@@ -154,11 +161,13 @@ public class BLECentral {
 //                                services.append("\t\t");
 //                                services.append(characteristic.getProperties());
                                 if (characteristic.getUuid().toString().toLowerCase().equals(BleUuid.MESH_CHAT_CHARACTERISTIC_WRITABLE_UUID.toLowerCase())) {
+                                    Log.i(TAG, "Writable Characteristic UUID: " + characteristic.getUuid().toString() + " properties: " + characteristic.getProperties() + " permissions: " + characteristic.getPermissions());
                                     characteristic.setValue("From Android with Love!");
                                     gatt.writeCharacteristic(characteristic);
                                     logEvent("Writing to write characteristic");
                                 }
                                 if (characteristic.getUuid().toString().toLowerCase().equals(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID.toLowerCase())) {
+                                    Log.i(TAG, "Readable Characteristic UUID: " + characteristic.getUuid().toString() + " properties: " + characteristic.getProperties() + " permissions: " + characteristic.getPermissions());
                                     foundExpectedCharacteristic = true;
 //                                    services.append("\tValue :\n");
 //                                    services.append("\t\t");
@@ -182,7 +191,8 @@ public class BLECentral {
 
                     @Override
                     public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                        Log.i(TAG, "onCharacteristicWrite");
+//                        Log.i(TAG, "onCharacteristicWrite");
+                        logEvent("onCharacteristicWrite " + characteristic.getStringValue(0));
                         super.onCharacteristicWrite(gatt, characteristic, status);
                     }
 
@@ -267,6 +277,16 @@ public class BLECentral {
         if (mLogger != null) {
             mLogger.onLogEvent(event);
         }
+    }
+
+    private void notifyPeerAvailable(BLEPeer peer) {
+        if (mCallback != null) {
+            mCallback.peerAvailable(peer);
+        }
+    }
+
+    private void messageReceived(BLEMessage message) {
+
     }
 
     //</editor-fold>

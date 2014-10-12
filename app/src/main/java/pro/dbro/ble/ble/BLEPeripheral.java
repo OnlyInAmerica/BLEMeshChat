@@ -24,12 +24,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import pro.dbro.ble.LogConsumer;
 import pro.dbro.ble.R;
 import pro.dbro.ble.util.BleUtil;
 import pro.dbro.ble.util.BleUuid;
 
 /**
- * A basic BLE Peripheral device
+ * A basic BLE Peripheral device discovered by centrals
  *
  * Created by davidbrodsky on 10/11/14.
  */
@@ -39,6 +40,8 @@ public class BLEPeripheral {
     private Context mContext;
     private BluetoothAdapter mBTAdapter;
     private BluetoothLeAdvertiser mAdvertiser;
+    private BluetoothGattServer mGattServer;
+    private LogConsumer mLogger;
 
     private boolean mIsAdvertising = false;
 
@@ -47,21 +50,19 @@ public class BLEPeripheral {
 
         @Override
         public void onSuccess(AdvertiseSettings settingsInEffect) {
-            // Advする際に設定した値と実際に動作させることに成功したSettingsが違うとsettingsInEffectに
-            // 有効な値が格納される模様です。設定通りに動かすことに成功した際にはnullが返る模様。
             if (settingsInEffect != null) {
-                Log.d(TAG, "Advertise success TxPowerLv="
+                logEvent("Advertise success TxPowerLv="
                         + settingsInEffect.getTxPowerLevel()
                         + " mode=" + settingsInEffect.getMode()
                         + " type=" + settingsInEffect.getType());
             } else {
-                Log.d(TAG, "Advertise success, settingInEffect is null");
+                logEvent("Advertise success" );
             }
         }
 
         @Override
         public void onFailure(int errorCode) {
-            Log.d(TAG, "Advertise failure errorCode=" + errorCode);
+            logEvent("Advertising failed with code " + errorCode);
         }
     };
 
@@ -70,6 +71,10 @@ public class BLEPeripheral {
     public BLEPeripheral(@NonNull Context context) {
         mContext = context;
         init();
+    }
+
+    public void setLogConsumer(LogConsumer consumer) {
+        mLogger = consumer;
     }
 
     public void start() {
@@ -97,7 +102,7 @@ public class BLEPeripheral {
 
         // BT check
         BluetoothManager manager = BleUtil.getManager(mContext);
-        BluetoothGattServer server = manager.openGattServer(mContext, new BluetoothGattServerCallback() {
+        mGattServer = manager.openGattServer(mContext, new BluetoothGattServerCallback() {
             @Override
             public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
                 StringBuilder event = new StringBuilder();
@@ -106,10 +111,13 @@ public class BLEPeripheral {
                 else if (newState == BluetoothProfile.STATE_CONNECTED)
                     event.append("Connected");
 
-                if (status == BluetoothGatt.GATT_SUCCESS)
-                    event.append(" Success");
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    event.append(" Successfully to ");
+                    event.append(device.getAddress());
+                    logEvent("Peripheral " + event.toString());
+                }
 
-                Log.i("onConnectionStateChange", event.toString());
+//                Log.i("onConnectionStateChange", event.toString());
                 super.onConnectionStateChange(device, status, newState);
             }
 
@@ -121,13 +129,19 @@ public class BLEPeripheral {
 
             @Override
             public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
-                Log.i("onCharacteristicReadRequest", characteristic.toString());
+                BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(UUID.fromString(BleUuid.MESH_CHAT_SERVICE_UUID)).getCharacteristic(characteristic.getUuid());
+                if (localCharacteristic != null) {
+                    logEvent("Recognized CharacteristicReadRequest. Sending response " + localCharacteristic.getStringValue(0));
+                    mGattServer.sendResponse(device, requestId, 0, 0, characteristic.getValue());
+                } else {
+                    logEvent("CharacteristicReadRequest. Unrecognized characteristic " + characteristic.getUuid().toString());
+                }
                 super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
             }
 
             @Override
             public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
-                Log.i("onCharacteristicWriteRequest", characteristic.toString());
+                logEvent("CharacteristicWriteRequest " + characteristic.toString());
                 super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
             }
 
@@ -145,16 +159,23 @@ public class BLEPeripheral {
 
             @Override
             public void onExecuteWrite(BluetoothDevice device, int requestId, boolean execute) {
-                Log.i("onExecuteWrite", device.toString());
+                logEvent("onExecuteWrite" + device.toString());
+//                Log.i("onExecuteWrite", device.toString());
                 super.onExecuteWrite(device, requestId, execute);
             }
         });
 
         BluetoothGattService chatService = new BluetoothGattService(UUID.fromString(BleUuid.MESH_CHAT_SERVICE_UUID), BluetoothGattService.SERVICE_TYPE_PRIMARY);
-        BluetoothGattCharacteristic chatCharacteristic = new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID), BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
-        chatCharacteristic.setValue("Bonjour");
-        chatService.addCharacteristic(chatCharacteristic);
-        server.addService(chatService);
+
+        BluetoothGattCharacteristic readCharacteristic = new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID), BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
+        readCharacteristic.setValue("Readme");
+        chatService.addCharacteristic(readCharacteristic);
+
+        BluetoothGattCharacteristic writeCharacteristic = new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_WRITABLE_UUID), BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_WRITE | BluetoothGattCharacteristic.PERMISSION_READ);
+        writeCharacteristic.setValue("Writeme");
+        chatService.addCharacteristic(writeCharacteristic);
+
+        mGattServer.addService(chatService);
 
         if (manager != null) {
             mBTAdapter = manager.getAdapter();
@@ -216,7 +237,6 @@ public class BLEPeripheral {
 //        uuidList.add(ParcelUuid.fromString("217D750E-7B58-4152-A1EB-F2711BB38350"));
 //        uuidList.add(ParcelUuid.fromString("89D3502B-0F36-433A-8EF4-C502AD55F8DC"));
         builder.setServiceUuids(uuidList);
-
         builder.setIncludeTxPowerLevel(false);
 //        builder.setManufacturerData(0x1234578, manufacturerData);
         return builder.build();
@@ -235,6 +255,17 @@ public class BLEPeripheral {
             mAdvertiser.stopAdvertising(mAdvCallback);
         }
         mIsAdvertising = false;
+    }
+
+    private void logEvent(String event) {
+        if (mLogger != null) {
+            mLogger.onLogEvent(event);
+        }
+    }
+
+    private BluetoothGattCharacteristic getLocalCharacteristicForRequestedCharacteristic(BluetoothGattCharacteristic requestedCharacteristic) {
+        BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(UUID.fromString(BleUuid.MESH_CHAT_SERVICE_UUID)).getCharacteristic(requestedCharacteristic.getUuid());
+        return localCharacteristic;
     }
 
     // </editor-fold>
