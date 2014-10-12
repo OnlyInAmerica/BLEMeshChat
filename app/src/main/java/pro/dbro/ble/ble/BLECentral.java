@@ -1,4 +1,4 @@
-package pro.dbro.ble;
+package pro.dbro.ble.ble;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
@@ -22,11 +22,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import pro.dbro.ble.LogConsumer;
+import pro.dbro.ble.R;
 import pro.dbro.ble.util.BleUtil;
 import pro.dbro.ble.util.BleUuid;
 
 /**
- * A basic BLE Central device hardcoded to scan for Service Name = TEST
+ * A basic BLE Central device
  *
  * Created by davidbrodsky on 10/2/14.
  */

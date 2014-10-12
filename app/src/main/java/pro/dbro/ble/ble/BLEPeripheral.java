@@ -1,4 +1,4 @@
-package pro.dbro.ble;
+package pro.dbro.ble.ble;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -24,10 +24,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import pro.dbro.ble.R;
 import pro.dbro.ble.util.BleUtil;
 import pro.dbro.ble.util.BleUuid;
 
 /**
+ * A basic BLE Peripheral device
+ *
  * Created by davidbrodsky on 10/11/14.
  */
 public class BLEPeripheral {
