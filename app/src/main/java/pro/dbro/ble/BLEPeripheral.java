@@ -148,7 +148,7 @@ public class BLEPeripheral {
         });
 
         BluetoothGattService chatService = new BluetoothGattService(UUID.fromString(BleUuid.MESH_CHAT_SERVICE_UUID), BluetoothGattService.SERVICE_TYPE_PRIMARY);
-        BluetoothGattCharacteristic chatCharacteristic = new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_UUID), BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
+        BluetoothGattCharacteristic chatCharacteristic = new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID), BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
         chatCharacteristic.setValue("Bonjour");
         chatService.addCharacteristic(chatCharacteristic);
         server.addService(chatService);

@@ -127,7 +127,7 @@ public class BLECentral {
                         boolean discovering = gatt.discoverServices();
                         if (REPORT_NON_SUCCESSES || discovering)
                             logEvent("Discovering services : " + discovering);
-                        UUID characteristicUUID = UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_UUID);
+                        UUID characteristicUUID = UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID);
 //                        boolean readResult = gatt.readCharacteristic(new BluetoothGattCharacteristic(characteristicUUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.));
 //                        if (REPORT_NON_SUCCESSES || readResult)
 //                            logEvent("Attempting to read characteristic " + readResult);
@@ -151,7 +151,12 @@ public class BLECentral {
 //                                services.append("\tProperties :\n");
 //                                services.append("\t\t");
 //                                services.append(characteristic.getProperties());
-                                if (characteristic.getUuid().toString().toLowerCase().equals(BleUuid.MESH_CHAT_CHARACTERISTIC_UUID.toLowerCase())) {
+                                if (characteristic.getUuid().toString().toLowerCase().equals(BleUuid.MESH_CHAT_CHARACTERISTIC_WRITABLE_UUID.toLowerCase())) {
+                                    characteristic.setValue("From Android with Love!");
+                                    gatt.writeCharacteristic(characteristic);
+                                    logEvent("Writing to write characteristic");
+                                }
+                                if (characteristic.getUuid().toString().toLowerCase().equals(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID.toLowerCase())) {
                                     foundExpectedCharacteristic = true;
 //                                    services.append("\tValue :\n");
 //                                    services.append("\t\t");
@@ -210,7 +215,7 @@ public class BLECentral {
                     }
                 });
 
-//                bleGatt.setCharacteristicNotification(new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_UUID), 0, 0), true);
+//                bleGatt.setCharacteristicNotification(new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID), 0, 0), true);
             }
 
             @Override
