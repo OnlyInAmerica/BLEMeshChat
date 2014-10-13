@@ -163,7 +163,7 @@ public class BLECentral {
                                     queueReadOp(gatt, characteristic);
                                 }
                                 else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
-                                    characteristic.setValue("id-w");
+                                    characteristic.setValue("id-w-really long and whatnot ok why not hello goodbye Bonjour Shalom Hola id-w-really long and whatnot ok why not hello goodbye twerky tweet");
                                     logEvent("Queuing identity write");
                                     queueWriteOp(gatt, characteristic);
                                 }
@@ -173,7 +173,7 @@ public class BLECentral {
                                 }
                                 else if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
                                     logEvent("Queuing message write");
-                                    characteristic.setValue("msg-w");
+                                    characteristic.setValue("msg-w-reall long and whatnot ok why not hello goodbye Bonjour Shalom Hola id-w-really long and whatnot ok why not hello goodbye twerky tweet");
                                     queueWriteOp(gatt, characteristic);
                                 }
 
@@ -186,7 +186,7 @@ public class BLECentral {
 
                     @Override
                     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                        logEvent("onCharacteristicRead " + characteristic.getStringValue(0));
+                        logEvent(String.format("onCharacteristicRead %s status: %d", characteristic.getStringValue(0), status));
                         if (mCharacteristicsToRead.size() > 0) {
                             BluetoothGattCharacteristic ch = mCharacteristicsToRead.pop();
                             logEvent("reading char " + ch.getUuid().toString());
@@ -203,7 +203,7 @@ public class BLECentral {
 
                     @Override
                     public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                        logEvent(String.format("Received Write from %s ", characteristic.getUuid()));
+                        logEvent(String.format("Received Write from %s with status %d", characteristic.getUuid(), status));
                         if (mCharacteristicsToWrite.size() > 0) {
                             BluetoothGattCharacteristic ch = mCharacteristicsToWrite.pop();
                             boolean result = gatt.writeCharacteristic(ch);

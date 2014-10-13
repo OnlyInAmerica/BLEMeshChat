@@ -24,6 +24,7 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
     @InjectView(R.id.advertiseToggle) ToggleButton mAdvertiseToggle;
 //    @InjectView(R.id.recyclerView)    RecyclerView mRecyclerView;
     @InjectView(R.id.log)             TextView mLog;
+//    @InjectView(R.id.textEntry)       EditText mEntry;
 
     private BLEClientAdapter mAdapter;
 
@@ -43,6 +44,13 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
         mAdapter = new BLEClientAdapter(new String[] {"Device1", "Device2"});
 //        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 //        mRecyclerView.setAdapter(mAdapter);
+
+//        mEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+//            @Override
+//            public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
+//                mScanner.send
+//            }
+//        });
     }
 
 

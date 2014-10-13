@@ -1,17 +1,16 @@
 package pro.dbro.ble.ble;
 
-import pro.dbro.ble.model.BLEMessage;
-import pro.dbro.ble.model.BLEPeer;
+import pro.dbro.ble.model.Message;
+import pro.dbro.ble.model.Peer;
 
 /**
- * Callback used to propagate BLE events up from
- * {@link pro.dbro.ble.ble.BLEPeripheral} and {@link pro.dbro.ble.ble.BLECentral}
- * to this class, and ultimately to clients of this class.
+ * Callback used to represent high level BLE events
+ * irrespective of whether the remote peer is Central or Peripheral
  */
 public interface BLEManagerCallback {
 
-    public void peerAvailable(BLEPeer peer);
+    public void peerAvailable(Peer peer);
 
-    public void messageReceived(BLEMessage incomingMsg);
+    public void messageReceived(Message incomingMsg);
 
 }

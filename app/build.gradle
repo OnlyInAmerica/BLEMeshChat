@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'android-apt'
 
 android {
     compileSdkVersion 'android-L'
@@ -25,8 +26,17 @@ android {
 }
 
 dependencies {
+    apt 'net.simonvt.schematic:schematic-compiler:0.5.1'
+    compile 'net.simonvt.schematic:schematic:0.5.3'
     compile 'com.android.support:support-annotations:20.0.0'
     compile 'com.jakewharton:butterknife:5.1.2'
     compile 'com.android.support:recyclerview-v7:+'
     compile 'com.android.support:cardview-v7:+'
 }
+
+apt {
+    arguments {
+        schematicOutPackage 'pro.dbro.ble.schematic'
+    }
+}
+

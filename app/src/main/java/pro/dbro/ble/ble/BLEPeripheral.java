@@ -18,14 +18,12 @@ import android.content.Context;
 import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
 import android.util.Log;
-import android.widget.Toast;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
 import pro.dbro.ble.LogConsumer;
-import pro.dbro.ble.R;
 
 /**
  * A basic BLE Peripheral device discovered by centrals

@@ -9,8 +9,8 @@ import android.content.Context;
 import android.support.annotation.NonNull;
 
 import pro.dbro.ble.LogConsumer;
-import pro.dbro.ble.model.BLEMessage;
-import pro.dbro.ble.model.BLEPeer;
+import pro.dbro.ble.model.Message;
+import pro.dbro.ble.model.Peer;
 
 /**
  * A higher level class that manages advertising and scanning for
@@ -72,7 +72,7 @@ public class BLEMeshManager implements BLEComponentCallback {
         mClientCallback = cb;
     }
 
-    public void sendMessage(BLEPeer peer, BLEMessage outgoingMsg) {
+    public void sendMessage(Peer peer, Message outgoingMsg) {
         // Establish connection with peer
         // Send message to peer
     }
