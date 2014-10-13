@@ -16,4 +16,5 @@ public interface PeerTable {
     /** SQL type        Modifiers                   Reference Name            SQL Column Name */
     @DataType(INTEGER)  @PrimaryKey @AutoIncrement  String id               = "_id";
     @DataType(TEXT)     @NotNull                    String alias            = "alias";
+    @DataType(TEXT)     @NotNull                    String lastSeenDate     = "last_seen";
 }

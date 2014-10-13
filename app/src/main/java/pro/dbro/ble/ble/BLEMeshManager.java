@@ -37,23 +37,9 @@ public class BLEMeshManager implements BLEComponentCallback {
 
         SEARCHING,
 
-        /**
-         * One Central - Peripheral connection established
-        */
-        HALF_DUPLEX,
+        CONNECTED,
 
-        /** Two symmetrical Central - Peripheral connections established with single peer.
-         *  It is now possible for both devices to read each others Identity Characteristic
-        */
-        FULL_DUPLEX,
-
-        /**
-         * Local peer and remote peer have both completed read request on Identity Characteristic.
-         * It is now possible for both devices to read each others Message Characteristic.
-         * When syncing is complete return to {@link #SEARCHING}
-        */
-        SYNCING,
-
+        SYNCED,
     }
 
     // <editor-fold desc="Public API">
@@ -149,22 +135,22 @@ public class BLEMeshManager implements BLEComponentCallback {
             mConnectedToCentral = true;
             adjustStateForNewConnection();
             // Establish connection to centralPeer's peripheral
-            if (mState == BLEConnectionState.FULL_DUPLEX) {
-                // We already are connected to the other peer's peripheral
-                return;
-            }
+//            if (mState == BLEConnectionState.FULL_DUPLEX) {
+//                // We already are connected to the other peer's peripheral
+//                return;
+//            }
         }
         centralPeer.connectGatt(mContext, true, new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-                if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
-                    boolean result = gatt.readCharacteristic(GATT.MESSAGES_CHARACTERISTIC);
-                    if (result) {
-                        synchronized (mStateGuard) {
-                            changeState(BLEConnectionState.SYNCING);
-                        }
-                    }
-                }
+//                if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
+//                    boolean result = gatt.readCharacteristic(GATT.MESSAGES_CHARACTERISTIC);
+//                    if (result) {
+//                        synchronized (mStateGuard) {
+//                            changeState(BLEConnectionState.SYNCING);
+//                        }
+//                    }
+//                }
                 super.onConnectionStateChange(gatt, status, newState);
             }
 
@@ -182,17 +168,17 @@ public class BLEMeshManager implements BLEComponentCallback {
 
     private void adjustStateForNewConnection() {
         switch (mState) {
-            case SEARCHING:
-                changeState(BLEConnectionState.HALF_DUPLEX);
-                // TODO: Start timer. Tear down connection if not reciprocated
-                // in some interval
-                break;
-            case HALF_DUPLEX:
-                changeState(BLEConnectionState.FULL_DUPLEX);
-                break;
-            default:
-                // Ignore
-                logEvent("Got peripheral connection in invalid state " + mState);
+//            case SEARCHING:
+//                changeState(BLEConnectionState.HALF_DUPLEX);
+//                // TODO: Start timer. Tear down connection if not reciprocated
+//                // in some interval
+//                break;
+//            case HALF_DUPLEX:
+//                changeState(BLEConnectionState.FULL_DUPLEX);
+//                break;
+//            default:
+//                // Ignore
+//                logEvent("Got peripheral connection in invalid state " + mState);
         }
     }
 
