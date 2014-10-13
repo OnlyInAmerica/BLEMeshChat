@@ -11,7 +11,7 @@ import pro.dbro.ble.R;
 /**
  * Created by davidbrodsky on 10/12/14.
  */
-public class BleClientAdapter extends RecyclerView.Adapter<BleClientAdapter.ViewHolder> {
+public class BLEClientAdapter extends RecyclerView.Adapter<BLEClientAdapter.ViewHolder> {
     private String[] mDataset;
 
     // Provide a reference to the type of views that you are using
@@ -25,13 +25,13 @@ public class BleClientAdapter extends RecyclerView.Adapter<BleClientAdapter.View
     }
 
     // Provide a suitable constructor (depends on the kind of dataset)
-    public BleClientAdapter(String[] myDataset) {
+    public BLEClientAdapter(String[] myDataset) {
         mDataset = myDataset;
     }
 
     // Create new views (invoked by the layout manager)
     @Override
-    public BleClientAdapter.ViewHolder onCreateViewHolder(ViewGroup parent,
+    public BLEClientAdapter.ViewHolder onCreateViewHolder(ViewGroup parent,
                                                    int viewType) {
         // create a new view
         View v = LayoutInflater.from(parent.getContext())

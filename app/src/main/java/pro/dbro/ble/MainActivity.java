@@ -2,8 +2,6 @@ package pro.dbro.ble;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.CompoundButton;
@@ -12,7 +10,7 @@ import android.widget.ToggleButton;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
-import pro.dbro.ble.adapter.BleClientAdapter;
+import pro.dbro.ble.adapter.BLEClientAdapter;
 import pro.dbro.ble.ble.BLECentral;
 import pro.dbro.ble.ble.BLEPeripheral;
 
@@ -27,7 +25,7 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
 //    @InjectView(R.id.recyclerView)    RecyclerView mRecyclerView;
     @InjectView(R.id.log)             TextView mLog;
 
-    private BleClientAdapter mAdapter;
+    private BLEClientAdapter mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,7 +40,7 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
         mScanToggle.setOnCheckedChangeListener(this);
         mAdvertiseToggle.setOnCheckedChangeListener(this);
 
-        mAdapter = new BleClientAdapter(new String[] {"Device1", "Device2"});
+        mAdapter = new BLEClientAdapter(new String[] {"Device1", "Device2"});
 //        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 //        mRecyclerView.setAdapter(mAdapter);
     }

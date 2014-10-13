@@ -14,20 +14,16 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
+import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import pro.dbro.ble.LogConsumer;
 import pro.dbro.ble.R;
-import pro.dbro.ble.model.BLEMessage;
-import pro.dbro.ble.model.BLEPeer;
-import pro.dbro.ble.util.BleUtil;
-import pro.dbro.ble.util.BleUuid;
 
 /**
  * A basic BLE Central device that discovers peripherals
@@ -43,7 +39,7 @@ public class BLECentral {
     private ScanCallback mScanCallback;
     private BluetoothLeScanner mScanner;
     private LogConsumer mLogger;
-    private BLEMeshManager.BLEMeshManagerCallback mCallback;
+    private BLEComponentCallback mCallback;
 
     private boolean mIsScanning = false;
 
@@ -59,7 +55,7 @@ public class BLECentral {
         mLogger = consumer;
     }
 
-    public void setCallback(BLEMeshManager.BLEMeshManagerCallback cb) {
+    public void setComponentCallback(BLEComponentCallback cb) {
         mCallback = cb;
     }
 
@@ -80,13 +76,13 @@ public class BLECentral {
 
     private void init() {
         // BLE check
-        if (!BleUtil.isBLESupported(mContext)) {
+        if (!BLEUtil.isBLESupported(mContext)) {
             Toast.makeText(mContext, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
             return;
         }
 
         // BT check
-        BluetoothManager manager = BleUtil.getManager(mContext);
+        BluetoothManager manager = BLEUtil.getManager(mContext);
         if (manager != null) {
             mBTAdapter = manager.getAdapter();
         }
@@ -110,11 +106,10 @@ public class BLECentral {
 
 //                Only attempt one connection at a time
                 if (connected) return;
-                if (REPORT_NON_SUCCESSES) Log.i(TAG, "Got new advertisement before connection");
-                BluetoothGatt bleGatt = scanResult.getDevice().connectGatt(mContext, true, new BluetoothGattCallback() {
+//                if (REPORT_NON_SUCCESSES) Log.i(TAG, "Got new advertisement before connection");
+                final BluetoothGatt bleGatt = scanResult.getDevice().connectGatt(mContext, true, new BluetoothGattCallback() {
                     @Override
                     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-//                        final String TAG = "onConnectionStateChange";
 
                         if (status == BluetoothGatt.GATT_SUCCESS) {
 //                            Log.i(TAG, "status indicates GATT Connection Success!");
@@ -130,13 +125,17 @@ public class BLECentral {
                             case BluetoothProfile.STATE_CONNECTED:
                                 logEvent("newState indicates indicates GATT connected");
                                 connected = true;
+                                onSuccessfulConnection(gatt);
                                 break;
                         }
 
-                        boolean discovering = gatt.discoverServices();
-                        if (REPORT_NON_SUCCESSES || discovering)
-                            logEvent("Discovering services : " + discovering);
-                        UUID characteristicUUID = UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID);
+//                        if (!triedDiscoverServices) {
+//                            triedDiscoverServices = true;
+//                            boolean discovering = gatt.discoverServices();
+//                            if (REPORT_NON_SUCCESSES || discovering)
+//                                logEvent("Discovering services : " + discovering);
+//                        }
+//                        UUID characteristicUUID = UUID.fromString(BleUuid.IDENTITY_UUID);
 //                        boolean readResult = gatt.readCharacteristic(new BluetoothGattCharacteristic(characteristicUUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.));
 //                        if (REPORT_NON_SUCCESSES || readResult)
 //                            logEvent("Attempting to read characteristic " + readResult);
@@ -148,36 +147,25 @@ public class BLECentral {
                         boolean foundExpectedCharacteristic = false;
 //
                         List<BluetoothGattService> serviceList = gatt.getServices();
-//                        StringBuilder services = new StringBuilder();
                         for (BluetoothGattService service : serviceList) {
-//                            services.append("Service:\n ");
                             List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
                             for (BluetoothGattCharacteristic characteristic : characteristics) {
-//                                services.append(service.getUuid().toString());
-//                                services.append("\tCharacteristic:\n");
-//                                services.append("\t\t");
-//                                services.append(characteristic.getUuid());
-//                                services.append("\tProperties :\n");
-//                                services.append("\t\t");
-//                                services.append(characteristic.getProperties());
-                                if (characteristic.getUuid().toString().toLowerCase().equals(BleUuid.MESH_CHAT_CHARACTERISTIC_WRITABLE_UUID.toLowerCase())) {
-                                    Log.i(TAG, "Writable Characteristic UUID: " + characteristic.getUuid().toString() + " properties: " + characteristic.getProperties() + " permissions: " + characteristic.getPermissions());
-                                    characteristic.setValue("From Android with Love!");
-                                    gatt.writeCharacteristic(characteristic);
-                                    logEvent("Writing to write characteristic");
+                                if (characteristic.getUuid().equals(GATT.IDENTITY_UUID)) {
+                                    logEvent("Found Identity char");
                                 }
-                                if (characteristic.getUuid().toString().toLowerCase().equals(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID.toLowerCase())) {
-                                    Log.i(TAG, "Readable Characteristic UUID: " + characteristic.getUuid().toString() + " properties: " + characteristic.getProperties() + " permissions: " + characteristic.getPermissions());
+                                else if (characteristic.getUuid().equals(GATT.MESSAGES_UUID)) {
+                                    logEvent("Readable Characteristic UUID: " +
+                                            characteristic.getUuid().toString() +
+                                            " properties: " + characteristic.getProperties() +
+                                            " permissions: " + characteristic.getPermissions());
+
                                     foundExpectedCharacteristic = true;
-//                                    services.append("\tValue :\n");
-//                                    services.append("\t\t");
-//                                    services.append(characteristic.getValue());
-                                    gatt.readCharacteristic(characteristic);
+                                    boolean result = gatt.readCharacteristic(characteristic);
+                                    logEvent("Reading characteristic. Result: " + result);
+
                                 }
                             }
-//                            services.append("\n");
                         }
-//                        logEvent("Services Discovered " + services.toString());
                         if (foundExpectedCharacteristic)
                             logEvent("Found Characteristic. Requesting Read!");
                         super.onServicesDiscovered(gatt, status);
@@ -198,7 +186,15 @@ public class BLECentral {
 
                     @Override
                     public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-                        Log.i(TAG, "onCharacteristicChanged");
+                        String toLog = null;
+                        try {
+                            toLog = "onCharacteristicChanged value: " + characteristic.getStringValue(0);
+                        } catch (Exception e) {
+                            // whoops
+                            toLog = "onCharacteristicChanged uuid: " + characteristic.getUuid().toString();
+                        }
+                        logEvent(toLog);
+//                        Log.i(TAG, "onCharacteristicChanged");
                         super.onCharacteristicChanged(gatt, characteristic);
                     }
 
@@ -226,8 +222,6 @@ public class BLECentral {
                         super.onReadRemoteRssi(gatt, rssi, status);
                     }
                 });
-
-//                bleGatt.setCharacteristicNotification(new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID), 0, 0), true);
             }
 
             @Override
@@ -250,9 +244,7 @@ public class BLECentral {
 
     private static List<ScanFilter> createScanFilters() {
         ScanFilter.Builder builder = new ScanFilter.Builder();
-//        builder.setName("Test");
-//        builder.setServiceUuid(ParcelUuid.fromString(BleUuid.MESH_CHAT_SERVICE_UUID));
-//        builder.setName("BLEMeshChat");
+        builder.setServiceUuid(new ParcelUuid(GATT.SERVICE_UUID));
         ArrayList<ScanFilter> scanFilters = new ArrayList<>();
         scanFilters.add(builder.build());
         return scanFilters;
@@ -279,14 +271,13 @@ public class BLECentral {
         }
     }
 
-    private void notifyPeerAvailable(BLEPeer peer) {
+    /**
+     * Invoked by {@link BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
+     */
+    private void onSuccessfulConnection(BluetoothGatt gatt) {
         if (mCallback != null) {
-            mCallback.peerAvailable(peer);
+            mCallback.onConnectedToPeripheral(gatt);
         }
-    }
-
-    private void messageReceived(BLEMessage message) {
-
     }
 
     //</editor-fold>

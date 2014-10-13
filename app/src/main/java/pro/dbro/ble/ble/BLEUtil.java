@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package pro.dbro.ble.util;
+package pro.dbro.ble.ble;
 
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
@@ -22,9 +22,9 @@ import android.content.pm.PackageManager;
 /**
  * Util for Bluetooth Low Energy
  */
-public class BleUtil {
+public class BLEUtil {
 
-    private BleUtil() {
+    private BLEUtil() {
         // Util
     }
 

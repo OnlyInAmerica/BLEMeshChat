@@ -22,12 +22,9 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import pro.dbro.ble.LogConsumer;
 import pro.dbro.ble.R;
-import pro.dbro.ble.util.BleUtil;
-import pro.dbro.ble.util.BleUuid;
 
 /**
  * A basic BLE Peripheral device discovered by centrals
@@ -41,6 +38,7 @@ public class BLEPeripheral {
     private BluetoothAdapter mBTAdapter;
     private BluetoothLeAdvertiser mAdvertiser;
     private BluetoothGattServer mGattServer;
+    private BLEComponentCallback mCallback;
     private LogConsumer mLogger;
 
     private boolean mIsAdvertising = false;
@@ -77,6 +75,10 @@ public class BLEPeripheral {
         mLogger = consumer;
     }
 
+    public void setComponentCallback(BLEComponentCallback callback) {
+        mCallback = callback;
+    }
+
     public void start() {
         startAdvertising();
     }
@@ -95,26 +97,30 @@ public class BLEPeripheral {
 
     private void init() {
         // BLE check
-        if (!BleUtil.isBLESupported(mContext)) {
+        if (!BLEUtil.isBLESupported(mContext)) {
             Toast.makeText(mContext, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
             return;
         }
 
         // BT check
-        BluetoothManager manager = BleUtil.getManager(mContext);
+        BluetoothManager manager = BLEUtil.getManager(mContext);
         mGattServer = manager.openGattServer(mContext, new BluetoothGattServerCallback() {
             @Override
             public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
                 StringBuilder event = new StringBuilder();
                 if (newState == BluetoothProfile.STATE_DISCONNECTED)
                     event.append("Disconnected");
-                else if (newState == BluetoothProfile.STATE_CONNECTED)
+                else if (newState == BluetoothProfile.STATE_CONNECTED) {
                     event.append("Connected");
+                }
 
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     event.append(" Successfully to ");
                     event.append(device.getAddress());
                     logEvent("Peripheral " + event.toString());
+                    if (newState == BluetoothProfile.STATE_CONNECTED) {
+                        onSuccessfulConnection(device);
+                    }
                 }
 
 //                Log.i("onConnectionStateChange", event.toString());
@@ -129,7 +135,7 @@ public class BLEPeripheral {
 
             @Override
             public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
-                BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(UUID.fromString(BleUuid.MESH_CHAT_SERVICE_UUID)).getCharacteristic(characteristic.getUuid());
+                BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
                     logEvent("Recognized CharacteristicReadRequest. Sending response " + localCharacteristic.getStringValue(0));
                     mGattServer.sendResponse(device, requestId, 0, 0, characteristic.getValue());
@@ -165,15 +171,13 @@ public class BLEPeripheral {
             }
         });
 
-        BluetoothGattService chatService = new BluetoothGattService(UUID.fromString(BleUuid.MESH_CHAT_SERVICE_UUID), BluetoothGattService.SERVICE_TYPE_PRIMARY);
+        BluetoothGattService chatService = new BluetoothGattService(GATT.SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
-        BluetoothGattCharacteristic readCharacteristic = new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_READABLE_UUID), BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
-        readCharacteristic.setValue("Readme");
-        chatService.addCharacteristic(readCharacteristic);
+        BluetoothGattCharacteristic identity = new BluetoothGattCharacteristic(GATT.IDENTITY_UUID, BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
+        chatService.addCharacteristic(identity);
 
-        BluetoothGattCharacteristic writeCharacteristic = new BluetoothGattCharacteristic(UUID.fromString(BleUuid.MESH_CHAT_CHARACTERISTIC_WRITABLE_UUID), BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_WRITE | BluetoothGattCharacteristic.PERMISSION_READ);
-        writeCharacteristic.setValue("Writeme");
-        chatService.addCharacteristic(writeCharacteristic);
+        BluetoothGattCharacteristic messages = new BluetoothGattCharacteristic(GATT.MESSAGES_UUID, BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
+        chatService.addCharacteristic(messages);
 
         mGattServer.addService(chatService);
 
@@ -231,7 +235,7 @@ public class BLEPeripheral {
         //      C6B2F38C-23AB-46D8-A6AB-A3A870BBD5D7
 
         List<ParcelUuid> uuidList = new ArrayList<ParcelUuid>();
-        uuidList.add(ParcelUuid.fromString(BleUuid.MESH_CHAT_SERVICE_UUID));
+        uuidList.add(new ParcelUuid(GATT.SERVICE_UUID));
 //        uuidList.add(ParcelUuid.fromString("D0611E78-BBB4-4591-A5F8-487910AE4366"));
 //        uuidList.add(ParcelUuid.fromString("7905F431-B5CE-4E99-A40F-4B1E122D00D0"));
 //        uuidList.add(ParcelUuid.fromString("217D750E-7B58-4152-A1EB-F2711BB38350"));
@@ -263,9 +267,10 @@ public class BLEPeripheral {
         }
     }
 
-    private BluetoothGattCharacteristic getLocalCharacteristicForRequestedCharacteristic(BluetoothGattCharacteristic requestedCharacteristic) {
-        BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(UUID.fromString(BleUuid.MESH_CHAT_SERVICE_UUID)).getCharacteristic(requestedCharacteristic.getUuid());
-        return localCharacteristic;
+    private void onSuccessfulConnection(BluetoothDevice central) {
+        if (mCallback != null) {
+            mCallback.onConnectedToCentral(central);
+        }
     }
 
     // </editor-fold>
