@@ -26,12 +26,14 @@ public class GATT {
     public static final UUID SERVICE_UUID = UUID.fromString("96F22BCA-F08C-43F9-BF7D-EEBC579C94D2");
 
     /** Characteristic */
-    public static final UUID IDENTITY_UUID = UUID.fromString("21C7DE8E-B0D0-4A41-9B22-78221277E2AA");
-    public static final UUID MESSAGES_UUID = UUID.fromString("A109B433-96A0-463A-A070-542C5A15E177");
+    public static final UUID IDENTITY_READ_UUID = UUID.fromString("21C7DE8E-B0D0-4A41-9B22-78221277E2AA");
+    public static final UUID IDENTITY_WRITE_UUID = UUID.fromString("00E12465-2E2F-4C6B-9FD2-E84A8A088C68");
+    public static final UUID MESSAGES_READ_UUID = UUID.fromString("A109B433-96A0-463A-A070-542C5A15E177");
+    public static final UUID MESSAGES_WRITE_UUID = UUID.fromString("6EAEC220-5EB0-4181-8858-D40E1EE072F6");
 
     public static final BluetoothGattCharacteristic IDENTITY_CHARACTERISTIC =
-            new BluetoothGattCharacteristic(IDENTITY_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            new BluetoothGattCharacteristic(IDENTITY_READ_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
 
     public static final BluetoothGattCharacteristic MESSAGES_CHARACTERISTIC =
-            new BluetoothGattCharacteristic(IDENTITY_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            new BluetoothGattCharacteristic(MESSAGES_READ_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
 }

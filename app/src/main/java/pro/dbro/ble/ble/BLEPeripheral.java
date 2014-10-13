@@ -20,6 +20,7 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -98,11 +99,37 @@ public class BLEPeripheral {
     private void init() {
         // BLE check
         if (!BLEUtil.isBLESupported(mContext)) {
-            Toast.makeText(mContext, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
+            logEvent("Bluetooth not supported.");
+            return;
+        }
+        BluetoothManager manager = BLEUtil.getManager(mContext);
+        if (manager != null) {
+            mBTAdapter = manager.getAdapter();
+        }
+        if (mBTAdapter == null) {
+            logEvent("Bluetooth unavailble.");
             return;
         }
 
-        // BT check
+    }
+
+    private void startAdvertising() {
+        if ((mBTAdapter != null) && (!mIsAdvertising)) {
+            if (mAdvertiser == null) {
+                mAdvertiser = mBTAdapter.getBluetoothLeAdvertiser();
+            }
+            logEvent("Starting GATT server");
+            startGattServer();
+            mAdvertiser.startAdvertising(createAdvSettings(), createAdvData(), mAdvCallback);
+        } else {
+            if (mIsAdvertising)
+                logEvent("Start Advertising called while advertising already in progress");
+            else
+                logEvent("Start Advertising WTF error");
+        }
+    }
+
+    private void startGattServer() {
         BluetoothManager manager = BLEUtil.getManager(mContext);
         mGattServer = manager.openGattServer(mContext, new BluetoothGattServerCallback() {
             @Override
@@ -137,8 +164,20 @@ public class BLEPeripheral {
             public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
-                    logEvent("Recognized CharacteristicReadRequest. Sending response " + localCharacteristic.getStringValue(0));
-                    mGattServer.sendResponse(device, requestId, 0, 0, characteristic.getValue());
+                    String responseData = "";
+                    if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
+                        responseData = "msg-r-ack";
+                    }
+                    else if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
+                        responseData = "id-r-ack";
+                    }
+                    try {
+                        logEvent("Recognized CharacteristicReadRequest. Sending response " + responseData);
+                        mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, responseData.getBytes("UTF-8"));
+                    } catch (UnsupportedEncodingException e) {
+                        mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
+                        e.printStackTrace();
+                    }
                 } else {
                     logEvent("CharacteristicReadRequest. Unrecognized characteristic " + characteristic.getUuid().toString());
                 }
@@ -147,7 +186,20 @@ public class BLEPeripheral {
 
             @Override
             public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
-                logEvent("CharacteristicWriteRequest " + characteristic.toString());
+                try {
+                    String responseData = "";
+                    if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
+                        responseData = "msg-w-ack";
+                    }
+                    else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
+                        responseData = "id-w-ack";
+                    }
+                    mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, responseData.getBytes("UTF-8"));
+                    logEvent(String.format("Received Write to %s with data: %s ", characteristic.getUuid().toString(), responseData));
+                } catch (UnsupportedEncodingException e) {
+                    logEvent("CharacteristicWriteRequest. Unable to decode data" );
+                    e.printStackTrace();
+                }
                 super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
             }
 
@@ -173,31 +225,17 @@ public class BLEPeripheral {
 
         BluetoothGattService chatService = new BluetoothGattService(GATT.SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
-        BluetoothGattCharacteristic identity = new BluetoothGattCharacteristic(GATT.IDENTITY_UUID, BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
-        chatService.addCharacteristic(identity);
+        BluetoothGattCharacteristic identityRead = new BluetoothGattCharacteristic(GATT.IDENTITY_READ_UUID, BluetoothGattCharacteristic.PROPERTY_INDICATE | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+        BluetoothGattCharacteristic identityWrite = new BluetoothGattCharacteristic(GATT.IDENTITY_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
+        chatService.addCharacteristic(identityRead);
+        chatService.addCharacteristic(identityWrite);
 
-        BluetoothGattCharacteristic messages = new BluetoothGattCharacteristic(GATT.MESSAGES_UUID, BluetoothGattCharacteristic.FORMAT_UINT8, BluetoothGattCharacteristic.PERMISSION_READ);
-        chatService.addCharacteristic(messages);
+        BluetoothGattCharacteristic messagesRead = new BluetoothGattCharacteristic(GATT.MESSAGES_READ_UUID, BluetoothGattCharacteristic.PROPERTY_INDICATE | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+        BluetoothGattCharacteristic messagesWrite = new BluetoothGattCharacteristic(GATT.IDENTITY_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
+        chatService.addCharacteristic(messagesRead);
+        chatService.addCharacteristic(messagesWrite);
 
         mGattServer.addService(chatService);
-
-        if (manager != null) {
-            mBTAdapter = manager.getAdapter();
-        }
-        if (mBTAdapter == null) {
-            Toast.makeText(mContext, R.string.bt_unavailable, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-    }
-
-    private void startAdvertising() {
-        if ((mBTAdapter != null) && (!mIsAdvertising)) {
-            if (mAdvertiser == null) {
-                mAdvertiser = mBTAdapter.getBluetoothLeAdvertiser();
-            }
-            mAdvertiser.startAdvertising(createAdvSettings(), createAdvData(), mAdvCallback);
-        }
     }
 
     private static AdvertisementData createAdvData() {

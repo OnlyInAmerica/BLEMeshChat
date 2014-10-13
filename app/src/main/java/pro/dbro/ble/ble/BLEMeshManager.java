@@ -131,8 +131,10 @@ public class BLEMeshManager implements BLEComponentCallback {
             // ignore
             return;
         }
-        mConnectedToPeripheral = true;
-        adjustStateForNewConnection();
+        synchronized (mStateGuard) {
+            mConnectedToPeripheral = true;
+            adjustStateForNewConnection();
+        }
         // Read Identity Characteristic
         peripheralPeer.readCharacteristic(GATT.IDENTITY_CHARACTERISTIC);
     }
@@ -143,20 +145,25 @@ public class BLEMeshManager implements BLEComponentCallback {
             // ignore;
             return;
         }
-        mConnectedToCentral = true;
-        adjustStateForNewConnection();
-        // Establish connection to centralPeer's peripheral
-        if (mState == BLEConnectionState.FULL_DUPLEX) {
-            // We already are connected to the other peer's peripheral
-            return;
+        synchronized (mStateGuard) {
+            mConnectedToCentral = true;
+            adjustStateForNewConnection();
+            // Establish connection to centralPeer's peripheral
+            if (mState == BLEConnectionState.FULL_DUPLEX) {
+                // We already are connected to the other peer's peripheral
+                return;
+            }
         }
         centralPeer.connectGatt(mContext, true, new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                 if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
                     boolean result = gatt.readCharacteristic(GATT.MESSAGES_CHARACTERISTIC);
-                    if (result)
-                        changeState(BLEConnectionState.SYNCING);
+                    if (result) {
+                        synchronized (mStateGuard) {
+                            changeState(BLEConnectionState.SYNCING);
+                        }
+                    }
                 }
                 super.onConnectionStateChange(gatt, status, newState);
             }
@@ -190,9 +197,7 @@ public class BLEMeshManager implements BLEComponentCallback {
     }
 
     private void changeState(BLEConnectionState newState) {
-        synchronized (mStateGuard) {
             mState = newState;
-        }
     }
 
     // </editor-fold desc="Private API">
