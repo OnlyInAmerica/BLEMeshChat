@@ -26,6 +26,7 @@ android {
 }
 
 dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
     apt 'net.simonvt.schematic:schematic-compiler:0.5.1'
     compile 'net.simonvt.schematic:schematic:0.5.3'
     compile 'com.android.support:support-annotations:20.0.0'

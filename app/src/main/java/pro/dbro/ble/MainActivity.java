@@ -2,11 +2,17 @@ package pro.dbro.ble;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.ToggleButton;
+
+import org.abstractj.kalium.NaCl;
+import org.abstractj.kalium.Sodium;
+
+import java.io.UnsupportedEncodingException;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
@@ -20,10 +26,13 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
     BLECentral mScanner;
     BLEPeripheral mAdvertiser;
 
-    @InjectView(R.id.scanToggle)      ToggleButton mScanToggle;
-    @InjectView(R.id.advertiseToggle) ToggleButton mAdvertiseToggle;
-//    @InjectView(R.id.recyclerView)    RecyclerView mRecyclerView;
-    @InjectView(R.id.log)             TextView mLog;
+    @InjectView(R.id.scanToggle)
+    ToggleButton mScanToggle;
+    @InjectView(R.id.advertiseToggle)
+    ToggleButton mAdvertiseToggle;
+    //    @InjectView(R.id.recyclerView)    RecyclerView mRecyclerView;
+    @InjectView(R.id.log)
+    TextView mLog;
 //    @InjectView(R.id.textEntry)       EditText mEntry;
 
     private BLEClientAdapter mAdapter;
@@ -41,7 +50,7 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
         mScanToggle.setOnCheckedChangeListener(this);
         mAdvertiseToggle.setOnCheckedChangeListener(this);
 
-        mAdapter = new BLEClientAdapter(new String[] {"Device1", "Device2"});
+        mAdapter = new BLEClientAdapter(new String[]{"Device1", "Device2"});
 //        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 //        mRecyclerView.setAdapter(mAdapter);
 
@@ -51,6 +60,45 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
 //                mScanner.send
 //            }
 //        });
+
+        try {
+            NaCl.sodium();
+
+            final int crypto_sign_PUBLICKEYBYTES = 32;
+            final int crypto_sign_SECRETKEYBYTES = 64;
+            final int crypto_sign_BYTES = 64;
+
+            String message = "test";
+
+            byte[] pk = new byte[crypto_sign_PUBLICKEYBYTES];
+            byte[] sk = new byte[crypto_sign_SECRETKEYBYTES];
+
+            Sodium.crypto_sign_ed25519_keypair(pk, sk);
+
+            byte[] sealed_message = new byte[crypto_sign_BYTES + message.length()];
+
+            int[] sealed_message_len = new int[0];
+            Sodium.crypto_sign_ed25519(sealed_message, sealed_message_len,
+                    message.getBytes("UTF-8"), message.length(), sk);
+
+            // Verify signature
+
+            byte[] unsealed_message = new byte[message.length()];
+            int[] message_length = new int[0];
+            if (Sodium.crypto_sign_ed25519_open(unsealed_message,
+                                        message_length,
+                                        sealed_message,
+                                        sealed_message.length, pk) != 0) {
+                Log.i("SODIUM", "BAD TIMES");
+            } else {
+                String result = new String(unsealed_message, "UTF-8");
+                Log.i("SODIUM", "Unsealed message " + result);
+            }
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
     }
 
 
@@ -90,15 +138,12 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
 
     @Override
     public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
-        if (compoundButton == mScanToggle)
-        {
+        if (compoundButton == mScanToggle) {
             if (checked)
                 mScanner.start();
             else
                 mScanner.stop();
-        }
-        else if (compoundButton == mAdvertiseToggle)
-        {
+        } else if (compoundButton == mAdvertiseToggle) {
             if (checked)
                 mAdvertiser.start();
             else
