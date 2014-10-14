@@ -17,4 +17,6 @@ public interface PeerTable {
     @DataType(INTEGER)  @PrimaryKey @AutoIncrement  String id               = "_id";
     @DataType(TEXT)     @NotNull                    String alias            = "alias";
     @DataType(TEXT)     @NotNull                    String lastSeenDate     = "last_seen";
+    @DataType(TEXT)     @NotNull                    String pubKey           = "pk";
+    @DataType(TEXT)     @NotNull                    String secKey           = "sk";
 }

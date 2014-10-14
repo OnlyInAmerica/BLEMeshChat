@@ -14,5 +14,8 @@
     <string name="start_advertising">Start Advertising</string>
     <string name="clear_logs">Clear logs</string>
     <string name="text_entry_hint">Message to Send</string>
+    <string name="dialog_welcome_greeting">Hello! Who are you?</string>
+    <string name="dialog_welcome_user_alias_hint">Blormfpk</string>
+    <string name="dialog_ok">Ok</string>
 
 </resources>

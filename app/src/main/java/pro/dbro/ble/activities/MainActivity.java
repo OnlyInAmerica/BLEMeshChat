@@ -1,24 +1,22 @@
-package pro.dbro.ble;
+package pro.dbro.ble.activities;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
-import org.abstractj.kalium.NaCl;
-import org.abstractj.kalium.Sodium;
-
-import java.io.UnsupportedEncodingException;
-
 import butterknife.ButterKnife;
 import butterknife.InjectView;
+import pro.dbro.ble.ChatApp;
+import pro.dbro.ble.LogConsumer;
+import pro.dbro.ble.R;
 import pro.dbro.ble.adapter.BLEClientAdapter;
 import pro.dbro.ble.ble.BLECentral;
 import pro.dbro.ble.ble.BLEPeripheral;
+import pro.dbro.ble.model.Peer;
 
 
 public class MainActivity extends Activity implements CompoundButton.OnCheckedChangeListener, LogConsumer {
@@ -61,44 +59,10 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
 //            }
 //        });
 
-        try {
-            NaCl.sodium();
-
-            final int crypto_sign_PUBLICKEYBYTES = 32;
-            final int crypto_sign_SECRETKEYBYTES = 64;
-            final int crypto_sign_BYTES = 64;
-
-            String message = "test";
-
-            byte[] pk = new byte[crypto_sign_PUBLICKEYBYTES];
-            byte[] sk = new byte[crypto_sign_SECRETKEYBYTES];
-
-            Sodium.crypto_sign_ed25519_keypair(pk, sk);
-
-            byte[] sealed_message = new byte[crypto_sign_BYTES + message.length()];
-
-            int[] sealed_message_len = new int[0];
-            Sodium.crypto_sign_ed25519(sealed_message, sealed_message_len,
-                    message.getBytes("UTF-8"), message.length(), sk);
-
-            // Verify signature
-
-            byte[] unsealed_message = new byte[message.length()];
-            int[] message_length = new int[0];
-            if (Sodium.crypto_sign_ed25519_open(unsealed_message,
-                                        message_length,
-                                        sealed_message,
-                                        sealed_message.length, pk) != 0) {
-                Log.i("SODIUM", "BAD TIMES");
-            } else {
-                String result = new String(unsealed_message, "UTF-8");
-                Log.i("SODIUM", "Unsealed message " + result);
-            }
-
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+        Peer self = ChatApp.getPrimaryIdentity(this);
+        if (self == null) {
+            Util.showWelcomeDialog(this);
         }
-
     }
 
 

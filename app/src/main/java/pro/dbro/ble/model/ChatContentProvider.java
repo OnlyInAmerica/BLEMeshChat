@@ -12,10 +12,10 @@ import net.simonvt.schematic.annotation.TableEndpoint;
  *
  * Created by davidbrodsky on 7/28/14.
  */
-@ContentProvider(authority = PeerContentProvider.AUTHORITY, database = PeerDatabase.class)
-public final class PeerContentProvider {
+@ContentProvider(authority = ChatContentProvider.AUTHORITY, database = PeerDatabase.class)
+public final class ChatContentProvider {
 
-    public static final String AUTHORITY      = "pro.dbro.ble.peercontentprovider";
+    public static final String AUTHORITY      = "pro.dbro.ble.chatprovider";
     private static final Uri BASE_CONTENT_URI = Uri.parse("content://" + AUTHORITY);
 
     private static Uri buildUri(String... paths) {

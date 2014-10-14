@@ -12,13 +12,13 @@
         android:theme="@style/AppTheme" >
 
         <provider
-            android:name=".schematic.PeerContentProvider"
-            android:authorities="com.gaiagps.iburn.playacontentprovider"
+            android:name=".schematic.ChatContentProvider"
+            android:authorities="pro.dbro.ble.chatprovider"
             android:exported="false" >
         </provider>
 
         <activity
-            android:name=".MainActivity"
+            android:name=".activities.MainActivity"
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
