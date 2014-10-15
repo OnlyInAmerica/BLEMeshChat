@@ -1,6 +1,6 @@
 ![BLEMeshChat!](http://i.imgur.com/d79rzMm.jpg)
 
-# Android <-> iOS BLE Mesh Chat - Android Client
+# BLE Mesh Chat (Android client)
 
 An experiment in pleasant decentralized messaging that works across iOS and Android.
 
