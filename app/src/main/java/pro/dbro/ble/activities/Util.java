@@ -11,16 +11,15 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import pro.dbro.ble.ChatApp;
+import pro.dbro.ble.chat.ChatApp;
 import pro.dbro.ble.R;
-import pro.dbro.ble.crypto.Identity;
 
 /**
  * Created by davidbrodsky on 10/13/14.
  */
 public class Util {
 
-    public static void showWelcomeDialog(@NonNull final Context context) {
+    public static void showWelcomeDialog(@NonNull final Context context, DialogInterface.OnDismissListener dismissListener) {
         View dialogView = ((LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE))
                             .inflate(R.layout.dialog_welcome, null);
         final EditText aliasEntry = ((EditText) dialogView.findViewById(R.id.aliasEntry));
@@ -36,6 +35,7 @@ public class Util {
                 })
                 .show();
         final Dialog alertDialog = builder.create();
+        alertDialog.setOnDismissListener(dismissListener);
         aliasEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {

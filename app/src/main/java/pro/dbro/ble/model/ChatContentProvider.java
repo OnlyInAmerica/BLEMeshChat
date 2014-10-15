@@ -31,7 +31,7 @@ public final class ChatContentProvider {
     @TableEndpoint(table = PeerDatabase.PEERS)
     public static class Peers {
 
-        private static final String ENDPOINT = "art";
+        private static final String ENDPOINT = "peers";
 
         @ContentUri(
                 path = ENDPOINT,

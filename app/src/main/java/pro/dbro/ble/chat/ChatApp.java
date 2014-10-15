@@ -1,4 +1,4 @@
-package pro.dbro.ble;
+package pro.dbro.ble.chat;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -50,5 +50,13 @@ public class ChatApp {
 
         Uri newIdentityUri = context.getContentResolver().insert(ChatContentProvider.Peers.PEERS, newIdentity);
         return Integer.parseInt(newIdentityUri.getLastPathSegment());
+    }
+
+    public static byte[] getPrimaryIdentityResponse(@NonNull Context context) {
+        Peer primaryIdentity = getPrimaryIdentity(context);
+
+        if (primaryIdentity == null) throw new IllegalStateException("No primary Identity");
+
+        return ChatProtocol.makeIdentityResponse(primaryIdentity.getKeyPair());
     }
 }

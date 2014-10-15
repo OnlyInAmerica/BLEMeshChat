@@ -1,6 +1,7 @@
 package pro.dbro.ble.model;
 
 import android.content.Context;
+import android.database.ContentObserver;
 import android.database.Cursor;
 import android.support.annotation.NonNull;
 

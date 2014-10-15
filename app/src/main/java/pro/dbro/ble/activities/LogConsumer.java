@@ -1,4 +1,4 @@
-package pro.dbro.ble;
+package pro.dbro.ble.activities;
 
 /**
  * Created by davidbrodsky on 10/11/14.

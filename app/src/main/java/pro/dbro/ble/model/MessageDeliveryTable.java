@@ -9,14 +9,13 @@ import static net.simonvt.schematic.annotation.DataType.Type.INTEGER;
 import static net.simonvt.schematic.annotation.DataType.Type.TEXT;
 
 /**
+ * Used to avoid sending a single messages to a particular client multiple times
+ *
  * Created by davidbrodsky on 7/28/14.
  */
-public interface MessageTable {
+public interface MessageDeliveryTable {
 
     /** SQL type        Modifiers                   Reference Name            SQL Column Name */
-    @DataType(INTEGER)  @PrimaryKey @AutoIncrement  String id               = "_id";
-    @DataType(TEXT)     @NotNull                    String body             = "body";
-    @DataType(INTEGER)                              String peerId           = "p_id";
-    @DataType(TEXT)                                 String receivedDate     = "date";
-    @DataType(TEXT)                                 String signature        = "sig";
+    @DataType(INTEGER)  @PrimaryKey @AutoIncrement  String messageId           = "m_id";
+    @DataType(INTEGER)  @NotNull                    String peerId              = "p_id";
 }

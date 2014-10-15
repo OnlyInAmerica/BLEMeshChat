@@ -22,7 +22,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 
-import pro.dbro.ble.LogConsumer;
+import pro.dbro.ble.activities.LogConsumer;
 import pro.dbro.ble.R;
 
 /**
@@ -39,7 +39,6 @@ public class BLECentral {
     private ScanCallback mScanCallback;
     private BluetoothLeScanner mScanner;
     private LogConsumer mLogger;
-    private BLEComponentCallback mCallback;
 
     private boolean mIsScanning = false;
 
@@ -48,15 +47,10 @@ public class BLECentral {
     public BLECentral(@NonNull Context context) {
         mContext = context;
         init();
-        setScanCallback();
     }
 
     public void setLogConsumer(LogConsumer consumer) {
         mLogger = consumer;
-    }
-
-    public void setComponentCallback(BLEComponentCallback cb) {
-        mCallback = cb;
     }
 
     public void start() {
@@ -93,7 +87,11 @@ public class BLECentral {
 
     }
 
-    private void setScanCallback() {
+    public void setScanCallback(ScanCallback callback) {
+        if (callback != null) {
+            mScanCallback = callback;
+            return;
+        }
         mScanCallback = new ScanCallback() {
             final String TAG = "ScanCallback";
 
@@ -132,7 +130,6 @@ public class BLECentral {
                             case BluetoothProfile.STATE_CONNECTED:
                                 logEvent("newState indicates indicates GATT connected");
                                 connected = true;
-                                onSuccessfulConnection(gatt);
                                 boolean discovering = gatt.discoverServices();
                                 logEvent("Discovering services : " + discovering);
                                 break;
@@ -284,6 +281,8 @@ public class BLECentral {
             if (mScanner == null) {
                 mScanner = mBTAdapter.getBluetoothLeScanner();
             }
+            if (mScanCallback == null) setScanCallback(null);
+
             mScanner.startScan(createScanFilters(), createScanSettings(), mScanCallback);
             Toast.makeText(mContext, mContext.getString(R.string.scan_started), Toast.LENGTH_SHORT).show();
         }
@@ -317,16 +316,6 @@ public class BLECentral {
             mLogger.onLogEvent(event);
         }
     }
-
-    /**
-     * Invoked by {@link BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
-     */
-    private void onSuccessfulConnection(BluetoothGatt gatt) {
-        if (mCallback != null) {
-            mCallback.onConnectedToPeripheral(gatt);
-        }
-    }
-
 
     //</editor-fold>
 }

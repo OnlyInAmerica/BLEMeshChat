@@ -16,7 +16,7 @@ public class Identity {
 
     private static final int crypto_sign_PUBLICKEYBYTES = 32;
     private static final int crypto_sign_SECRETKEYBYTES = 64;
-    private static final int crypto_sign_BYTES = 64;
+    public static final int crypto_sign_BYTES = 64;
 
     static {
         // Load native libraries
@@ -24,22 +24,9 @@ public class Identity {
     }
 
     public static KeyPair generateKeyPairForAlias(@NonNull String alias) {
-        final int crypto_sign_PUBLICKEYBYTES = 32;
-        final int crypto_sign_SECRETKEYBYTES = 64;
-        final int crypto_sign_BYTES = 64;
-
-        String message = "test";
-
         byte[] pk = new byte[crypto_sign_PUBLICKEYBYTES];
         byte[] sk = new byte[crypto_sign_SECRETKEYBYTES];
 
-        // On Identity Read:
-        // [name][sig][pub]
-        // [20]  [64] [32]
-
-        // Message Read/Write:
-        //[body][sigbody][pub]
-        //[140] [64]     [32]
         Sodium.crypto_sign_ed25519_keypair(pk, sk);
         return new KeyPair(sk, pk, alias);
     }

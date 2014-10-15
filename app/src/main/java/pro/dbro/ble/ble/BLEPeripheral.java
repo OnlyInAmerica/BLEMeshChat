@@ -23,7 +23,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
-import pro.dbro.ble.LogConsumer;
+import pro.dbro.ble.activities.LogConsumer;
 
 /**
  * A basic BLE Peripheral device discovered by centrals
@@ -37,7 +37,7 @@ public class BLEPeripheral {
     private BluetoothAdapter mBTAdapter;
     private BluetoothLeAdvertiser mAdvertiser;
     private BluetoothGattServer mGattServer;
-    private BLEComponentCallback mCallback;
+    private BluetoothGattServerCallback mGattCallback;
     private LogConsumer mLogger;
 
     private boolean mIsAdvertising = false;
@@ -74,8 +74,8 @@ public class BLEPeripheral {
         mLogger = consumer;
     }
 
-    public void setComponentCallback(BLEComponentCallback callback) {
-        mCallback = callback;
+    public void setGattCallback(BluetoothGattServerCallback callback) {
+        mGattCallback = callback;
     }
 
     public void start() {
@@ -88,6 +88,10 @@ public class BLEPeripheral {
 
     public boolean isAdvertising() {
         return mIsAdvertising;
+    }
+
+    public BluetoothGattServer getGattServer() {
+        return mGattServer;
     }
 
     // </editor-fold>
@@ -129,7 +133,8 @@ public class BLEPeripheral {
 
     private void startGattServer() {
         BluetoothManager manager = BLEUtil.getManager(mContext);
-        mGattServer = manager.openGattServer(mContext, new BluetoothGattServerCallback() {
+        if (mGattCallback == null)
+            mGattCallback = new BluetoothGattServerCallback() {
             @Override
             public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
                 StringBuilder event = new StringBuilder();
@@ -144,7 +149,6 @@ public class BLEPeripheral {
                     event.append(device.getAddress());
                     logEvent("Peripheral " + event.toString());
                     if (newState == BluetoothProfile.STATE_CONNECTED) {
-                        onSuccessfulConnection(device);
                     }
                 }
 
@@ -219,7 +223,9 @@ public class BLEPeripheral {
 //                Log.i("onExecuteWrite", device.toString());
                 super.onExecuteWrite(device, requestId, execute);
             }
-        });
+        };
+
+        mGattServer = manager.openGattServer(mContext, mGattCallback);
 
         BluetoothGattService chatService = new BluetoothGattService(GATT.SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
@@ -300,12 +306,6 @@ public class BLEPeripheral {
     private void logEvent(String event) {
         if (mLogger != null) {
             mLogger.onLogEvent(event);
-        }
-    }
-
-    private void onSuccessfulConnection(BluetoothDevice central) {
-        if (mCallback != null) {
-            mCallback.onConnectedToCentral(central);
         }
     }
 

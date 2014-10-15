@@ -4,11 +4,19 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.support.annotation.NonNull;
+import android.util.Log;
 
-import pro.dbro.ble.LogConsumer;
+import java.io.UnsupportedEncodingException;
+import java.util.concurrent.ConcurrentHashMap;
+
+import pro.dbro.ble.activities.LogConsumer;
+import pro.dbro.ble.chat.ChatApp;
 import pro.dbro.ble.model.Message;
 import pro.dbro.ble.model.Peer;
 
@@ -18,9 +26,10 @@ import pro.dbro.ble.model.Peer;
  *
  * Created by davidbrodsky on 10/12/14.
  */
-public class BLEMeshManager implements BLEComponentCallback {
+public class BLEMeshManager {
 
     private Context mContext;
+    private Peer mUser;
     private BLECentral mCentral;
     private BLEPeripheral mPeripheral;
     private BLEManagerCallback mClientCallback;
@@ -44,8 +53,9 @@ public class BLEMeshManager implements BLEComponentCallback {
 
     // <editor-fold desc="Public API">
 
-    public BLEMeshManager(@NonNull Context context) {
+    public BLEMeshManager(@NonNull Context context, @NonNull Peer user) {
         mContext = context;
+        mUser = user;
         init();
         startBleServices();
     }
@@ -76,9 +86,9 @@ public class BLEMeshManager implements BLEComponentCallback {
         mConnectedToPeripheral = false;
 
         mCentral = new BLECentral(mContext);
-        mCentral.setComponentCallback(this);
+        mCentral.setScanCallback(mCentralScanCallback);
         mPeripheral = new BLEPeripheral(mContext);
-        mPeripheral.setComponentCallback(this);
+        mPeripheral.setGattCallback(mPeripheralGattCallback);
 
         changeState(BLEConnectionState.DISABLED);
     }
@@ -111,7 +121,6 @@ public class BLEMeshManager implements BLEComponentCallback {
 
     // <editor-fold desc="MeshCallback">
 
-    @Override
     public void onConnectedToPeripheral(BluetoothGatt peripheralPeer) {
         if (mConnectedToPeripheral) {
             // ignore
@@ -125,7 +134,6 @@ public class BLEMeshManager implements BLEComponentCallback {
         peripheralPeer.readCharacteristic(GATT.IDENTITY_CHARACTERISTIC);
     }
 
-    @Override
     public void onConnectedToCentral(BluetoothDevice centralPeer) {
         if (mConnectedToCentral) {
             // ignore;
@@ -185,6 +193,127 @@ public class BLEMeshManager implements BLEComponentCallback {
     private void changeState(BLEConnectionState newState) {
             mState = newState;
     }
+
+    /** The sequence of actions that describe a complete pairing
+     *  Note it is up to the other device to read this device's id */
+    public enum PAIR_SEQUENCE { READ_ID, READ_MESSAGES, WRITE_MESSAGES }
+
+    /** Addresses which are currently connected mapped to BluetoothGatts */
+    private ConcurrentHashMap<String, BluetoothGatt> mAddressesConnectedTo = new ConcurrentHashMap<>();
+    /** Peers which are currently connected mapped to BluetoothGatts */
+    private ConcurrentHashMap<Peer, BluetoothGatt> mPeersToAddresses = new ConcurrentHashMap<>();
+
+    /** Central Callbacks */
+    private ScanCallback mCentralScanCallback = new ScanCallback() {
+        @Override
+        public void onAdvertisementUpdate(ScanResult scanResult) {
+            if (!mAddressesConnectedTo.contains(scanResult.getDevice().getAddress())) {
+                scanResult.getDevice().connectGatt(mContext, false, mCentralGattCallback);
+            }
+        }
+
+        @Override
+        public void onScanFailed(int status) {
+            logEvent("Scan failed with status " + status);
+        }
+    };
+
+    private BluetoothGattCallback mCentralGattCallback = new BluetoothGattCallback() {
+        public static final String TAG = "BluetoothGattCallback";
+        @Override
+        public void onConnectionStateChange(BluetoothGatt remotePeripheral, int status, int newState) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                logEvent("status indicates GATT Connection Success!");
+            } else {
+                Log.i(TAG, "Connection not successful with status " + status);
+            }
+
+            switch (newState) {
+                case BluetoothProfile.STATE_DISCONNECTED:
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        //Should we re-attempt to connect to same device this session?
+                        mAddressesConnectedTo.remove(remotePeripheral.getDevice().getAddress());
+                    }
+                    break;
+                case BluetoothProfile.STATE_CONNECTED:
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        mAddressesConnectedTo.put(remotePeripheral.getDevice().getAddress(), remotePeripheral);
+                    }
+                    logEvent("newState indicates indicates GATT connected");
+                    boolean discovering = remotePeripheral.discoverServices();
+                    logEvent("Discovering services : " + discovering);
+                    break;
+            }
+            super.onConnectionStateChange(remotePeripheral, status, newState);
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicRead(gatt, characteristic, status);
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicWrite(gatt, characteristic, status);
+        }
+    };
+
+    /** Peripheral Callbacks */
+
+    BluetoothGattServerCallback mPeripheralGattCallback = new BluetoothGattServerCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
+            StringBuilder event = new StringBuilder();
+            if (newState == BluetoothProfile.STATE_DISCONNECTED)
+                event.append("Disconnected");
+            else if (newState == BluetoothProfile.STATE_CONNECTED) {
+                event.append("Connected");
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    if (!mAddressesConnectedTo.contains(device.getAddress())) {
+                        // TODO : I only call connectGatt here to get a reference to the device's
+                        // BluetoothGatt. Hopefully, this call returns immediately as the local
+                        // peripheral as indicated connection complete.
+                        mAddressesConnectedTo.put(device.getAddress(), device.connectGatt(mContext, false, mCentralGattCallback));
+                    }
+                }
+            }
+
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                event.append(" Successfully to ");
+                event.append(device.getAddress());
+                logEvent("Peripheral " + event.toString());
+            }
+            super.onConnectionStateChange(device, status, newState);
+        }
+
+        @Override
+        public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
+            byte[] responseData = null;
+            try {
+                if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
+                    // TODO : Get all messages to send
+                    //[message=140][signature=64][public_key=32]
+                    responseData = "msg-r-ack".getBytes("UTF-8");
+                }
+                else if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
+                    responseData = ChatApp.getPrimaryIdentityResponse(mContext);
+                }
+                    logEvent("Recognized CharacteristicReadRequest. Sending response " + responseData);
+                    mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, responseData);
+            }
+            catch (UnsupportedEncodingException e) {
+                mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                e.printStackTrace();
+
+            }
+            super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
+        }
+
+        @Override
+        public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
+            super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
+        }
+    };
 
     // </editor-fold desc="Private API">
 }

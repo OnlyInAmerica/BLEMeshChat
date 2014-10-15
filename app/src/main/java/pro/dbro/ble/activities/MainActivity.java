@@ -1,6 +1,7 @@
 package pro.dbro.ble.activities;
 
 import android.app.Activity;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -10,8 +11,7 @@ import android.widget.ToggleButton;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
-import pro.dbro.ble.ChatApp;
-import pro.dbro.ble.LogConsumer;
+import pro.dbro.ble.chat.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.adapter.BLEClientAdapter;
 import pro.dbro.ble.ble.BLECentral;
@@ -32,6 +32,8 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
     @InjectView(R.id.log)
     TextView mLog;
 //    @InjectView(R.id.textEntry)       EditText mEntry;
+
+    Peer mUserIdentity;
 
     private BLEClientAdapter mAdapter;
 
@@ -59,9 +61,14 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
 //            }
 //        });
 
-        Peer self = ChatApp.getPrimaryIdentity(this);
-        if (self == null) {
-            Util.showWelcomeDialog(this);
+        mUserIdentity = ChatApp.getPrimaryIdentity(this);
+        if (mUserIdentity == null) {
+            Util.showWelcomeDialog(this, new DialogInterface.OnDismissListener() {
+                @Override
+                public void onDismiss(DialogInterface dialogInterface) {
+                    mUserIdentity = ChatApp.getPrimaryIdentity(MainActivity.this);
+                }
+            });
         }
     }
 
