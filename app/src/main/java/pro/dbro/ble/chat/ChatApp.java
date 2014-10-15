@@ -12,6 +12,8 @@ import pro.dbro.ble.crypto.Identity;
 import pro.dbro.ble.crypto.KeyPair;
 import pro.dbro.ble.model.ChatContentProvider;
 import pro.dbro.ble.model.DateUtil;
+import pro.dbro.ble.model.Message;
+import pro.dbro.ble.model.MessageTable;
 import pro.dbro.ble.model.Peer;
 import pro.dbro.ble.model.PeerTable;
 
@@ -25,6 +27,7 @@ public class ChatApp {
      * or null if no identity is set.
      */
     public static Peer getPrimaryIdentity(@NonNull Context context) {
+        // TODO: caching
         Cursor result = context.getContentResolver().query(ChatContentProvider.Peers.PEERS,
                 null,
                 PeerTable.secKey + " IS NOT NULL",
@@ -58,5 +61,14 @@ public class ChatApp {
         if (primaryIdentity == null) throw new IllegalStateException("No primary Identity");
 
         return ChatProtocol.makeIdentityResponse(primaryIdentity.getKeyPair());
+    }
+
+    public static Cursor getMessagesToSend(@NonNull Context context) {
+        // TODO: filtering
+        return context.getContentResolver().query(ChatContentProvider.Messages.MESSAGES, null, null, null, null);
+    }
+
+    public static byte[] getBroadcastMessageResponseForString(@NonNull Context context, @NonNull String message) {
+        return ChatProtocol.makePublicMessageResponse(getPrimaryIdentity(context).getKeyPair(), message);
     }
 }

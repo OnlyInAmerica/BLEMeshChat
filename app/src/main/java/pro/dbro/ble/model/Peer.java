@@ -41,6 +41,8 @@ public class Peer implements Closeable{
     }
 
     private void init(Cursor cursor) {
+        if (cursor.getCount() != 1)
+            throw new IllegalArgumentException("Do not initialize Peer with a Cursor representing multiple rows");
         mCursor = cursor;
     }
 

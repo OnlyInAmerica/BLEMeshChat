@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
+import android.database.Cursor;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import pro.dbro.ble.activities.LogConsumer;
 import pro.dbro.ble.chat.ChatApp;
 import pro.dbro.ble.model.Message;
+import pro.dbro.ble.model.MessageTable;
 import pro.dbro.ble.model.Peer;
 
 /**
@@ -203,6 +205,9 @@ public class BLEMeshManager {
     /** Peers which are currently connected mapped to BluetoothGatts */
     private ConcurrentHashMap<Peer, BluetoothGatt> mPeersToAddresses = new ConcurrentHashMap<>();
 
+    /** Messages to send on each successive read to Messages Characteristic */
+    private Cursor mMessagesToSend;
+
     /** Central Callbacks */
     private ScanCallback mCentralScanCallback = new ScanCallback() {
         @Override
@@ -291,15 +296,29 @@ public class BLEMeshManager {
             byte[] responseData = null;
             try {
                 if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
-                    // TODO : Get all messages to send
-                    //[message=140][signature=64][public_key=32]
-                    responseData = "msg-r-ack".getBytes("UTF-8");
+                    if (mMessagesToSend == null) {
+                        queueMessagesForTransmission();
+                    }
+                    if (mMessagesToSend != null && mMessagesToSend.moveToNext()) {
+                        responseData = getResponseForMessage(mMessagesToSend);
+                    } else if (mMessagesToSend != null) {
+                        // If we've sent all messages, close Cursor and set null
+                        mMessagesToSend.close();
+                        mMessagesToSend = null;
+                        // TODO: send a specific "No more messages" response
+                    }
                 }
                 else if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
                     responseData = ChatApp.getPrimaryIdentityResponse(mContext);
                 }
-                    logEvent("Recognized CharacteristicReadRequest. Sending response " + responseData);
+
+                if (responseData != null) {
+                    logEvent("Recognized CharacteristicReadRequest. Sending response " + new String(responseData, "UTF-8"));
                     mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, responseData);
+                } else {
+                    logEvent("CharacteristicReadRequest Failure. Failed to generate response data");
+                    mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                }
             }
             catch (UnsupportedEncodingException e) {
                 mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
@@ -314,6 +333,22 @@ public class BLEMeshManager {
             super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
         }
     };
+
+    private void queueMessagesForTransmission() {
+        Cursor messages = ChatApp.getMessagesToSend(mContext);
+        if (messages != null && messages.getCount() > 0) {
+            mMessagesToSend = messages;
+        }
+    }
+
+    /**
+     * A cursor pre-moved to a row corresponding to the message
+     * to send
+     */
+    private byte[] getResponseForMessage(Cursor message) {
+        return ChatApp.getBroadcastMessageResponseForString(mContext,
+                                    message.getString(message.getColumnIndex(MessageTable.body)));
+    }
 
     // </editor-fold desc="Private API">
 }

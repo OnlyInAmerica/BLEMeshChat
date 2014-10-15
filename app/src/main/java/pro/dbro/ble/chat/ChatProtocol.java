@@ -21,27 +21,52 @@ public class ChatProtocol {
     public static final byte VERSION = 0x01;
 
     /** Identity */
-    private static final int IDENTITY_LENGTH = 140;  // bytes
-    private static final int ALIAS_LENGTH    = 35;  // bytes
+    private static final int MESSAGE_RESPONSE_LENGTH    = 309;  // bytes
+    private static final int IDENTITY_RESPONSE_LENGTH   = 140;  // bytes
+    private static final int MESSAGE_BODY_LENGTH        = 140;  // bytes
+    private static final int ALIAS_LENGTH               = 35;   // bytes
 
     private static ByteBuffer sTimeStampBuffer = ByteBuffer.allocate(Long.SIZE);
 
     @Nullable
     public static byte[] makeIdentityResponse(@NonNull KeyPair keyPair) {
+        // Protocol version 1
+        //[[version=1][timestamp=8][sender_public_key=32][display_name=35]][signature=64]
         try {
-            byte[] identity = new byte[IDENTITY_LENGTH - Identity.crypto_sign_BYTES];
+            byte[] identity = new byte[IDENTITY_RESPONSE_LENGTH - Identity.crypto_sign_BYTES];
             int writeIndex = 0;
-            // Protocol version 1
-            //[[version=1][timestamp=8][sender_public_key=32][display_name=35]][signature=64]
             writeIndex += addVersionToBuffer(identity, writeIndex);
             writeIndex += addTimestampToBuffer(identity, writeIndex);
             writeIndex += addPublicKeyToBuffer(keyPair.publicKey, identity, writeIndex);
             writeIndex += addAliasToBuffer(keyPair.alias, identity, writeIndex);
 
-            if (writeIndex != IDENTITY_LENGTH)
+            if (writeIndex != IDENTITY_RESPONSE_LENGTH)
                 throw new IllegalStateException("Generated Identity does not match expected length");
 
             return Identity.signMessage(keyPair, identity);
+        } catch (UnsupportedEncodingException e) {
+            Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static byte[] makePublicMessageResponse(@NonNull KeyPair keyPair, String body) {
+        // Protocol version 1
+        //[[version=1][timestamp=8][sender_public_key=32][message=140][reply_signature=64]][signature=64]
+        try {
+            byte[] message = new byte[MESSAGE_RESPONSE_LENGTH - Identity.crypto_sign_BYTES];
+            int writeIndex = 0;
+            writeIndex += addVersionToBuffer(message, writeIndex);
+            writeIndex += addTimestampToBuffer(message, writeIndex);
+            writeIndex += addPublicKeyToBuffer(keyPair.publicKey, message, writeIndex);
+            writeIndex += addMessageBodyToBuffer(body, message, writeIndex);
+            writeIndex += 64; // Empty reply_signature
+
+            if (writeIndex != MESSAGE_RESPONSE_LENGTH)
+                throw new IllegalStateException("Generated Message does not match expected length");
+
+            return Identity.signMessage(keyPair, message);
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -91,32 +116,38 @@ public class ChatProtocol {
         byte[] aliasAsBytes = alias.getBytes("UTF-8");
         byte[] paddedAliasAsBytes = new byte[ALIAS_LENGTH];
 
-        if (aliasAsBytes.length != ALIAS_LENGTH) {
-            System.arraycopy(aliasAsBytes, 0, paddedAliasAsBytes, 0, Math.min(aliasAsBytes.length, ALIAS_LENGTH));
-            for (int x = aliasAsBytes.length; x < ALIAS_LENGTH; x++) {
-                paddedAliasAsBytes[x] = 0x20; // UTF-8 space
-            }
-        }
+        truncateOrPadTextBuffer(aliasAsBytes, paddedAliasAsBytes);
 
         System.arraycopy(paddedAliasAsBytes, 0, input, offset, bytesToWrite);
         return bytesToWrite;
     }
 
-//    public static void arraycopy (Object src, int srcPos, Object dst, int dstPos, int length)
-//
-//    Added in API level 1
-//    Copies length elements from the array src, starting at offset srcPos, into the array dst, starting at offset dstPos.
-//
-//    The source and destination arrays can be the same array, in which case copying is performed as if the source elements are first copied into a temporary array and then into the destination array.
-//
-//    Parameters
-//    src	the source array to copy the content.
-//    srcPos	the starting index of the content in src.
-//    dst	the destination array to copy the data into.
-//    dstPos	the starting index for the copied content in dst.
-//    length	the number of elements to be copied.
+    private static int addMessageBodyToBuffer(@NonNull String body, @NonNull byte[] input, int offset) throws UnsupportedEncodingException {
+        int bytesToWrite = MESSAGE_BODY_LENGTH;
+        if (input.length < offset + bytesToWrite)
+            throw new IllegalArgumentException("input buffer has insufficient length");
+
+        byte[] bodyAsBytes = body.getBytes("UTF-8");
+        byte[] paddedBodyAsBytes = new byte[ALIAS_LENGTH];
+
+        truncateOrPadTextBuffer(bodyAsBytes, paddedBodyAsBytes);
+
+        System.arraycopy(paddedBodyAsBytes, 0, input, offset, bytesToWrite);
+        return bytesToWrite;
+    }
+
+    /**
+     * Truncates or pads input to fit precisely inside output.
+     * After this call output will contain the truncated or padded input
+     */
+    private static void truncateOrPadTextBuffer(byte[] input, byte[] output) {
+        if (input.length != output.length) {
+            System.arraycopy(input, 0, output, 0, Math.min(input.length, output.length));
+            for (int x = input.length; x < output.length; x++) {
+                output[x] = 0x20; // UTF-8 space
+            }
+        }
+    }
 
     // </editor-fold desc="Private API">
-
-
 }

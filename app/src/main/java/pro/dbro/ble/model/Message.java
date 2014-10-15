@@ -23,6 +23,8 @@ public class Message implements Closeable {
     private Cursor mCursor;
 
     public Message(@NonNull Cursor cursor) {
+        if (cursor.getCount() != 1)
+            throw new IllegalArgumentException("Do not initialize Message with a Cursor representing multiple rows");
         mCursor = cursor;
     }
 
