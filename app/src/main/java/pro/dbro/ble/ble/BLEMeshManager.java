@@ -295,26 +295,38 @@ public class BLEMeshManager {
         public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
             byte[] responseData = null;
             try {
+                /** Messages Read Request */
                 if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
                     if (mMessagesToSend == null) {
+                        // We received a Read
                         queueMessagesForTransmission();
+                        logEvent(String.format("Got Messages read request. Queued %d messages for delivery", mMessagesToSend.getCount()));
                     }
+                    // Send next message in queue or report no messages to send
                     if (mMessagesToSend != null && mMessagesToSend.moveToNext()) {
+                        // Respond with next message in queue
                         responseData = getResponseForMessage(mMessagesToSend);
+                        logEvent("Sending next message in read response");
+                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, responseData);
                     } else if (mMessagesToSend != null) {
-                        // If we've sent all messages, close Cursor and set null
+                        // We've sent all messages. Close Cursor and send READ_NOT_PERMITTED
                         mMessagesToSend.close();
                         mMessagesToSend = null;
-                        // TODO: send a specific "No more messages" response
+                        logEvent("Sent all messages. Sending end-of-messages response");
+                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
+                    } else {
+                        // There were no messages to send (mMessagesToSend was null). send READ_NOT_PERMITTED
+                        logEvent("No messages to send. Sending end-of-messages response");
+                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
                     }
                 }
+                /** Identity Read Request */
                 else if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
                     responseData = ChatApp.getPrimaryIdentityResponse(mContext);
                 }
 
                 if (responseData != null) {
-                    logEvent("Recognized CharacteristicReadRequest. Sending response " + new String(responseData, "UTF-8"));
-                    mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, responseData);
+                    logEvent("Recognized CharacteristicReadRequest. Sent response " + new String(responseData, "UTF-8"));
                 } else {
                     logEvent("CharacteristicReadRequest Failure. Failed to generate response data");
                     mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
