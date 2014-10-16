@@ -11,7 +11,7 @@ import android.widget.ToggleButton;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
-import pro.dbro.ble.chat.ChatApp;
+import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.adapter.BLEClientAdapter;
 import pro.dbro.ble.ble.BLECentral;

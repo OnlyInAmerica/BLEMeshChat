@@ -11,7 +11,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import pro.dbro.ble.chat.ChatApp;
+import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 
 /**

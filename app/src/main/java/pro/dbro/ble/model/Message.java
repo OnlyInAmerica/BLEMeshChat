@@ -7,7 +7,6 @@ import android.support.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
@@ -36,7 +35,7 @@ public class Message implements Closeable {
     public Date getRelativeReceivedDate() {
         try {
             return DateUtil.storedDateFormatter.parse(
-                    mCursor.getString(mCursor.getColumnIndex(MessageTable.receivedDate)));
+                    mCursor.getString(mCursor.getColumnIndex(MessageTable.authoredDate)));
         } catch (ParseException e) {
             return null;
         }

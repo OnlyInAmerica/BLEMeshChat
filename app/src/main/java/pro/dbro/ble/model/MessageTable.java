@@ -7,6 +7,7 @@ import net.simonvt.schematic.annotation.PrimaryKey;
 
 import static net.simonvt.schematic.annotation.DataType.Type.INTEGER;
 import static net.simonvt.schematic.annotation.DataType.Type.TEXT;
+import static net.simonvt.schematic.annotation.DataType.Type.BLOB;
 
 /**
  * Created by davidbrodsky on 7/28/14.
@@ -17,6 +18,6 @@ public interface MessageTable {
     @DataType(INTEGER)  @PrimaryKey @AutoIncrement  String id               = "_id";
     @DataType(TEXT)     @NotNull                    String body             = "body";
     @DataType(INTEGER)                              String peerId           = "p_id";
-    @DataType(TEXT)                                 String receivedDate     = "date";
-    @DataType(TEXT)                                 String signature        = "sig";
+    @DataType(TEXT)                                 String authoredDate     = "date";
+    @DataType(BLOB)                                 String signature        = "sig";
 }

@@ -17,7 +17,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import pro.dbro.ble.activities.LogConsumer;
-import pro.dbro.ble.chat.ChatApp;
+import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.model.Message;
 import pro.dbro.ble.model.MessageTable;
 import pro.dbro.ble.model.Peer;
@@ -335,13 +335,44 @@ public class BLEMeshManager {
             catch (UnsupportedEncodingException e) {
                 mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
                 e.printStackTrace();
-
             }
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
         }
 
         @Override
         public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
+            byte[] responseData = null;
+            try {
+                /** Messages Write Request */
+                if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
+                    logEvent("Got Message write request with data " + new String(value, "UTF-8") + " response needed " + responseNeeded);
+                    ChatApp.consumeReceivedBroadcastMessage(mContext, value);
+                    if (responseNeeded) {
+                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
+                    }
+                }
+                /** Identity Write Request */
+                else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
+                    logEvent("Got Identity write request with data " + new String(value, "UTF-8") + " response needed " + responseNeeded);
+                    ChatApp.consumeReceivedIdentity(mContext, value);
+                    if (responseNeeded) {
+                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
+                    }
+                }
+
+                // TODO: Send error code when needed
+
+//                if (responseData != null) {
+//                    logEvent("Recognized CharacteristicReadRequest. Sent response " + new String(responseData, "UTF-8"));
+//                } else {
+//                    logEvent("CharacteristicReadRequest Failure. Failed to generate response data");
+//                    mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+//                }
+            }
+            catch (UnsupportedEncodingException e) {
+                mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                e.printStackTrace();
+            }
             super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
         }
     };

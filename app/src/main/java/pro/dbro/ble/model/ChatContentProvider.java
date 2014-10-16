@@ -50,7 +50,7 @@ public final class ChatContentProvider {
         @ContentUri(
                 path = ENDPOINT,
                 type = "vnd.android.cursor.dir/list",
-                defaultSort = MessageTable.receivedDate + " ASC")
+                defaultSort = MessageTable.authoredDate + " ASC")
         public static final Uri MESSAGES = buildUri(ENDPOINT);
 
     }

@@ -1,7 +1,6 @@
 package pro.dbro.ble.model;
 
 import android.content.Context;
-import android.database.ContentObserver;
 import android.database.Cursor;
 import android.support.annotation.NonNull;
 
@@ -9,7 +8,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
-import pro.dbro.ble.crypto.KeyPair;
+import pro.dbro.ble.protocol.OwnedIdentity;
 
 /**
  * A thin model around a {@link android.database.Cursor}
@@ -46,6 +45,9 @@ public class Peer implements Closeable{
         mCursor = cursor;
     }
 
+    public int getId() {
+        return mCursor.getInt(mCursor.getColumnIndex(PeerTable.id));
+    }
     public String getAlias() {
         return mCursor.getString(mCursor.getColumnIndex(PeerTable.alias));
     }
@@ -60,15 +62,15 @@ public class Peer implements Closeable{
     }
 
     /**
-     * @return a {@link pro.dbro.ble.crypto.KeyPair} for this peer,
+     * @return a {@link pro.dbro.ble.protocol.OwnedIdentity} for this peer,
      * or null if this peer is not a user-owned peer.
      *
      * see {@link #isUser()}
      */
-    public KeyPair getKeyPair() {
+    public OwnedIdentity getKeyPair() {
         if (!isUser()) return null;
         try {
-            return new KeyPair(
+            return new OwnedIdentity(
                     mCursor.getString(mCursor.getColumnIndex(PeerTable.secKey)).getBytes("UTF-8"),
                     mCursor.getString(mCursor.getColumnIndex(PeerTable.pubKey)).getBytes("UTF-8"),
                     mCursor.getString(mCursor.getColumnIndex(PeerTable.alias)));

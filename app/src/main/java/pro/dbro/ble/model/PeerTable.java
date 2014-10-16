@@ -5,6 +5,7 @@ import net.simonvt.schematic.annotation.DataType;
 import net.simonvt.schematic.annotation.NotNull;
 import net.simonvt.schematic.annotation.PrimaryKey;
 
+import static net.simonvt.schematic.annotation.DataType.Type.BLOB;
 import static net.simonvt.schematic.annotation.DataType.Type.INTEGER;
 import static net.simonvt.schematic.annotation.DataType.Type.TEXT;
 
@@ -17,6 +18,6 @@ public interface PeerTable {
     @DataType(INTEGER)  @PrimaryKey @AutoIncrement  String id               = "_id";
     @DataType(TEXT)     @NotNull                    String alias            = "alias";
     @DataType(TEXT)     @NotNull                    String lastSeenDate     = "last_seen";
-    @DataType(TEXT)     @NotNull                    String pubKey           = "pk";
-    @DataType(TEXT)     @NotNull                    String secKey           = "sk";
+    @DataType(BLOB)     @NotNull                    String pubKey           = "pk";
+    @DataType(BLOB)     @NotNull                    String secKey           = "sk";
 }
