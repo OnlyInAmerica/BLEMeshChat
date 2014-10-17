@@ -211,15 +211,16 @@ public class BLEMeshManager {
     /** Central Callbacks */
     private ScanCallback mCentralScanCallback = new ScanCallback() {
         @Override
-        public void onAdvertisementUpdate(ScanResult scanResult) {
+        public void onScanResult(int callbackType, ScanResult scanResult) {
+            super.onScanResult(callbackType, scanResult);
             if (!mAddressesConnectedTo.contains(scanResult.getDevice().getAddress())) {
                 scanResult.getDevice().connectGatt(mContext, false, mCentralGattCallback);
             }
         }
 
         @Override
-        public void onScanFailed(int status) {
-            logEvent("Scan failed with status " + status);
+        public void onScanFailed(int errorCode) {
+            logEvent("Scan failed with code " + errorCode);
         }
     };
 

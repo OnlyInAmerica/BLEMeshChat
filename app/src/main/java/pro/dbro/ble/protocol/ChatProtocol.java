@@ -6,6 +6,7 @@ import android.util.Log;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Date;
 
 import pro.dbro.ble.crypto.SodiumShaker;
@@ -27,6 +28,10 @@ public class ChatProtocol {
     private static final int ALIAS_LENGTH               = 35;   // bytes
 
     private static final ByteBuffer sTimeStampBuffer = ByteBuffer.allocate(Long.SIZE);
+
+    static {
+        sTimeStampBuffer.order(ByteOrder.LITTLE_ENDIAN);
+    }
 
     @Nullable
     public static byte[] createIdentityResponse(@NonNull OwnedIdentity ownedIdentity) {
@@ -98,7 +103,7 @@ public class ChatProtocol {
             if (!validSignature)
                 throw new IllegalStateException("Identity signature does not match content!");
 
-            return new Identity(public_key, new String(alias, "UTF-8"), new Date());
+            return new Identity(public_key, new String(alias, "UTF-8"), getDateFromTimestampBuffer(timestamp, 0));
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -134,7 +139,15 @@ public class ChatProtocol {
             if (!validSignature)
                 throw new IllegalStateException("Message signature does not match content!");
 
-            return new Message(public_key, signature, new String(alias, "UTF-8"), new Date(), new String(body, "UTF_8"));
+            long timestampLong;
+            synchronized (sTimeStampBuffer) {
+                sTimeStampBuffer.clear();
+                sTimeStampBuffer.put(timestamp);
+                // TODO: Test if flip needed
+                timestampLong = sTimeStampBuffer.getLong();
+            }
+
+            return new Message(public_key, signature, new String(alias, "UTF-8"), getDateFromTimestampBuffer(timestamp, 0), new String(body, "UTF_8"));
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -243,6 +256,16 @@ public class ChatProtocol {
         if (version[0] != VERSION)
             throw new IllegalStateException("Response is for an unknown protocol version");
         return 1;
+    }
+
+    @Nullable
+    private static Date getDateFromTimestampBuffer(byte[] timestamp, int offset) {
+        synchronized (sTimeStampBuffer) {
+            sTimeStampBuffer.clear();
+            sTimeStampBuffer.put(timestamp);
+            // TODO: Test if flip needed
+            return new Date(sTimeStampBuffer.getLong() * 1000);
+        }
     }
 
     // </editor-fold desc="Private API">

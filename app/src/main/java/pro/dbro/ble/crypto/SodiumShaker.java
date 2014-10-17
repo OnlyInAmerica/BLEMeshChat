@@ -32,7 +32,7 @@ public class SodiumShaker {
         byte[] sk = new byte[crypto_sign_SECRETKEYBYTES];
 
         org.abstractj.kalium.Sodium.crypto_sign_ed25519_keypair(pk, sk);
-        return new OwnedIdentity(sk, pk, alias, new Date());
+        return new OwnedIdentity(sk, pk, alias);
     }
 
     @Nullable

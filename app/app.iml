@@ -79,13 +79,13 @@
       <excludeFolder url="file://$MODULE_DIR$/build/intermediates/symbols" />
       <excludeFolder url="file://$MODULE_DIR$/build/outputs" />
     </content>
-    <orderEntry type="jdk" jdkName="Android API 20, L preview Platform" jdkType="Android SDK" />
+    <orderEntry type="jdk" jdkName="Android API 21 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" exported="" name="support-annotations-21.0.0-rc1" level="project" />
-    <orderEntry type="library" exported="" name="recyclerview-v7-21.0.0-rc1" level="project" />
-    <orderEntry type="library" exported="" name="support-v4-21.0.0-rc1" level="project" />
+    <orderEntry type="library" exported="" name="cardview-v7-21.0.0" level="project" />
+    <orderEntry type="library" exported="" name="recyclerview-v7-21.0.0" level="project" />
+    <orderEntry type="library" exported="" name="support-annotations-21.0.0" level="project" />
+    <orderEntry type="library" exported="" name="support-v4-21.0.0" level="project" />
     <orderEntry type="library" exported="" name="kalium-jni-1.0.0-SNAPSHOT" level="project" />
-    <orderEntry type="library" exported="" name="cardview-v7-21.0.0-rc1" level="project" />
     <orderEntry type="library" exported="" name="schematic-annotations-0.5.3" level="project" />
     <orderEntry type="library" exported="" name="schematic-0.5.3" level="project" />
     <orderEntry type="library" exported="" name="butterknife-5.1.2" level="project" />
