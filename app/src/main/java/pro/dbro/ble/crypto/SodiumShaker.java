@@ -4,6 +4,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import org.abstractj.kalium.NaCl;
+import org.abstractj.kalium.Sodium;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -25,41 +26,44 @@ public class SodiumShaker {
     static {
         // Load native libraries
         NaCl.sodium();
+        // Initialize libsodium
+        if (Sodium.sodium_init() == -1) {
+            throw new IllegalStateException("sodiun_init failed!");
+        }
     }
 
     public static OwnedIdentity generateKeyPairForAlias(@NonNull String alias) {
         byte[] pk = new byte[crypto_sign_PUBLICKEYBYTES];
         byte[] sk = new byte[crypto_sign_SECRETKEYBYTES];
 
-        org.abstractj.kalium.Sodium.crypto_sign_ed25519_keypair(pk, sk);
+        Sodium.crypto_sign_ed25519_keypair(pk, sk);
         return new OwnedIdentity(sk, pk, alias);
     }
 
-    @Nullable
-    public static byte[] signMessage(@NonNull OwnedIdentity keypair, @NonNull byte[] message) {
-        // TODO : recompile jni wrapper with detached sign method exposed public
-        // to sealed_message allocation
-        // see :http://doc.libsodium.org/public-key_cryptography/public-key_signatures.html
-        byte[] sealed_message = new byte[crypto_sign_BYTES + message.length];
-        int[] sealed_message_len = new int[0];
+    public static byte[] generateSignatureForMessage(@NonNull byte[] secret_key, @NonNull byte[] message, int message_len) {
+        if (secret_key.length != crypto_sign_SECRETKEYBYTES) throw new IllegalArgumentException("secret_key is incorrect length");
+        byte[] signature = new byte[crypto_sign_BYTES];
+        int[] signature_len = new int[0];
 
-        org.abstractj.kalium.Sodium.crypto_sign_ed25519(sealed_message, sealed_message_len,
-                message, message.length, keypair.secretKey);
-        return sealed_message;
+        Sodium.crypto_sign_ed25519_detached(signature, signature_len, message, message_len, secret_key);
+
+        return signature;
     }
 
-    public static boolean verifyMessage(@NonNull byte[] pubkey, @NonNull byte[] signedMessage, @NonNull byte[] expectedMessage) {
+    /**
+     * Very that signature and public_key verify message
+     *
+     * @param public_key the public key corresponding to signature
+     * @param signature the signature of message decipherable with public_key
+     * @param message the data with signature
+     */
+    public static boolean verifySignature(@NonNull byte[] public_key, @NonNull byte[] signature, @NonNull byte[] message) {
         // Verify signature
-        byte[] unsealed_message = new byte[expectedMessage.length];
-        int[] message_length = new int[0];
 
-        if (org.abstractj.kalium.Sodium.crypto_sign_ed25519_open(unsealed_message,
-                message_length,
-                signedMessage,
-                signedMessage.length, pubkey) != 0) {
-        } else {
-            return Arrays.equals(unsealed_message, expectedMessage);
+        if (Sodium.crypto_sign_ed25519_verify_detached(signature, message, message.length, public_key) != 0) {
+            /* Incorrect signature! */
+            return false;
         }
-        return false;
+        return true;
     }
 }

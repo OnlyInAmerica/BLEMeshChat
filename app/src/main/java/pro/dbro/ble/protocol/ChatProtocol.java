@@ -22,12 +22,12 @@ public class ChatProtocol {
     public static final byte VERSION = 0x01;
 
     /** Identity */
-    private static final int MESSAGE_RESPONSE_LENGTH    = 309;  // bytes
-    private static final int IDENTITY_RESPONSE_LENGTH   = 140;  // bytes
-    private static final int MESSAGE_BODY_LENGTH        = 140;  // bytes
-    private static final int ALIAS_LENGTH               = 35;   // bytes
+    public static final int MESSAGE_RESPONSE_LENGTH    = 309;  // bytes
+    public static final int IDENTITY_RESPONSE_LENGTH   = 140;  // bytes
+    public static final int MESSAGE_BODY_LENGTH        = 140;  // bytes
+    public static final int ALIAS_LENGTH               = 35;   // bytes
 
-    private static final ByteBuffer sTimeStampBuffer = ByteBuffer.allocate(Long.SIZE);
+    private static final ByteBuffer sTimeStampBuffer = ByteBuffer.allocate(Long.SIZE / 8);
 
     static {
         sTimeStampBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -38,17 +38,18 @@ public class ChatProtocol {
         // Protocol version 1
         //[[version=1][timestamp=8][sender_public_key=32][display_name=35]][signature=64]
         try {
-            byte[] identity = new byte[IDENTITY_RESPONSE_LENGTH - SodiumShaker.crypto_sign_BYTES];
+            byte[] identity = new byte[IDENTITY_RESPONSE_LENGTH];
             int writeIndex = 0;
             writeIndex += addVersionToBuffer(identity, writeIndex);
             writeIndex += addTimestampToBuffer(identity, writeIndex);
             writeIndex += addPublicKeyToBuffer(ownedIdentity.publicKey, identity, writeIndex);
             writeIndex += addAliasToBuffer(ownedIdentity.alias, identity, writeIndex);
+            writeIndex += addSignatureToBuffer(ownedIdentity.secretKey, identity, writeIndex);
 
             if (writeIndex != IDENTITY_RESPONSE_LENGTH)
                 throw new IllegalStateException("Generated Identity does not match expected length");
 
-            return SodiumShaker.signMessage(ownedIdentity, identity);
+            return identity;
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -60,18 +61,19 @@ public class ChatProtocol {
         // Protocol version 1
         //[[version=1][timestamp=8][sender_public_key=32][message=140][reply_signature=64]][signature=64]
         try {
-            byte[] message = new byte[MESSAGE_RESPONSE_LENGTH - SodiumShaker.crypto_sign_BYTES];
+            byte[] message = new byte[MESSAGE_RESPONSE_LENGTH];
             int writeIndex = 0;
             writeIndex += addVersionToBuffer(message, writeIndex);
             writeIndex += addTimestampToBuffer(message, writeIndex);
             writeIndex += addPublicKeyToBuffer(ownedIdentity.publicKey, message, writeIndex);
             writeIndex += addMessageBodyToBuffer(body, message, writeIndex);
             writeIndex += 64; // Empty reply_signature
+            writeIndex += addSignatureToBuffer(ownedIdentity.secretKey, message, writeIndex);
 
             if (writeIndex != MESSAGE_RESPONSE_LENGTH)
                 throw new IllegalStateException("Generated Message does not match expected length");
 
-            return SodiumShaker.signMessage(ownedIdentity, message);
+            return message;
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -88,22 +90,24 @@ public class ChatProtocol {
         //[[version=1][timestamp=8][sender_public_key=32][display_name=35]][signature=64]
         try {
             int readIndex     = 0;
-            byte[] timestamp  = new byte[Long.SIZE];
+            byte[] timestamp  = new byte[Long.SIZE / 8];
             byte[] public_key = new byte[SodiumShaker.crypto_sign_PUBLICKEYBYTES];
             byte[] alias      = new byte[ALIAS_LENGTH];
+            byte[] signature  = new byte[SodiumShaker.crypto_sign_BYTES];
             byte[] signedData = new byte[IDENTITY_RESPONSE_LENGTH - SodiumShaker.crypto_sign_BYTES];
 
             readIndex += assertBufferVersion(identity, readIndex);
             readIndex += getBytesFromBuffer(identity, timestamp, readIndex);
             readIndex += getBytesFromBuffer(identity, public_key, readIndex);
             readIndex += getBytesFromBuffer(identity, alias, readIndex);
+            readIndex += getBytesFromBuffer(identity, signature, readIndex);
 
             System.arraycopy(identity, 0, signedData, 0, signedData.length);
-            boolean validSignature = SodiumShaker.verifyMessage(public_key, identity, signedData);
+            boolean validSignature = SodiumShaker.verifySignature(public_key, signature, signedData);
             if (!validSignature)
                 throw new IllegalStateException("Identity signature does not match content!");
 
-            return new Identity(public_key, new String(alias, "UTF-8"), getDateFromTimestampBuffer(timestamp, 0));
+            return new Identity(public_key, new String(alias, "UTF-8"), getDateFromTimestampBuffer(timestamp));
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -120,12 +124,12 @@ public class ChatProtocol {
         //[[version=1][timestamp=8][sender_public_key=32][message=140][reply_signature=64]][signature=64]
         try {
             int readIndex     = 0;
-            byte[] timestamp  = new byte[Long.SIZE];
+            byte[] timestamp  = new byte[Long.SIZE / 8];
             byte[] public_key = new byte[SodiumShaker.crypto_sign_PUBLICKEYBYTES];
             byte[] body       = new byte[MESSAGE_BODY_LENGTH];
             byte[] alias      = new byte[ALIAS_LENGTH];
-            byte[] signedData = new byte[MESSAGE_RESPONSE_LENGTH - SodiumShaker.crypto_sign_BYTES];
             byte[] signature  = new byte[SodiumShaker.crypto_sign_BYTES];
+            byte[] signedData = new byte[MESSAGE_RESPONSE_LENGTH - SodiumShaker.crypto_sign_BYTES];
 
             readIndex += assertBufferVersion(message, readIndex);
             readIndex += getBytesFromBuffer(message, timestamp, readIndex);
@@ -135,19 +139,11 @@ public class ChatProtocol {
             readIndex += getBytesFromBuffer(message, signature, readIndex);
 
             System.arraycopy(message, 0, signedData, 0, signedData.length);
-            boolean validSignature = SodiumShaker.verifyMessage(public_key, message, signedData);
+            boolean validSignature = SodiumShaker.verifySignature(public_key, signature, signedData);
             if (!validSignature)
                 throw new IllegalStateException("Message signature does not match content!");
 
-            long timestampLong;
-            synchronized (sTimeStampBuffer) {
-                sTimeStampBuffer.clear();
-                sTimeStampBuffer.put(timestamp);
-                // TODO: Test if flip needed
-                timestampLong = sTimeStampBuffer.getLong();
-            }
-
-            return new Message(public_key, signature, new String(alias, "UTF-8"), getDateFromTimestampBuffer(timestamp, 0), new String(body, "UTF_8"));
+            return new Message(public_key, signature, new String(alias, "UTF-8"), getDateFromTimestampBuffer(timestamp), new String(body, "UTF_8"));
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -181,6 +177,7 @@ public class ChatProtocol {
             assertBufferLength(input, offset + bytesToWrite);
 
             long unixTime64 = System.currentTimeMillis() / 1000L;
+            sTimeStampBuffer.rewind();
             sTimeStampBuffer.putLong(unixTime64);
             System.arraycopy(sTimeStampBuffer.array(), 0, input, offset, bytesToWrite);
             return bytesToWrite;
@@ -213,7 +210,7 @@ public class ChatProtocol {
         assertBufferLength(input, offset + bytesToWrite);
 
         byte[] bodyAsBytes = body.getBytes("UTF-8");
-        byte[] paddedBodyAsBytes = new byte[ALIAS_LENGTH];
+        byte[] paddedBodyAsBytes = new byte[MESSAGE_BODY_LENGTH];
 
         truncateOrPadTextBuffer(bodyAsBytes, paddedBodyAsBytes);
 
@@ -229,6 +226,19 @@ public class ChatProtocol {
         return bytesToRead;
     }
 
+    /**
+     * Generate signature for input from the first byte until the offset byte. Append signature to input after offset byte.
+     */
+    private static int addSignatureToBuffer(@NonNull byte[] secret_key, @NonNull byte[] input, int offset) {
+        int bytesToWrite = SodiumShaker.crypto_sign_BYTES;
+        assertBufferLength(input, offset + bytesToWrite);
+
+        byte[] signature = SodiumShaker.generateSignatureForMessage(secret_key, input, offset);
+
+        System.arraycopy(signature, 0, input, offset, bytesToWrite);
+        return bytesToWrite;
+    }
+
     /** Utility */
 
     /**
@@ -236,8 +246,8 @@ public class ChatProtocol {
      * After this call output will contain the truncated or padded input
      */
     private static void truncateOrPadTextBuffer(byte[] input, byte[] output) {
-        if (input.length != output.length) {
-            System.arraycopy(input, 0, output, 0, Math.min(input.length, output.length));
+        System.arraycopy(input, 0, output, 0, Math.min(input.length, output.length));
+        if (input.length < output.length) {
             for (int x = input.length; x < output.length; x++) {
                 output[x] = 0x20; // UTF-8 space
             }
@@ -246,7 +256,7 @@ public class ChatProtocol {
 
     private static void assertBufferLength(byte[] input, int minimumLength) {
         if (input.length < minimumLength)
-            throw new IllegalArgumentException("input buffer has insufficient length");
+            throw new IllegalArgumentException(String.format("Operation requires input buffer length %d. Actual: %d", minimumLength, input.length));
     }
 
     private static int assertBufferVersion(byte[] input, int offset) {
@@ -254,15 +264,16 @@ public class ChatProtocol {
         getVersionFromBuffer(input, version, offset);
 
         if (version[0] != VERSION)
-            throw new IllegalStateException("Response is for an unknown protocol version");
+            throw new IllegalStateException(String.format("Response is for an unknown protocol version. Got %d. Expected %d", version[0], VERSION));
         return 1;
     }
 
     @Nullable
-    private static Date getDateFromTimestampBuffer(byte[] timestamp, int offset) {
+    private static Date getDateFromTimestampBuffer(byte[] timestamp) {
         synchronized (sTimeStampBuffer) {
             sTimeStampBuffer.clear();
             sTimeStampBuffer.put(timestamp);
+            sTimeStampBuffer.rewind();
             // TODO: Test if flip needed
             return new Date(sTimeStampBuffer.getLong() * 1000);
         }
