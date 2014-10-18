@@ -12,7 +12,7 @@ import net.simonvt.schematic.annotation.TableEndpoint;
  *
  * Created by davidbrodsky on 7/28/14.
  */
-@ContentProvider(authority = ChatContentProvider.AUTHORITY, database = PeerDatabase.class)
+@ContentProvider(authority = ChatContentProvider.AUTHORITY, database = ChatDatabase.class)
 public final class ChatContentProvider {
 
     public static final String AUTHORITY      = "pro.dbro.ble.chatprovider";
@@ -28,7 +28,7 @@ public final class ChatContentProvider {
 
     /** Peer API **/
 
-    @TableEndpoint(table = PeerDatabase.PEERS)
+    @TableEndpoint(table = ChatDatabase.PEERS)
     public static class Peers {
 
         private static final String ENDPOINT = "peers";
@@ -42,7 +42,7 @@ public final class ChatContentProvider {
 
     /** Messages API **/
 
-    @TableEndpoint(table = PeerDatabase.MESSAGES)
+    @TableEndpoint(table = ChatDatabase.MESSAGES)
     public static class Messages {
 
         private static final String ENDPOINT = "camps";

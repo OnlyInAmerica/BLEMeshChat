@@ -11,6 +11,7 @@ import java.util.Date;
 
 import pro.dbro.ble.model.Message;
 import pro.dbro.ble.model.MessageTable;
+import pro.dbro.ble.protocol.Identity;
 import pro.dbro.ble.protocol.OwnedIdentity;
 import pro.dbro.ble.crypto.SodiumShaker;
 import pro.dbro.ble.model.ChatContentProvider;
@@ -76,13 +77,12 @@ public class ChatApp {
     }
 
     public static Peer consumeReceivedIdentity(@NonNull Context context, @NonNull byte[] identity) {
-        pro.dbro.ble.protocol.Identity protocolIdentity = ChatProtocol.consumeIdentityResponse(identity);
+        Identity protocolIdentity = ChatProtocol.consumeIdentityResponse(identity);
 
         // insert or update
+        Peer applicationIdentity = getOrCreatePeerByProtocolIdentity(context, protocolIdentity);
 
-        // yadda yadda
-
-        return new Peer(context, 1); // TODO
+        return applicationIdentity;
 
     }
 
@@ -90,43 +90,7 @@ public class ChatApp {
         pro.dbro.ble.protocol.Message protocolMessage = ChatProtocol.consumeMessageResponse(message);
 
         // Query if peer exists
-        Cursor peerCursor = getPeerByPubKey(context, protocolMessage.sender.publicKey);
-
-        Peer peer = null;         // Wraps the Cursor representation when available
-
-        if (peerCursor != null && peerCursor.moveToFirst()) {
-            // Peer exists. Modify lastseen
-            peer = new Peer(peerCursor);
-            ContentValues peerValues = new ContentValues();
-            peerValues.put(PeerTable.lastSeenDate, DateUtil.storedDateFormatter.format(new Date()));
-            int updated = context.getContentResolver().update(
-                    ChatContentProvider.Peers.PEERS,
-                    peerValues,
-                    PeerTable.pubKey + " = ?" ,
-                    new String[] {String.valueOf(protocolMessage.sender.publicKey)});
-            if (updated != 1) {
-                Log.e(TAG, "Failed to update peer last seen");
-            }
-        } else {
-            // Peer does not exist. Create.
-            ContentValues peerValues = new ContentValues();
-            peerValues.put(PeerTable.lastSeenDate, DateUtil.storedDateFormatter.format(new Date()));
-            peerValues.put(PeerTable.pubKey, protocolMessage.sender.publicKey);
-            peerValues.put(PeerTable.alias, protocolMessage.sender.alias);
-
-            Uri peerUri = context.getContentResolver().insert(
-                    ChatContentProvider.Peers.PEERS,
-                    peerValues);
-
-            // Fetch newly created peer
-            peerCursor = getPeerById(context, Integer.parseInt(peerUri.getLastPathSegment()));
-
-            if (peerCursor != null && peerCursor.moveToFirst()) {
-                peer = new Peer(peerCursor);
-            } else {
-                Log.e(TAG, "Failed to query peer after insertion.");
-            }
-        }
+        Peer peer = getOrCreatePeerByProtocolIdentity(context, protocolMessage.sender);
 
         if (peer == null)
             throw new IllegalStateException("Failed to get peer for message");
@@ -162,6 +126,46 @@ public class ChatApp {
                PeerTable.pubKey + " = ?",
                new String[] {String.valueOf(public_key)},
                null);
+    }
+
+    private static Peer getOrCreatePeerByProtocolIdentity(Context context, Identity protocolPeer) {
+        // Query if peer exists
+        Cursor peerCursor = getPeerByPubKey(context, protocolPeer.publicKey);
+
+        Peer peer = null;         // Wraps the Cursor representation when available
+
+        ContentValues peerValues = new ContentValues();
+        peerValues.put(PeerTable.lastSeenDate, DateUtil.storedDateFormatter.format(new Date()));
+        peerValues.put(PeerTable.pubKey, protocolPeer.publicKey);
+        peerValues.put(PeerTable.alias, protocolPeer.alias);
+
+        if (peerCursor != null && peerCursor.moveToFirst()) {
+            // Peer exists. Modify lastSeenDate
+            peer = new Peer(peerCursor);
+            int updated = context.getContentResolver().update(
+                    ChatContentProvider.Peers.PEERS,
+                    peerValues,
+                    PeerTable.pubKey + " = ?" ,
+                    new String[] {String.valueOf(protocolPeer.publicKey)});
+            if (updated != 1) {
+                Log.e(TAG, "Failed to update peer last seen");
+            }
+        } else {
+            // Peer does not exist. Create.
+            Uri peerUri = context.getContentResolver().insert(
+                    ChatContentProvider.Peers.PEERS,
+                    peerValues);
+
+            // Fetch newly created peer
+            peerCursor = getPeerById(context, Integer.parseInt(peerUri.getLastPathSegment()));
+
+            if (peerCursor != null && peerCursor.moveToFirst()) {
+                peer = new Peer(peerCursor);
+            } else {
+                Log.e(TAG, "Failed to query peer after insertion.");
+            }
+        }
+        return peer;
     }
 
     private static Cursor getPeerById(Context context, int id) {

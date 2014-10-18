@@ -8,8 +8,8 @@ import net.simonvt.schematic.annotation.Table;
  *
  * Created by davidbrodsky on 7/28/14.
  */
-@Database(version = PeerDatabase.DATABASE_VERSION)
-public class PeerDatabase {
+@Database(version = ChatDatabase.DATABASE_VERSION)
+public class ChatDatabase {
 
     public static final int DATABASE_VERSION = 1;
 

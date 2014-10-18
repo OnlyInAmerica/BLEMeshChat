@@ -57,8 +57,8 @@ public class Peer implements Closeable{
      * e.g: Do we have a secret key
      */
     public boolean isUser() {
-        String secretKey = mCursor.getString(mCursor.getColumnIndex(PeerTable.secKey));
-        return secretKey != null && secretKey.length() > 0;
+        byte[] secretKey = mCursor.getBlob(mCursor.getColumnIndex(PeerTable.secKey));
+        return secretKey != null && secretKey.length > 0;
     }
 
     /**
@@ -69,15 +69,10 @@ public class Peer implements Closeable{
      */
     public OwnedIdentity getKeyPair() {
         if (!isUser()) return null;
-        try {
-            return new OwnedIdentity(
-                    mCursor.getString(mCursor.getColumnIndex(PeerTable.secKey)).getBytes("UTF-8"),
-                    mCursor.getString(mCursor.getColumnIndex(PeerTable.pubKey)).getBytes("UTF-8"),
-                    mCursor.getString(mCursor.getColumnIndex(PeerTable.alias)));
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-            return null;
-        }
+        return new OwnedIdentity(
+                mCursor.getBlob(mCursor.getColumnIndex(PeerTable.secKey)),
+                mCursor.getBlob(mCursor.getColumnIndex(PeerTable.pubKey)),
+                mCursor.getString(mCursor.getColumnIndex(PeerTable.alias)));
     }
 
     @Override

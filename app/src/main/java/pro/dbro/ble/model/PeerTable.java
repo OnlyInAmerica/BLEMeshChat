@@ -19,5 +19,5 @@ public interface PeerTable {
     @DataType(TEXT)     @NotNull                    String alias            = "alias";
     @DataType(TEXT)     @NotNull                    String lastSeenDate     = "last_seen";
     @DataType(BLOB)     @NotNull                    String pubKey           = "pk";
-    @DataType(BLOB)     @NotNull                    String secKey           = "sk";
+    @DataType(BLOB)                                 String secKey           = "sk";
 }
