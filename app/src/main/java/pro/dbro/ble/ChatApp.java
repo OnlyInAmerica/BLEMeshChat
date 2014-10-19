@@ -102,6 +102,7 @@ public class ChatApp {
         ContentValues newMessageEntry = new ContentValues();
         newMessageEntry.put(MessageTable.body, protocolMessage.body);
         newMessageEntry.put(MessageTable.peerId, peer.getId());
+        newMessageEntry.put(MessageTable.receivedDate, DataUtil.storedDateFormatter.format(new Date()));
         newMessageEntry.put(MessageTable.authoredDate, DataUtil.storedDateFormatter.format(protocolMessage.authoredDate));
         newMessageEntry.put(MessageTable.signature, protocolMessage.signature);
         Uri newMessageUri = context.getContentResolver().insert(

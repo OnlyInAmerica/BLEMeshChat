@@ -18,6 +18,7 @@ public interface MessageTable {
     @DataType(INTEGER)  @PrimaryKey @AutoIncrement  String id               = "_id";
     @DataType(TEXT)     @NotNull                    String body             = "body";
     @DataType(INTEGER)                              String peerId           = "p_id";
-    @DataType(TEXT)                                 String authoredDate     = "date";
+    @DataType(TEXT)                                 String authoredDate     = "author_date";
+    @DataType(TEXT)                                 String receivedDate     = "recv_date";
     @DataType(BLOB)                                 String signature        = "sig";
 }
