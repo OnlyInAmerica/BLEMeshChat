@@ -14,7 +14,7 @@ import java.util.Date;
  * that lazy-loads attributes as needed. As such, do
  * not to close the cursor fed to this class's constructor.
  * Instead call {@link #close}
- *
+ * <p/>
  * Created by davidbrodsky on 10/12/14.
  */
 public class Message implements Closeable {
@@ -27,6 +27,10 @@ public class Message implements Closeable {
         mCursor = cursor;
     }
 
+    public int getId() {
+        return mCursor.getInt(mCursor.getColumnIndex(MessageTable.id));
+    }
+
     public String getBody() {
         return mCursor.getString(mCursor.getColumnIndex(MessageTable.body));
     }
@@ -34,7 +38,7 @@ public class Message implements Closeable {
     @Nullable
     public Date getRelativeReceivedDate() {
         try {
-            return DateUtil.storedDateFormatter.parse(
+            return DataUtil.storedDateFormatter.parse(
                     mCursor.getString(mCursor.getColumnIndex(MessageTable.authoredDate)));
         } catch (ParseException e) {
             return null;

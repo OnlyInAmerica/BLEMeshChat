@@ -5,17 +5,18 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import java.util.Date;
 
+import pro.dbro.ble.model.DataUtil;
 import pro.dbro.ble.model.Message;
 import pro.dbro.ble.model.MessageTable;
 import pro.dbro.ble.protocol.Identity;
 import pro.dbro.ble.protocol.OwnedIdentity;
 import pro.dbro.ble.crypto.SodiumShaker;
 import pro.dbro.ble.model.ChatContentProvider;
-import pro.dbro.ble.model.DateUtil;
 import pro.dbro.ble.model.Peer;
 import pro.dbro.ble.model.PeerTable;
 import pro.dbro.ble.protocol.ChatProtocol;
@@ -30,6 +31,7 @@ public class ChatApp {
      * @return the first user peer entry in the database,
      * or null if no identity is set.
      */
+    @Nullable
     public static Peer getPrimaryIdentity(@NonNull Context context) {
         // TODO: caching
         Cursor result = context.getContentResolver().query(ChatContentProvider.Peers.PEERS,
@@ -48,12 +50,12 @@ public class ChatApp {
      * Create a new Identity and return the database id
      */
     public static int createNewIdentity(@NonNull Context context, @NonNull String alias) {
-        OwnedIdentity keypair = SodiumShaker.generateKeyPairForAlias(alias);
+        OwnedIdentity keypair = SodiumShaker.generateOwnedIdentityForAlias(alias);
         ContentValues newIdentity = new ContentValues();
         newIdentity.put(PeerTable.pubKey, keypair.publicKey);
         newIdentity.put(PeerTable.secKey, keypair.secretKey);
         newIdentity.put(PeerTable.alias, alias);
-        newIdentity.put(PeerTable.lastSeenDate, DateUtil.storedDateFormatter.format(new Date()));
+        newIdentity.put(PeerTable.lastSeenDate, DataUtil.storedDateFormatter.format(new Date()));
 
         Uri newIdentityUri = context.getContentResolver().insert(ChatContentProvider.Peers.PEERS, newIdentity);
         return Integer.parseInt(newIdentityUri.getLastPathSegment());
@@ -64,7 +66,7 @@ public class ChatApp {
 
         if (primaryIdentity == null) throw new IllegalStateException("No primary Identity");
 
-        return ChatProtocol.createIdentityResponse(primaryIdentity.getKeyPair());
+        return ChatProtocol.createIdentityResponse((OwnedIdentity) primaryIdentity.getKeyPair());
     }
 
     public static Cursor getMessagesToSend(@NonNull Context context) {
@@ -73,7 +75,7 @@ public class ChatApp {
     }
 
     public static byte[] getBroadcastMessageResponseForString(@NonNull Context context, @NonNull String message) {
-        return ChatProtocol.createPublicMessageResponse(getPrimaryIdentity(context).getKeyPair(), message);
+        return ChatProtocol.createPublicMessageResponse((OwnedIdentity) getPrimaryIdentity(context).getKeyPair(), message);
     }
 
     public static Peer consumeReceivedIdentity(@NonNull Context context, @NonNull byte[] identity) {
@@ -86,6 +88,7 @@ public class ChatApp {
 
     }
 
+    @Nullable
     public static Message consumeReceivedBroadcastMessage(@NonNull Context context, @NonNull byte[] message) {
         pro.dbro.ble.protocol.Message protocolMessage = ChatProtocol.consumeMessageResponse(message);
 
@@ -99,7 +102,7 @@ public class ChatApp {
         ContentValues newMessageEntry = new ContentValues();
         newMessageEntry.put(MessageTable.body, protocolMessage.body);
         newMessageEntry.put(MessageTable.peerId, peer.getId());
-        newMessageEntry.put(MessageTable.authoredDate, DateUtil.storedDateFormatter.format(protocolMessage.authoredDate));
+        newMessageEntry.put(MessageTable.authoredDate, DataUtil.storedDateFormatter.format(protocolMessage.authoredDate));
         newMessageEntry.put(MessageTable.signature, protocolMessage.signature);
         Uri newMessageUri = context.getContentResolver().insert(
                     ChatContentProvider.Messages.MESSAGES,
@@ -107,7 +110,10 @@ public class ChatApp {
         // Fetch message
         Cursor newMessage = getMessageById(context, Integer.parseInt(newMessageUri.getLastPathSegment()));
         //Uri newIdentityUri = context.getContentResolver().insert(ChatContentProvider.Messages.MESSAGES, newMessage);
-        return new Message(newMessage);
+        if (newMessage != null && newMessage.moveToFirst()) {
+            return new Message(newMessage);
+        } else
+            return null;
     }
 
     /** Utility */
@@ -124,7 +130,7 @@ public class ChatApp {
                ChatContentProvider.Peers.PEERS,
                null,
                PeerTable.pubKey + " = ?",
-               new String[] {String.valueOf(public_key)},
+               new String[] {DataUtil.bytesToHex(public_key)},
                null);
     }
 
@@ -135,7 +141,7 @@ public class ChatApp {
         Peer peer = null;         // Wraps the Cursor representation when available
 
         ContentValues peerValues = new ContentValues();
-        peerValues.put(PeerTable.lastSeenDate, DateUtil.storedDateFormatter.format(new Date()));
+        peerValues.put(PeerTable.lastSeenDate, DataUtil.storedDateFormatter.format(new Date()));
         peerValues.put(PeerTable.pubKey, protocolPeer.publicKey);
         peerValues.put(PeerTable.alias, protocolPeer.alias);
 
@@ -146,7 +152,7 @@ public class ChatApp {
                     ChatContentProvider.Peers.PEERS,
                     peerValues,
                     PeerTable.pubKey + " = ?" ,
-                    new String[] {String.valueOf(protocolPeer.publicKey)});
+                    new String[] {DataUtil.bytesToHex(protocolPeer.publicKey)});
             if (updated != 1) {
                 Log.e(TAG, "Failed to update peer last seen");
             }

@@ -2,18 +2,15 @@ package pro.dbro.ble;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;
-import android.test.RenamingDelegatingContext;
-import android.util.Log;
 
-import java.net.SocketImpl;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.Random;
-import java.util.UUID;
 
 import pro.dbro.ble.crypto.SodiumShaker;
-import pro.dbro.ble.model.ChatDatabase;
+import pro.dbro.ble.model.ChatContentProvider;
+import pro.dbro.ble.model.MessageTable;
 import pro.dbro.ble.model.Peer;
+import pro.dbro.ble.model.PeerTable;
 import pro.dbro.ble.protocol.ChatProtocol;
 import pro.dbro.ble.protocol.Identity;
 import pro.dbro.ble.protocol.Message;
@@ -22,7 +19,6 @@ import pro.dbro.ble.util.RandomString;
 
 /**
  * Tests of the ChatProtocol and Chat Application.
- * Creating and Recovering ChatProtocol objects from transmission data byte[]
  */
 public class ChatAppTest extends ApplicationTestCase<Application> {
     public ChatAppTest() {
@@ -30,17 +26,17 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
     }
 
     OwnedIdentity mSenderIdentity;
-    RenamingDelegatingContext mMockContext;
 
     protected void setUp() throws Exception {
         super.setUp();
 
-        // TODO: Figure out how to properly mock database
-//        mMockContext = new RenamingDelegatingContext(getContext(), new RandomString(5).nextString());
-//        boolean didDelete = mMockContext.deleteDatabase(ChatDatabase.class.getName().toLowerCase());
-
         String username = new RandomString(ChatProtocol.ALIAS_LENGTH).nextString();
-        mSenderIdentity = SodiumShaker.generateKeyPairForAlias(username);
+        mSenderIdentity = SodiumShaker.generateOwnedIdentityForAlias(username);
+    }
+
+    @Override
+    protected void tearDown() throws Exception {
+        super.tearDown();
     }
 
     /** Protocol Tests **/
@@ -56,7 +52,7 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
 
         assertEquals(parsedIdentity.alias, mSenderIdentity.alias);
         assertEquals(Arrays.equals(parsedIdentity.publicKey, mSenderIdentity.publicKey), true);
-        assertDateisRecent(parsedIdentity.dateSeen);
+        assertDateIsRecent(parsedIdentity.dateSeen);
     }
 
     /**
@@ -71,45 +67,69 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
 
         assertEquals(messageBody, parsedMessage.body);
         assertEquals(Arrays.equals(parsedMessage.sender.publicKey, mSenderIdentity.publicKey), true);
-        assertDateisRecent(parsedMessage.authoredDate);
+        assertDateIsRecent(parsedMessage.authoredDate);
     }
 
     /** Application Tests **/
 
+    /**
+     * Create a {@link pro.dbro.ble.model.Peer} for protocol {@link pro.dbro.ble.protocol.Identity},
+     * then create a {@link pro.dbro.ble.model.Message} for protocol {@link pro.dbro.ble.protocol.Message}.
+     */
     public void testApplicationIdentityCreation() {
-        // Make an Identity for the user. Test successful database entry and retrieval
-        /* TODO: Once we can mock the database
-
+        // Get or create new primary identity. This Identity serves as the app user
         Peer user = ChatApp.getPrimaryIdentity(getContext());
-        String username = new RandomString(ChatProtocol.ALIAS_LENGTH).nextString();
+        boolean createdNewUser = false;
 
-        assertEquals(user , null);   // Off the bat there should be no primary identity
+        if (user == null) {
+            createdNewUser = true;
+            int userId = ChatApp.createNewIdentity(getContext(), new RandomString(ChatProtocol.ALIAS_LENGTH).nextString());
+            user = ChatApp.getPrimaryIdentity(getContext());
 
-        int userId = ChatApp.createNewIdentity(mMockContext, username);
+            assertEquals(userId, user.getId());
+        }
 
-        assertEquals(userId, 1);    // We've created the first entry in the Peer table
-
-        user = ChatApp.getPrimaryIdentity(mMockContext);
-
-        assertEquals(user.getAlias().equals(username), true);   // Username in database matches input
-
-        byte[] userIdentity = ChatApp.getPrimaryIdentityResponse(getContext());
-
-        Peer parsedUser = ChatApp.consumeReceivedIdentity(getContext(), userIdentity);
-
-        assertEquals(Arrays.equals(parsedUser.getKeyPair().publicKey, user.getKeyPair().publicKey), true);
-
-        // Test receiving remote Identity
-
-        byte[] identityResponse = ChatProtocol.createIdentityResponse(mSenderIdentity);
-        Peer remotePeer = ChatApp.consumeReceivedIdentity(getContext(), identityResponse);
-
+        // User discovers a peer
+        Peer remotePeer = ChatApp.consumeReceivedIdentity(getContext(), ChatProtocol.createIdentityResponse(mSenderIdentity));
+        // Assert Identity response parsed successfully
         assertEquals(Arrays.equals(remotePeer.getKeyPair().publicKey, mSenderIdentity.publicKey), true);
 
-        */
+        // Craft a mock message from remote peer
+        String mockReceivedMessageBody = new RandomString(ChatProtocol.MESSAGE_BODY_LENGTH).nextString();
+        byte[] mockReceivedMessage = ChatProtocol.createPublicMessageResponse(mSenderIdentity, mockReceivedMessageBody);
+
+        // User receives mock message from remote peer
+        pro.dbro.ble.model.Message parsedMockReceivedMessage = ChatApp.consumeReceivedBroadcastMessage(getContext(), mockReceivedMessage);
+        assertEquals(mockReceivedMessageBody.equals(parsedMockReceivedMessage.getBody()), true);
+
+        // Cleanup
+        // TODO: Should mock database
+        if (createdNewUser) {
+            int numDeleted;
+            numDeleted = getContext().getContentResolver().delete(ChatContentProvider.Peers.PEERS,
+                    PeerTable.id + " = ?",
+                    new String[] {String.valueOf(user.getId())});
+
+            assertEquals(numDeleted, 1);
+            numDeleted = 0;
+
+            numDeleted = getContext().getContentResolver().delete(ChatContentProvider.Peers.PEERS,
+                    PeerTable.id + " = ?",
+                    new String[] {String.valueOf(remotePeer.getId())});
+
+            assertEquals(numDeleted, 1);
+            numDeleted = 0;
+
+            numDeleted = getContext().getContentResolver().delete(ChatContentProvider.Messages.MESSAGES,
+                    MessageTable.id + " = ?",
+                    new String[] {String.valueOf(parsedMockReceivedMessage.getId())});
+            assertEquals(numDeleted, 1);
+            numDeleted = 0;
+        }
+
     }
 
-    private void assertDateisRecent(Date mustBeRecent) {
+    private void assertDateIsRecent(Date mustBeRecent) {
         long now = new Date().getTime();
         long oneSecondAgo = now - 1000;
 

@@ -32,7 +32,7 @@ public class SodiumShaker {
         }
     }
 
-    public static OwnedIdentity generateKeyPairForAlias(@NonNull String alias) {
+    public static OwnedIdentity generateOwnedIdentityForAlias(@NonNull String alias) {
         byte[] pk = new byte[crypto_sign_PUBLICKEYBYTES];
         byte[] sk = new byte[crypto_sign_SECRETKEYBYTES];
 
