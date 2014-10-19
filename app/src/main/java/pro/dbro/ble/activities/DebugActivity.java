@@ -19,7 +19,7 @@ import pro.dbro.ble.ble.BLEPeripheral;
 import pro.dbro.ble.model.Peer;
 
 
-public class MainActivity extends Activity implements CompoundButton.OnCheckedChangeListener, LogConsumer {
+public class DebugActivity extends Activity implements CompoundButton.OnCheckedChangeListener, LogConsumer {
 
     BLECentral mScanner;
     BLEPeripheral mAdvertiser;
@@ -40,7 +40,7 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_debug);
         mScanner = new BLECentral(this);
         mScanner.setLogConsumer(this);
         mAdvertiser = new BLEPeripheral(this);
@@ -66,7 +66,7 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
             Util.showWelcomeDialog(this, new DialogInterface.OnDismissListener() {
                 @Override
                 public void onDismiss(DialogInterface dialogInterface) {
-                    mUserIdentity = ChatApp.getPrimaryIdentity(MainActivity.this);
+                    mUserIdentity = ChatApp.getPrimaryIdentity(DebugActivity.this);
                 }
             });
         }
@@ -76,7 +76,7 @@ public class MainActivity extends Activity implements CompoundButton.OnCheckedCh
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
+        getMenuInflater().inflate(R.menu.debug, menu);
         return true;
     }
 
