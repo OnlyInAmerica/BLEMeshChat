@@ -1,0 +1,45 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="pro.dbro.ble.fragment.MessageListFragment">
+
+    <RelativeLayout
+        android:id="@+id/messageEntryContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/messageEntryBackground"
+        android:layout_alignParentBottom="true" >
+
+        <Button
+            android:id="@+id/sendMessageButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/transparent_button"
+            android:text="@string/send"
+            android:padding="8dp"
+            android:gravity="center"
+            android:layout_alignParentEnd="true"/>
+
+        <EditText
+            android:id="@+id/messageEntry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:imeOptions="actionSend"
+            android:paddingLeft="16dp"
+            android:layout_alignTop="@id/sendMessageButton"
+            android:layout_alignBottom="@id/sendMessageButton"
+            android:hint="@string/message_entry_hint"
+            android:background="@color/messageEntryBackground"
+            android:layout_toStartOf="@id/sendMessageButton"/>
+
+    </RelativeLayout>
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/messageEntryContainer"/>
+
+</RelativeLayout>

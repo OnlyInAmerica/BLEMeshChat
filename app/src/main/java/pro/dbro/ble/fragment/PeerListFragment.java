@@ -21,12 +21,12 @@ import pro.dbro.ble.model.Peer;
 /**
  * A simple {@link Fragment} subclass.
  * Activities that contain this fragment must implement the
- * {@link pro.dbro.ble.fragment.PeerFragment.PeerFragmentListener} interface
+ * {@link PeerListFragment.PeerFragmentListener} interface
  * to handle interaction events.
- * Use the {@link PeerFragment#newInstance} factory method to
+ * Use the {@link PeerListFragment#newInstance} factory method to
  * create an instance of this fragment.
  */
-public class PeerFragment extends Fragment implements BLEManagerCallback {
+public class PeerListFragment extends Fragment implements BLEManagerCallback {
 
     RecyclerView mRecyclerView;
     PeerAdapter mAdapter;
@@ -51,8 +51,8 @@ public class PeerFragment extends Fragment implements BLEManagerCallback {
      * @return A new instance of fragment PeerFragment.
      */
     // TODO: Rename and change types and number of parameters
-    public static PeerFragment newInstance(String param1, String param2) {
-        PeerFragment fragment = new PeerFragment();
+    public static PeerListFragment newInstance(String param1, String param2) {
+        PeerListFragment fragment = new PeerListFragment();
         Bundle args = new Bundle();
         args.putString(ARG_PARAM1, param1);
         args.putString(ARG_PARAM2, param2);
@@ -60,7 +60,7 @@ public class PeerFragment extends Fragment implements BLEManagerCallback {
         return fragment;
     }
 
-    public PeerFragment() {
+    public PeerListFragment() {
         // Required empty public constructor
     }
 

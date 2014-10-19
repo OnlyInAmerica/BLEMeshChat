@@ -25,7 +25,7 @@ public class Util {
         final EditText aliasEntry = ((EditText) dialogView.findViewById(R.id.aliasEntry));
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle(context.getString(R.string.dialog_welcome_greeting))
+        final AlertDialog dialog = builder.setTitle(context.getString(R.string.dialog_welcome_greeting))
                 .setView(dialogView)
                 .setPositiveButton(context.getString(R.string.dialog_ok), new DialogInterface.OnClickListener() {
                     @Override
@@ -33,14 +33,13 @@ public class Util {
                         ChatApp.createNewIdentity(context, aliasEntry.getText().toString());
                     }
                 })
+                .setOnDismissListener(dismissListener)
                 .show();
-        final Dialog alertDialog = builder.create();
-        alertDialog.setOnDismissListener(dismissListener);
         aliasEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
                 ChatApp.createNewIdentity(context, textView.getText().toString());
-                alertDialog.dismiss();
+                dialog.dismiss();
                 return false;
             }
         });

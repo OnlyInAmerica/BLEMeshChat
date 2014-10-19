@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.v7.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/card_view"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:layout_margin="8dp"
+    android:clickable="true"
+    android:foreground="?android:attr/selectableItemBackground"
+    card_view:cardCornerRadius="4dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/sender"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:singleLine="true"
+            android:ellipsize="marquee"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:gravity="center_vertical"
+            android:text="Paulina Pom pom"
+            android:drawableLeft="@drawable/ic_user_white_small"
+            android:textColor="#ffffff"
+            android:background="@color/primary"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/messageBody"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/sender"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="What's for dinner?"
+            android:textSize="20sp" />
+    </RelativeLayout>
+</android.support.v7.widget.CardView>

@@ -120,9 +120,13 @@ public class BLEPeripheral {
             if (mAdvertiser == null) {
                 mAdvertiser = mBTAdapter.getBluetoothLeAdvertiser();
             }
-            logEvent("Starting GATT server");
-            startGattServer();
-            mAdvertiser.startAdvertising(createAdvSettings(), createAdvData(), mAdvCallback);
+            if (mAdvertiser != null) {
+                logEvent("Starting GATT server");
+                startGattServer();
+                mAdvertiser.startAdvertising(createAdvSettings(), createAdvData(), mAdvCallback);
+            } else {
+                logEvent("Unable to access Bluetooth LE Advertiser. Device not supported");
+            }
         } else {
             if (mIsAdvertising)
                 logEvent("Start Advertising called while advertising already in progress");
@@ -305,6 +309,8 @@ public class BLEPeripheral {
     private void logEvent(String event) {
         if (mLogger != null) {
             mLogger.onLogEvent(event);
+        } else {
+            Log.i(TAG, event);
         }
     }
 

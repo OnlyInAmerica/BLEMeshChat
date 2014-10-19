@@ -525,8 +525,8 @@ public class BLEMeshManager {
      * to send
      */
     private byte[] getResponseForMessage(Cursor message) {
-        return ChatApp.getBroadcastMessageResponseForString(mContext,
-                                    message.getString(message.getColumnIndex(MessageTable.body)));
+        return ChatApp.createBroadcastMessageResponseForString(mContext,
+                message.getString(message.getColumnIndex(MessageTable.body)));
     }
 
     /**

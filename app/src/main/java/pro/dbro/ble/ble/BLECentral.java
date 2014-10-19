@@ -312,6 +312,8 @@ public class BLECentral {
     private void logEvent(String event) {
         if (mLogger != null) {
             mLogger.onLogEvent(event);
+        } else {
+            Log.i(TAG, event);
         }
     }
 

@@ -2,4 +2,6 @@
 <resources>
     <color name="primary">#ff307adf</color>
     <color name="primaryDark">#22569D</color>
+
+    <color name="messageEntryBackground">#ffffff</color>
 </resources>

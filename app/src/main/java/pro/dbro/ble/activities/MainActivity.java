@@ -1,40 +1,61 @@
 package pro.dbro.ble.activities;
 
 import android.app.Activity;
-import android.app.ActionBar;
-import android.app.Fragment;
+import android.content.DialogInterface;
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-import android.os.Build;
 
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.ble.BLEManagerCallback;
 import pro.dbro.ble.ble.BLEMeshManager;
-import pro.dbro.ble.fragment.PeerFragment;
+import pro.dbro.ble.fragment.MessageListFragment;
+import pro.dbro.ble.fragment.PeerListFragment;
 import pro.dbro.ble.model.Message;
 import pro.dbro.ble.model.Peer;
 
-public class MainActivity extends Activity implements PeerFragment.PeerFragmentListener, BLEManagerCallback {
+public class MainActivity extends Activity implements /* PeerListFragment.PeerFragmentListener,*/ BLEManagerCallback {
 
     private BLEMeshManager mMeshManager;
-    private PeerFragment mPeerFragment;
+    //private PeerListFragment mPeerListFragment;
+    private MessageListFragment mMessageListFragment;
+    private Peer mUserIdentity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getActionBar().setDisplayShowTitleEnabled(false);
         setContentView(R.layout.activity_main);
         if (savedInstanceState == null) {
-            mPeerFragment = new PeerFragment();
+            /*
+            mPeerListFragment = new PeerListFragment();
             getFragmentManager().beginTransaction()
-                    .add(R.id.container, mPeerFragment)
+                    .add(R.id.container, mPeerListFragment)
                     .commit();
+            */
+            mUserIdentity = ChatApp.getPrimaryIdentity(this);
+            if (mUserIdentity == null) {
+                Util.showWelcomeDialog(this, new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialogInterface) {
+                        mUserIdentity = ChatApp.getPrimaryIdentity(MainActivity.this);
+                        addMessageListFragment();
+                    }
+                });
+            } else {
+                addMessageListFragment();
+            }
+
         }
+    }
+
+    private void addMessageListFragment() {
+        mMessageListFragment = new MessageListFragment();
+        getFragmentManager().beginTransaction()
+                .add(R.id.container, mMessageListFragment)
+                .commit();
     }
 
     @Override
@@ -77,22 +98,23 @@ public class MainActivity extends Activity implements PeerFragment.PeerFragmentL
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public void onFragmentInteraction(Uri uri) {
-
-    }
+//    @Override
+//    public void onFragmentInteraction(Uri uri) {
+//
+//    }
 
     @Override
     public void onPeerStatusChange(Peer peer, PeerStatus status) {
-        if (mPeerFragment != null) {
-            mPeerFragment.onPeerStatusChange(peer, status);
-        }
+//        if (mPeerListFragment != null) {
+//            mPeerListFragment.onPeerStatusChange(peer, status);
+//        }
     }
 
     @Override
     public void onMessageReceived(Message incomingMsg) {
-        if (mPeerFragment != null) {
-            mPeerFragment.onMessageReceived(incomingMsg);
-        }
+//        if (mPeerListFragment != null) {
+//            mPeerListFragment.onMessageReceived(incomingMsg);
+//        }
+
     }
 }

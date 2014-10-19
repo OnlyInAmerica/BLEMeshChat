@@ -38,6 +38,10 @@ public class Message implements Closeable {
         return mCursor.getString(mCursor.getColumnIndex(MessageTable.body));
     }
 
+    public byte[] getSignature() {
+        return mCursor.getBlob(mCursor.getColumnIndex(MessageTable.signature));
+    }
+
     @Nullable
     public Peer getSender(Context context) {
         Cursor sender = ChatApp.getPeerById(context, mCursor.getInt(mCursor.getColumnIndex(MessageTable.peerId)));

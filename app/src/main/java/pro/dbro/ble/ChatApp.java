@@ -74,8 +74,15 @@ public class ChatApp {
         return context.getContentResolver().query(ChatContentProvider.Messages.MESSAGES, null, null, null, null);
     }
 
-    public static byte[] getBroadcastMessageResponseForString(@NonNull Context context, @NonNull String message) {
-        return ChatProtocol.createPublicMessageResponse((OwnedIdentity) getPrimaryIdentity(context).getKeyPair(), message);
+    /**
+     * Create a Message entry for the given body on behalf of the primary identity.
+     * Return the byte[] response ready for transmission
+     */
+    public static byte[] createBroadcastMessageResponseForString(@NonNull Context context, @NonNull String message) {
+        Peer user = getPrimaryIdentity(context);
+        byte[] messageResponse = ChatProtocol.createPublicMessageResponse((OwnedIdentity) user.getKeyPair(), message);
+        Message parsedMessage = consumeReceivedBroadcastMessage(context, messageResponse);
+        return messageResponse;
     }
 
     public static Peer consumeReceivedIdentity(@NonNull Context context, @NonNull byte[] identity) {
@@ -126,11 +133,11 @@ public class ChatApp {
                null);
     }
 
-    private static Cursor getPeerByPubKey(Context context, byte[] public_key) {
+    public static Cursor getPeerByPubKey(Context context, byte[] public_key) {
         return context.getContentResolver().query(
                ChatContentProvider.Peers.PEERS,
                null,
-               PeerTable.pubKey + " = ?",
+               "quote(" + PeerTable.pubKey + ") = ?",
                new String[] {DataUtil.bytesToHex(public_key)},
                null);
     }

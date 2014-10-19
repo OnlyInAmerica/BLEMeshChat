@@ -45,7 +45,7 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
                 .inflate(R.layout.peer_item, parent, false);
         // set the view's size, margins, paddings and layout parameters
         ViewHolder vh = new ViewHolder(v);
-//        vh.mTextView.setOnClickListener(new View.OnClickListener() {
+//        vh.mSenderView.setOnClickListener(new View.OnClickListener() {
 //            @Override
 //            public void onClick(View v) {
 //                // TODO
