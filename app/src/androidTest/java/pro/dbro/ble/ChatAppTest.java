@@ -7,6 +7,7 @@ import android.util.Log;
 
 import java.net.SocketImpl;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Random;
 import java.util.UUID;
 
@@ -55,6 +56,7 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
 
         assertEquals(parsedIdentity.alias, mSenderIdentity.alias);
         assertEquals(Arrays.equals(parsedIdentity.publicKey, mSenderIdentity.publicKey), true);
+        assertDateisRecent(parsedIdentity.dateSeen);
     }
 
     /**
@@ -69,6 +71,7 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
 
         assertEquals(messageBody, parsedMessage.body);
         assertEquals(Arrays.equals(parsedMessage.sender.publicKey, mSenderIdentity.publicKey), true);
+        assertDateisRecent(parsedMessage.authoredDate);
     }
 
     /** Application Tests **/
@@ -104,5 +107,17 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
         assertEquals(Arrays.equals(remotePeer.getKeyPair().publicKey, mSenderIdentity.publicKey), true);
 
         */
+    }
+
+    private void assertDateisRecent(Date mustBeRecent) {
+        long now = new Date().getTime();
+        long oneSecondAgo = now - 1000;
+
+        if ( (mustBeRecent.getTime() > now) ){
+            throw new IllegalStateException("Parsed Identity time is from the future " + mustBeRecent);
+
+        } else if (mustBeRecent.getTime() < oneSecondAgo) {
+            throw new IllegalStateException("Parsed Identity time is from more than 500ms ago " + mustBeRecent);
+        }
     }
 }
