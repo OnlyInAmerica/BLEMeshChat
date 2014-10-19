@@ -1,5 +1,6 @@
 package pro.dbro.ble.model;
 
+import android.content.Context;
 import android.database.Cursor;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -8,6 +9,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Date;
+
+import pro.dbro.ble.ChatApp;
 
 /**
  * A thin model around a {@link android.database.Cursor}
@@ -33,6 +36,15 @@ public class Message implements Closeable {
 
     public String getBody() {
         return mCursor.getString(mCursor.getColumnIndex(MessageTable.body));
+    }
+
+    @Nullable
+    public Peer getSender(Context context) {
+        Cursor sender = ChatApp.getPeerById(context, mCursor.getInt(mCursor.getColumnIndex(MessageTable.peerId)));
+        if (sender != null && sender.moveToFirst()) {
+            return new Peer(sender);
+        }
+        return null;
     }
 
     @Nullable

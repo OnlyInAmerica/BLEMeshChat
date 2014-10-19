@@ -175,7 +175,7 @@ public class ChatApp {
         return peer;
     }
 
-    private static Cursor getPeerById(Context context, int id) {
+    public static Cursor getPeerById(Context context, int id) {
         return context.getContentResolver().query(
                ChatContentProvider.Peers.PEERS,
                null,

@@ -13,7 +13,7 @@ import butterknife.ButterKnife;
 import butterknife.InjectView;
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
-import pro.dbro.ble.adapter.BLEClientAdapter;
+import pro.dbro.ble.adapter.PeerAdapter;
 import pro.dbro.ble.ble.BLECentral;
 import pro.dbro.ble.ble.BLEPeripheral;
 import pro.dbro.ble.model.Peer;
@@ -35,7 +35,7 @@ public class DebugActivity extends Activity implements CompoundButton.OnCheckedC
 
     Peer mUserIdentity;
 
-    private BLEClientAdapter mAdapter;
+    private PeerAdapter mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,10 +50,10 @@ public class DebugActivity extends Activity implements CompoundButton.OnCheckedC
         mScanToggle.setOnCheckedChangeListener(this);
         mAdvertiseToggle.setOnCheckedChangeListener(this);
 
-        mAdapter = new BLEClientAdapter(new String[]{"Device1", "Device2"});
+//        mAdapter = new BLEClientAdapter(new String[]{"Device1", "Device2"});
 //        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 //        mRecyclerView.setAdapter(mAdapter);
-
+//
 //        mEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 //            @Override
 //            public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
@@ -76,7 +76,7 @@ public class DebugActivity extends Activity implements CompoundButton.OnCheckedC
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.debug, menu);
+        getMenuInflater().inflate(R.menu.menu_debug, menu);
         return true;
     }
 

@@ -9,8 +9,10 @@ import pro.dbro.ble.model.Peer;
  */
 public interface BLEManagerCallback {
 
-    public void peerAvailable(Peer peer);
+    public static enum PeerStatus { AVAILABLE, UNAVAILABLE }
 
-    public void messageReceived(Message incomingMsg);
+    public void onPeerStatusChange(Peer peer, PeerStatus status);
+
+    public void onMessageReceived(Message incomingMsg);
 
 }

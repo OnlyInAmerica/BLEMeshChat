@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattServerCallback;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
@@ -14,6 +15,8 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayDeque;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import pro.dbro.ble.activities.LogConsumer;
@@ -121,61 +124,6 @@ public class BLEMeshManager {
         }
     }
 
-    // <editor-fold desc="MeshCallback">
-
-    public void onConnectedToPeripheral(BluetoothGatt peripheralPeer) {
-        if (mConnectedToPeripheral) {
-            // ignore
-            return;
-        }
-        synchronized (mStateGuard) {
-            mConnectedToPeripheral = true;
-            adjustStateForNewConnection();
-        }
-        // Read Identity Characteristic
-        peripheralPeer.readCharacteristic(GATT.IDENTITY_CHARACTERISTIC);
-    }
-
-    public void onConnectedToCentral(BluetoothDevice centralPeer) {
-        if (mConnectedToCentral) {
-            // ignore;
-            return;
-        }
-        synchronized (mStateGuard) {
-            mConnectedToCentral = true;
-            adjustStateForNewConnection();
-            // Establish connection to centralPeer's peripheral
-//            if (mState == BLEConnectionState.FULL_DUPLEX) {
-//                // We already are connected to the other peer's peripheral
-//                return;
-//            }
-        }
-        centralPeer.connectGatt(mContext, true, new BluetoothGattCallback() {
-            @Override
-            public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-//                if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
-//                    boolean result = gatt.readCharacteristic(GATT.MESSAGES_CHARACTERISTIC);
-//                    if (result) {
-//                        synchronized (mStateGuard) {
-//                            changeState(BLEConnectionState.SYNCING);
-//                        }
-//                    }
-//                }
-                super.onConnectionStateChange(gatt, status, newState);
-            }
-
-            @Override
-            public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                if (characteristic == GATT.MESSAGES_CHARACTERISTIC) {
-                    // TODO: Repeat read until all request data received
-                }
-                super.onCharacteristicRead(gatt, characteristic, status);
-            }
-        });
-    }
-
-    // </editor-fold desc="MeshCallback">
-
     private void adjustStateForNewConnection() {
         switch (mState) {
 //            case SEARCHING:
@@ -196,19 +144,42 @@ public class BLEMeshManager {
             mState = newState;
     }
 
-    /** The sequence of actions that describe a complete pairing
-     *  Note it is up to the other device to read this device's id */
-    public enum PAIR_SEQUENCE { READ_ID, READ_MESSAGES, WRITE_MESSAGES }
-
     /** Addresses which are currently connected mapped to BluetoothGatts */
     private ConcurrentHashMap<String, BluetoothGatt> mAddressesConnectedTo = new ConcurrentHashMap<>();
     /** Peers which are currently connected mapped to BluetoothGatts */
     private ConcurrentHashMap<Peer, BluetoothGatt> mPeersToAddresses = new ConcurrentHashMap<>();
 
-    /** Messages to send on each successive read to Messages Characteristic */
+    /** Messages to send
+     * As a peripheral:
+     *      Send a message on each received read to Messages Characteristic
+     * As a central:
+     *      Send a message on each initiated write to Message Characteristic
+     * */
     private Cursor mMessagesToSend;
 
-    /** Central Callbacks */
+    /*****************************************
+     *            Central Callbacks          *
+     *   Initiates read and write requests   *
+     *****************************************
+     *
+     * - Initiate Reads to Peripheral Characteristics
+     *   (Receiving data)
+     *
+     *      For each target characteristic the central device
+     *      initiates an initial read request. The central
+     *      than receives data responses onCharacteristicRead
+     *      and repeats with a follow up request until the
+     *      {@link BluetoothGatt#GATT_READ_NOT_PERMITTED} status
+     *      code is returned.
+     *
+     * - Initiates Writes to Peripheral Characteristics
+     *   (Sending data)
+     *
+     *      The central device acts in a similar manner when
+     *      writing data to the remote peripheral. Generally
+     *      the central client will attempt to read before writing.
+     *
+     */
     private ScanCallback mCentralScanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult scanResult) {
@@ -226,6 +197,32 @@ public class BLEMeshManager {
 
     private BluetoothGattCallback mCentralGattCallback = new BluetoothGattCallback() {
         public static final String TAG = "BluetoothGattCallback";
+
+        private boolean connected = false;
+
+        /** Queue of characteristics to read from the remote peripheral
+         *
+         * The containing BluetoothGattCallback will queue all characteristics before initiating the
+         * first read. On each resulting call to onCharacteristicRead if the GATT status code is
+         * {@link BluetoothGatt#GATT_READ_NOT_PERMITTED} the peripheral has sent all available data
+         * for the requested characteristic. Therefore the next characteristic in {@link #mCharacteristicsToRead}
+         * is de-queued and a request for it made to the remote peripheral. Data is received and the
+         * request repeated until the GATT status code received in onCharacteristicRead
+         * is {@link BluetoothGatt#GATT_READ_NOT_PERMITTED}
+         */
+        ArrayDeque<BluetoothGattCharacteristic> mCharacteristicsToRead = new ArrayDeque<>();
+
+        /**
+         * Queue of characteristics to write to the remote peripheral
+         *
+         * The containing BluetoothGattCallback will queue all characteristics before initiating the
+         * first read. Generally all reads are completed before writing begins.
+         * When writing begins data is queued for the target characteristic and the first write
+         * request is sent. On each resulting call to OnCharacteristicWrite the next
+         * characteristic is removed from the queue, it's data queued, and the responses sent as before.
+         */
+        ArrayDeque<BluetoothGattCharacteristic> mCharacteristicsToWrite = new ArrayDeque<>();
+
         @Override
         public void onConnectionStateChange(BluetoothGatt remotePeripheral, int status, int newState) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
@@ -246,6 +243,7 @@ public class BLEMeshManager {
                         mAddressesConnectedTo.put(remotePeripheral.getDevice().getAddress(), remotePeripheral);
                     }
                     logEvent("newState indicates indicates GATT connected");
+                    // TODO: Don't discover services. Go right to GATT reading / writing
                     boolean discovering = remotePeripheral.discoverServices();
                     logEvent("Discovering services : " + discovering);
                     break;
@@ -254,17 +252,148 @@ public class BLEMeshManager {
         }
 
         @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            List<BluetoothGattService> serviceList = gatt.getServices();
+            for (BluetoothGattService service : serviceList) {
+                List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+                for (BluetoothGattCharacteristic characteristic : characteristics) {
+                    if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
+                        logEvent("Queuing identity read");
+                        queueReadOp(gatt, characteristic);
+                    }
+                    else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
+                        // TODO: Propagate Identities
+                        //logEvent("Queuing identity write");
+                        //queueWriteOp(gatt, characteristic);
+                    }
+                    if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
+                        // Request to receive peripheral's messages
+                        logEvent("Queuing message read");
+                        queueReadOp(gatt, characteristic);
+                    }
+                    else if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
+                        // Request to send peripheral our messages
+                        logEvent("Queuing message write");
+                        // TODO: Queue messages
+                        queueWriteOp(gatt, characteristic);
+                    }
+
+                }
+            }
+            super.onServicesDiscovered(gatt, status);
+        }
+
+        /**
+         * Callback with data from prior request
+         * Consume data and repeat request if more data available
+         */
+        @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            logEvent(String.format("onCharacteristicRead %s status: %d", characteristic.getStringValue(0), status));
+            /** Messages Read Response */
+            if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
+                consumeMessageReadResponse(characteristic.getValue());
+            }
+            /** Identity Read Response **/
+            else if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
+                consumeIdentityReadResponse(characteristic.getValue());
+            } else {
+                logEvent("Got OnCharacteristicRead for unknown characteristic " + characteristic.getUuid().toString());
+            }
+
+            // Perform another request if GATT status indicates more data available
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                // If more data available, begin the next read
+                gatt.readCharacteristic(characteristic);
+            } else if (status == BluetoothGatt.GATT_READ_NOT_PERMITTED || status == BluetoothGatt.GATT_FAILURE) {
+                // No more data available for this characteristic
+                // Move on to next characteristic
+                if (mCharacteristicsToRead.size() > 0) {
+                    // Continue reading more interesting peripheral characteristics
+                    BluetoothGattCharacteristic ch = mCharacteristicsToRead.pop();
+                    logEvent("reading char " + ch.getUuid().toString());
+                    boolean result = gatt.readCharacteristic(ch);
+                    logEvent(String.format("Sending Read to %s . Success: %b", ch.getUuid().toString(), result));
+                } else if (mCharacteristicsToWrite.size() > 0) {
+                    // Else move on to writing our data to peripheral characteristics
+                    BluetoothGattCharacteristic ch = mCharacteristicsToWrite.pop();
+                    boolean result = gatt.writeCharacteristic(ch);
+                    logEvent(String.format("Sending Write to %s . Success: %b", ch.getUuid().toString(), result));
+                } else {
+                    // No more data to sync with peripheral
+                    logEvent("Synced all data with remote peripheral. Safe to disconnect");
+                    // TODO: disconnect?
+                }
+            } else {
+                logEvent("Central client got unhandled GATT status onCharacteristicRead " + status);
+            }
+
             super.onCharacteristicRead(gatt, characteristic, status);
         }
 
+        /**
+         * Callback indicating the previous write request finished
+         * Write more data if available
+         */
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            logEvent(String.format("Received Write from %s with status %d", characteristic.getUuid(), status));
+
+            /** Messages Write Response */
+            if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
+                // If we have more messages to send, do it
+                logEvent("TODO: Send more messages");
+            }
+            /** Identity Write Response **/
+            else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
+                // If we have more identities to write, do it
+                logEvent("TODO: Send more identities");
+            } else {
+                logEvent("Got OnCharacteristicWrite for unknown characteristic " + characteristic.getUuid().toString());
+            }
+
+            if (mCharacteristicsToWrite.size() > 0) {
+                BluetoothGattCharacteristic ch = mCharacteristicsToWrite.pop();
+                // TODO: Write first bit of data for characteristic
+                boolean result = gatt.writeCharacteristic(ch);
+                logEvent(String.format("Sending Write to %s . Success: %b", ch.getUuid().toString(), result));
+
+            }
             super.onCharacteristicWrite(gatt, characteristic, status);
+        }
+
+        private void queueReadOp(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            mCharacteristicsToRead.push(characteristic);
+            if (mCharacteristicsToWrite.size() == 2 && mCharacteristicsToRead.size() == 2) {
+                BluetoothGattCharacteristic ch = mCharacteristicsToRead.pop();
+                boolean success = gatt.readCharacteristic(ch);
+                logEvent(String.format("Sending Read to %s. Success: %b", ch.getUuid().toString(), success));
+            }
+        }
+
+        private void queueWriteOp(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            mCharacteristicsToWrite.push(characteristic);
+            if (mCharacteristicsToWrite.size() == 2 && mCharacteristicsToRead.size() == 2) {
+                BluetoothGattCharacteristic ch = mCharacteristicsToRead.pop();
+                boolean success = gatt.readCharacteristic(ch);
+                logEvent(String.format("Sending Read to %s. Success: %b", ch.getUuid().toString(), success));
+            }
         }
     };
 
-    /** Peripheral Callbacks */
+    /*****************************************
+     *         Peripheral Callbacks          *
+     *  Responds to read and write requests  *
+     *****************************************
+     *
+     * The peripheral device responds to reads,
+     * returning GATT_SUCCESS if more data is
+     * available for delivery to a subsequent request
+     * made by the remote central. When the peripheral
+     * is out of data for the target characteristic,
+     * {@link android.bluetooth.BluetoothGatt#GATT_READ_NOT_PERMITTED}
+     * will be returned.
+    */
 
     BluetoothGattServerCallback mPeripheralGattCallback = new BluetoothGattServerCallback() {
         @Override
@@ -292,6 +421,9 @@ public class BLEMeshManager {
             super.onConnectionStateChange(device, status, newState);
         }
 
+        /**
+         * Send responses to the remote central.
+         */
         @Override
         public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
             byte[] responseData = null;
@@ -324,13 +456,13 @@ public class BLEMeshManager {
                 /** Identity Read Request */
                 else if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
                     responseData = ChatApp.getPrimaryIdentityResponse(mContext);
-                }
-
-                if (responseData != null) {
-                    logEvent("Recognized CharacteristicReadRequest. Sent response " + new String(responseData, "UTF-8"));
-                } else {
-                    logEvent("CharacteristicReadRequest Failure. Failed to generate response data");
-                    mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                    if (responseData != null) {
+                        logEvent("Sending Identity. Sent response " + new String(responseData, "UTF-8"));
+                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, responseData);
+                    } else {
+                        logEvent("Error preparing Identity response. Sending failure");
+                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                    }
                 }
             }
             catch (UnsupportedEncodingException e) {
@@ -340,6 +472,9 @@ public class BLEMeshManager {
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
         }
 
+        /**
+         * Consume responses sent by the remote central
+         */
         @Override
         public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
             byte[] responseData = null;
@@ -392,6 +527,20 @@ public class BLEMeshManager {
     private byte[] getResponseForMessage(Cursor message) {
         return ChatApp.getBroadcastMessageResponseForString(mContext,
                                     message.getString(message.getColumnIndex(MessageTable.body)));
+    }
+
+    /**
+     * Process data representing an incoming message
+     */
+    private void consumeMessageReadResponse(byte[] message) {
+        ChatApp.consumeReceivedBroadcastMessage(mContext, message);
+    }
+
+    /**
+     * Process data representing a remote identity
+     */
+    private void consumeIdentityReadResponse(byte[] identity) {
+        ChatApp.consumeReceivedIdentity(mContext, identity);
     }
 
     // </editor-fold desc="Private API">
