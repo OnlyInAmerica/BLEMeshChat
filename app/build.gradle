@@ -2,13 +2,13 @@ apply plugin: 'com.android.application'
 apply plugin: 'android-apt'
 
 android {
-    compileSdkVersion 21
-    buildToolsVersion "21"
+    compileSdkVersion 'android-L'
+    buildToolsVersion "20.0.0"
 
     defaultConfig {
         applicationId "pro.dbro.ble"
-        minSdkVersion 21
-        targetSdkVersion 21
+        minSdkVersion 'L'
+        targetSdkVersion 'L'
         versionCode 1
         versionName "1.0"
     }

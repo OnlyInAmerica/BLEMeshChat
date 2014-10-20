@@ -182,8 +182,7 @@ public class BLEMeshManager {
      */
     private ScanCallback mCentralScanCallback = new ScanCallback() {
         @Override
-        public void onScanResult(int callbackType, ScanResult scanResult) {
-            super.onScanResult(callbackType, scanResult);
+        public void onAdvertisementUpdate(ScanResult scanResult) {
             if (!mAddressesConnectedTo.contains(scanResult.getDevice().getAddress())) {
                 scanResult.getDevice().connectGatt(mContext, false, mCentralGattCallback);
             }

@@ -11,8 +11,8 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.AdvertiseCallback;
-import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertiseSettings;
+import android.bluetooth.le.AdvertisementData;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.Context;
 import android.os.ParcelUuid;
@@ -45,8 +45,7 @@ public class BLEPeripheral {
     /** Advertise Callback */
     private AdvertiseCallback mAdvCallback = new AdvertiseCallback() {
         @Override
-        public void onStartSuccess(AdvertiseSettings settingsInEffect) {
-            super.onStartSuccess(settingsInEffect);
+        public void onSuccess(AdvertiseSettings settingsInEffect) {
             if (settingsInEffect != null) {
                 logEvent("Advertise success TxPowerLv="
                         + settingsInEffect.getTxPowerLevel()
@@ -57,8 +56,7 @@ public class BLEPeripheral {
         }
 
         @Override
-        public void onStartFailure(int errorCode) {
-            super.onStartFailure(errorCode);
+        public void onFailure(int errorCode) {
             logEvent("Advertising failed with code " + errorCode);
         }
     };
@@ -246,7 +244,7 @@ public class BLEPeripheral {
         mGattServer.addService(chatService);
     }
 
-    private static AdvertiseData createAdvData() {
+    private static AdvertisementData createAdvData() {
         // iPad:
         // 4c 00 01 00 00000000 00000010 00000000 000000
         final byte[] manufacturerData = new byte[] {
@@ -261,7 +259,7 @@ public class BLEPeripheral {
                 //     00           00           00
                 (byte) 0x00, (byte) 0x00, (byte) 0x00
         };
-        AdvertiseData.Builder builder = new AdvertiseData.Builder();
+        AdvertisementData.Builder builder = new AdvertisementData.Builder();
         // Service UUIDS
         // Generic Access
         // Generic Attribute
@@ -284,7 +282,9 @@ public class BLEPeripheral {
 //        uuidList.add(ParcelUuid.fromString("7905F431-B5CE-4E99-A40F-4B1E122D00D0"));
 //        uuidList.add(ParcelUuid.fromString("217D750E-7B58-4152-A1EB-F2711BB38350"));
 //        uuidList.add(ParcelUuid.fromString("89D3502B-0F36-433A-8EF4-C502AD55F8DC"));
-        builder.addServiceUuid(new ParcelUuid(GATT.SERVICE_UUID));
+        List<ParcelUuid> uuidList = new ArrayList<ParcelUuid>();
+        uuidList.add(new ParcelUuid(GATT.SERVICE_UUID));
+        builder.setServiceUuids(uuidList);
         builder.setIncludeTxPowerLevel(false);
 //        builder.setManufacturerData(0x1234578, manufacturerData);
         return builder.build();
@@ -293,8 +293,7 @@ public class BLEPeripheral {
     private static AdvertiseSettings createAdvSettings() {
         AdvertiseSettings.Builder builder = new AdvertiseSettings.Builder();
         builder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH);
-        builder.setConnectable(true);
-        //builder.setType(AdvertiseSettings.ADVERTISE_TYPE_CONNECTABLE);
+        builder.setType(AdvertiseSettings.ADVERTISE_TYPE_CONNECTABLE);
         builder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED);
         return builder.build();
     }

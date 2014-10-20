@@ -102,8 +102,7 @@ public class BLECentral {
             ArrayDeque<BluetoothGattCharacteristic> mCharacteristicsToWrite = new ArrayDeque<>();
 
             @Override
-            public void onScanResult(int callbackType, ScanResult scanResult) {
-                super.onScanResult(callbackType, scanResult);
+            public void onAdvertisementUpdate(ScanResult scanResult) {
 //                Only attempt one connection at a time
                 if (connected) return;
 //                if (REPORT_NON_SUCCESSES) Log.i(TAG, "Got new advertisement before connection");
@@ -297,6 +296,7 @@ public class BLECentral {
 
     private static ScanSettings createScanSettings() {
         ScanSettings.Builder builder = new ScanSettings.Builder();
+        builder.setCallbackType(ScanSettings.CALLBACK_TYPE_ON_UPDATE);
         builder.setScanMode(ScanSettings.SCAN_MODE_BALANCED);
         return builder.build();
     }
