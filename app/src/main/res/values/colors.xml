@@ -3,7 +3,8 @@
     <color name="primary">#ff307adf</color>
     <color name="primaryDark">#22569D</color>
 
-    <color name="dull">#90a4ae</color>
+    <color name="message_header_subdued_text">#cfd8dc</color>
+    <color name="message_header">#90a4ae</color>
     <!--#bdbdbd
     <color name="dull">#738ffe</color>
     -->

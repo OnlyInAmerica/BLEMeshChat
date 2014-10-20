@@ -3,15 +3,19 @@ package pro.dbro.ble.adapter;
 import android.content.Context;
 import android.database.Cursor;
 import android.support.v7.widget.RecyclerView;
+import android.text.format.DateUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import java.text.ParseException;
+import java.util.Date;
+
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
-import pro.dbro.ble.model.Message;
+import pro.dbro.ble.model.DataUtil;
 import pro.dbro.ble.model.MessageTable;
 import pro.dbro.ble.model.Peer;
 
@@ -24,11 +28,13 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public TextView senderView;
         public TextView messageView;
+        public TextView authoredView;
 
         public ViewHolder(View v) {
             super(v);
             senderView = (TextView) v.findViewById(R.id.sender);
             messageView = (TextView) v.findViewById(R.id.messageBody);
+            authoredView = (TextView) v.findViewById(R.id.authoredDate);
         }
     }
 
@@ -42,6 +48,13 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
             holder.senderView.setText("?");
         }
         holder.messageView.setText(cursor.getString(cursor.getColumnIndex(MessageTable.body)));
+        try {
+            holder.authoredView.setText(DateUtils.getRelativeTimeSpanString(
+                    DataUtil.storedDateFormatter.parse(cursor.getString(cursor.getColumnIndex(MessageTable.authoredDate))).getTime()));
+        } catch (ParseException e) {
+            holder.authoredView.setText("");
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -67,7 +80,6 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.message_item, parent, false);
         // set the view's size, margins, paddings and layout parameters
-        ViewHolder vh = new ViewHolder(v);
         return new ViewHolder(v);
     }
 }
