@@ -13,7 +13,7 @@
         <provider
             android:name=".schematic.ChatContentProvider"
             android:authorities="pro.dbro.ble.chatprovider"
-            android:exported="false" >
+            android:exported="true">
         </provider>
 
         <activity
