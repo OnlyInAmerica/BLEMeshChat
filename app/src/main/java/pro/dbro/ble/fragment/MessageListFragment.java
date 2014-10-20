@@ -11,6 +11,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -44,8 +45,11 @@ public class MessageListFragment extends Fragment implements BLEManagerCallback 
         mMessageEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                sendMessage(v.getText().toString());
-                v.setText("");
+                if (actionId == EditorInfo.IME_ACTION_SEND) {
+                    sendMessage(v.getText().toString());
+                    v.setText("");
+                    return true;
+                }
                 return false;
             }
         });
@@ -84,6 +88,7 @@ public class MessageListFragment extends Fragment implements BLEManagerCallback 
     }
 
     private void sendMessage(String message) {
+        if (message.length() == 0) return;
         Log.i(TAG, "Sending message " + message);
         // For now treat all messsages as public broadcast
         ChatApp.createBroadcastMessageResponseForString(getActivity(), message);
