@@ -32,6 +32,7 @@ import pro.dbro.ble.model.Peer;
  * Created by davidbrodsky on 10/12/14.
  */
 public class BLEMeshManager {
+    public static final String TAG = "BLEMeshManager";
 
     private Context mContext;
     private Peer mUser;
@@ -111,7 +112,7 @@ public class BLEMeshManager {
 
     private void stopBleServices() {
         if (mState == BLEConnectionState.DISABLED) {
-            throw new IllegalStateException("stopBleServices called in invalid state");
+            return;
         }
         mCentral.stop();
         mPeripheral.stop();
@@ -121,6 +122,8 @@ public class BLEMeshManager {
     private void logEvent(String event) {
         if (mLogger != null) {
             mLogger.onLogEvent(event);
+        } else {
+            Log.i(TAG, event);
         }
     }
 
@@ -432,7 +435,7 @@ public class BLEMeshManager {
                     if (mMessagesToSend == null) {
                         // We received a Read
                         queueMessagesForTransmission();
-                        logEvent(String.format("Got Messages read request. Queued %d messages for delivery", mMessagesToSend.getCount()));
+                        logEvent(String.format("Got Messages read request. Queued %d messages for delivery", (mMessagesToSend == null) ? 0 : mMessagesToSend.getCount()));
                     }
                     // Send next message in queue or report no messages to send
                     if (mMessagesToSend != null && mMessagesToSend.moveToNext()) {
@@ -457,7 +460,8 @@ public class BLEMeshManager {
                     responseData = ChatApp.getPrimaryIdentityResponse(mContext);
                     if (responseData != null) {
                         logEvent("Sending Identity. Sent response " + new String(responseData, "UTF-8"));
-                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, responseData);
+                        // TODO: Propagate some more identities before sending READ_NOT_PERMITTED
+                        mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, responseData);
                     } else {
                         logEvent("Error preparing Identity response. Sending failure");
                         mPeripheral.getGattServer().sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
