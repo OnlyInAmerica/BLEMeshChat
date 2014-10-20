@@ -29,7 +29,7 @@
             android:text="Paulina Pom pom"
             android:drawableLeft="@drawable/ic_user_white_small"
             android:textColor="#ffffff"
-            android:background="@color/primary"
+            android:background="@color/dull"
             android:textSize="18sp" />
 
         <TextView

@@ -161,8 +161,6 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
                 },
                 null);
 
-
-
         assertEquals(result != null, true);
         assertEquals(result.moveToFirst(), true);
 

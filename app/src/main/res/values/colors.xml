@@ -3,5 +3,10 @@
     <color name="primary">#ff307adf</color>
     <color name="primaryDark">#22569D</color>
 
+    <color name="dull">#90a4ae</color>
+    <!--#bdbdbd
+    <color name="dull">#738ffe</color>
+    -->
+
     <color name="messageEntryBackground">#ffffff</color>
 </resources>
