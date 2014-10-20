@@ -91,7 +91,7 @@ public class MessageListFragment extends Fragment implements BLEManagerCallback 
         if (message.length() == 0) return;
         Log.i(TAG, "Sending message " + message);
         // For now treat all messsages as public broadcast
-        ChatApp.createBroadcastMessageResponseForString(getActivity(), message);
+        ChatApp.saveAndCreateBroadcastMessageResponseForString(getActivity(), message);
         mRecyclerView.smoothScrollToPosition(mAdapter.getItemCount());
     }
 }

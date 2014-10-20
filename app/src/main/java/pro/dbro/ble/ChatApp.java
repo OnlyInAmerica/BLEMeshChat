@@ -78,10 +78,17 @@ public class ChatApp {
      * Create a Message entry for the given body on behalf of the primary identity.
      * Return the byte[] response ready for transmission
      */
+    public static byte[] saveAndCreateBroadcastMessageResponseForString(@NonNull Context context, @NonNull String message) {
+        Peer user = getPrimaryIdentity(context);
+        byte[] messageResponse = ChatProtocol.createPublicMessageResponse((OwnedIdentity) user.getKeyPair(), message);
+        // Create an entry for the Message in our application database
+        Message parsedMessage = consumeReceivedBroadcastMessage(context, messageResponse);
+        return messageResponse;
+    }
+
     public static byte[] createBroadcastMessageResponseForString(@NonNull Context context, @NonNull String message) {
         Peer user = getPrimaryIdentity(context);
         byte[] messageResponse = ChatProtocol.createPublicMessageResponse((OwnedIdentity) user.getKeyPair(), message);
-        Message parsedMessage = consumeReceivedBroadcastMessage(context, messageResponse);
         return messageResponse;
     }
 
@@ -112,12 +119,14 @@ public class ChatApp {
         newMessageEntry.put(MessageTable.receivedDate, DataUtil.storedDateFormatter.format(new Date()));
         newMessageEntry.put(MessageTable.authoredDate, DataUtil.storedDateFormatter.format(protocolMessage.authoredDate));
         newMessageEntry.put(MessageTable.signature, protocolMessage.signature);
+
+        // DEBUGGING
+        new Exception().printStackTrace(System.out);
         Uri newMessageUri = context.getContentResolver().insert(
                     ChatContentProvider.Messages.MESSAGES,
                     newMessageEntry);
         // Fetch message
         Cursor newMessage = getMessageById(context, Integer.parseInt(newMessageUri.getLastPathSegment()));
-        //Uri newIdentityUri = context.getContentResolver().insert(ChatContentProvider.Messages.MESSAGES, newMessage);
         if (newMessage != null && newMessage.moveToFirst()) {
             return new Message(newMessage);
         } else
