@@ -3,5 +3,5 @@
     android:id="@+id/container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="pro.dbro.ble.activities.MainActivity"
+    tools:context="pro.dbro.ble.ui.activities.MainActivity"
     tools:ignore="MergeRootFrame" />

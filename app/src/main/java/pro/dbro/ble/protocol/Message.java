@@ -9,16 +9,30 @@ import java.util.Date;
  */
 public class Message {
 
-    public Identity sender;
-    public String body;
-    public Date authoredDate;
-    public byte[] signature;
+    final public Identity sender;
+    final public String body;
+    final public Date authoredDate;
+    final public byte[] signature;
+    final public byte[] replySig;
+    final public byte[] rawPacket;
 
-    public Message(@NonNull final byte[] publicKey, @NonNull byte[] signature, @NonNull String alias, @NonNull Date dateSeen,
-                   @NonNull String body) {
+
+    public Message(@NonNull final byte[] publicKey, @NonNull byte[] signature, @NonNull byte[] replySig, @NonNull String alias, @NonNull Date dateSeen,
+                   @NonNull String body, @NonNull byte[] rawPacket) {
         this.body      = body;
         this.signature = signature;
+        this.replySig  = replySig;
+        this.rawPacket = rawPacket;
         authoredDate   = dateSeen;
-        sender         = new Identity(publicKey, alias, dateSeen);
+        sender         = new Identity(publicKey, alias, dateSeen, null); // We don't have the sender's full identity response
+    }
+
+    public Message(@NonNull Identity sender, @NonNull byte[] signature, @NonNull byte[] replySig, @NonNull String body, @NonNull byte[] rawPacket) {
+        this.body      = body;
+        this.signature = signature;
+        this.replySig  = replySig;
+        this.rawPacket = rawPacket;
+        authoredDate   = sender.dateSeen;
+        this.sender    = sender;
     }
 }

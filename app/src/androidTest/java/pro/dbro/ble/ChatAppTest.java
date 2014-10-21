@@ -5,18 +5,17 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
 import android.test.ApplicationTestCase;
-import android.text.format.DateUtils;
 
 import java.util.Arrays;
 import java.util.Date;
 
 import pro.dbro.ble.crypto.SodiumShaker;
-import pro.dbro.ble.model.ChatContentProvider;
-import pro.dbro.ble.model.DataUtil;
-import pro.dbro.ble.model.MessageTable;
-import pro.dbro.ble.model.Peer;
-import pro.dbro.ble.model.PeerTable;
-import pro.dbro.ble.protocol.ChatProtocol;
+import pro.dbro.ble.data.model.ChatContentProvider;
+import pro.dbro.ble.data.model.DataUtil;
+import pro.dbro.ble.data.model.MessageTable;
+import pro.dbro.ble.data.model.Peer;
+import pro.dbro.ble.data.model.PeerTable;
+import pro.dbro.ble.protocol.BLEProtocol;
 import pro.dbro.ble.protocol.Identity;
 import pro.dbro.ble.protocol.Message;
 import pro.dbro.ble.protocol.OwnedIdentity;
@@ -36,7 +35,7 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
     protected void setUp() throws Exception {
         super.setUp();
 
-        String username = new RandomString(ChatProtocol.ALIAS_LENGTH).nextString();
+        String username = new RandomString(BLEProtocol.ALIAS_LENGTH).nextString();
         mSenderIdentity = SodiumShaker.generateOwnedIdentityForAlias(username);
     }
 
@@ -51,10 +50,10 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
      * {@link pro.dbro.ble.protocol.Identity} -> byte[] -> {@link pro.dbro.ble.protocol.Identity}
      */
     public void testCreateAndConsumeIdentityResponse() {
-        byte[] identityResponse = ChatProtocol.createIdentityResponse(mSenderIdentity);
+        byte[] identityResponse = BLEProtocol.createIdentityResponse(mSenderIdentity);
 
         // Parse Identity from sender's identityResponse response byte[]
-        Identity parsedIdentity = ChatProtocol.consumeIdentityResponse(identityResponse);
+        Identity parsedIdentity = BLEProtocol.consumeIdentityResponse(identityResponse);
 
         assertEquals(parsedIdentity.alias, mSenderIdentity.alias);
         assertEquals(Arrays.equals(parsedIdentity.publicKey, mSenderIdentity.publicKey), true);
@@ -65,11 +64,11 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
      * {@link pro.dbro.ble.protocol.Message} -> byte[] -> {@link pro.dbro.ble.protocol.Message}
      */
     public void testCreateAndConsumeMessageResponse() {
-        String messageBody = new RandomString(ChatProtocol.MESSAGE_BODY_LENGTH).nextString();
+        String messageBody = new RandomString(BLEProtocol.MESSAGE_BODY_LENGTH).nextString();
 
-        byte[] messageResponse = ChatProtocol.createPublicMessageResponse(mSenderIdentity, messageBody);
+        byte[] messageResponse = BLEProtocol.createPublicMessageResponse(mSenderIdentity, messageBody);
 
-        Message parsedMessage = ChatProtocol.consumeMessageResponse(messageResponse);
+        Message parsedMessage = BLEProtocol.consumeMessageResponse(messageResponse);
 
         assertEquals(messageBody, parsedMessage.body);
         assertEquals(Arrays.equals(parsedMessage.sender.publicKey, mSenderIdentity.publicKey), true);
@@ -79,24 +78,24 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
     /** Application Tests **/
 
     /**
-     * Create a {@link pro.dbro.ble.model.Peer} for protocol {@link pro.dbro.ble.protocol.Identity},
-     * then create a {@link pro.dbro.ble.model.Message} for protocol {@link pro.dbro.ble.protocol.Message}.
+     * Create a {@link pro.dbro.ble.data.model.Peer} for protocol {@link pro.dbro.ble.protocol.Identity},
+     * then create a {@link pro.dbro.ble.data.model.Message} for protocol {@link pro.dbro.ble.protocol.Message}.
      */
     public void testApplicationIdentityCreationAndMessageConsumption() {
         // Get or create new primary identity. This Identity serves as the app user
         Peer user = getOrCreatePrimaryPeerIdentity();
 
         // User discovers a peer
-        Peer remotePeer = ChatApp.consumeReceivedIdentity(getContext(), ChatProtocol.createIdentityResponse(mSenderIdentity));
+        Peer remotePeer = ChatApp.consumeReceivedIdentity(getContext(), BLEProtocol.createIdentityResponse(mSenderIdentity));
         // Assert Identity response parsed successfully
-        assertEquals(Arrays.equals(remotePeer.getKeyPair().publicKey, mSenderIdentity.publicKey), true);
+        assertEquals(Arrays.equals(remotePeer.getIdentity().publicKey, mSenderIdentity.publicKey), true);
 
         // Craft a mock message from remote peer
-        String mockReceivedMessageBody = new RandomString(ChatProtocol.MESSAGE_BODY_LENGTH).nextString();
-        byte[] mockReceivedMessage = ChatProtocol.createPublicMessageResponse(mSenderIdentity, mockReceivedMessageBody);
+        String mockReceivedMessageBody = new RandomString(BLEProtocol.MESSAGE_BODY_LENGTH).nextString();
+        byte[] mockReceivedMessage = BLEProtocol.createPublicMessageResponse(mSenderIdentity, mockReceivedMessageBody);
 
         // User receives mock message from remote peer
-        pro.dbro.ble.model.Message parsedMockReceivedMessage = ChatApp.consumeReceivedBroadcastMessage(getContext(), mockReceivedMessage);
+        pro.dbro.ble.data.model.Message parsedMockReceivedMessage = ChatApp.consumeReceivedBroadcastMessage(getContext(), mockReceivedMessage);
         assertEquals(mockReceivedMessageBody.equals(parsedMockReceivedMessage.getBody()), true);
 
         // Cleanup
@@ -176,11 +175,11 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
     /** Utility **/
 
     private Peer getOrCreatePrimaryPeerIdentity() {
-        Peer user = ChatApp.getPrimaryIdentity(getContext());
+        Peer user = ChatApp.getPrimaryLocalPeer(getContext());
         if (user == null) {
             mCreatedNewPrimaryIdentity = true;
-            int userId = ChatApp.createNewIdentity(getContext(), new RandomString(ChatProtocol.ALIAS_LENGTH).nextString());
-            user = ChatApp.getPrimaryIdentity(getContext());
+            int userId = ChatApp.createLocalPeer(getContext(), new RandomString(BLEProtocol.ALIAS_LENGTH).nextString());
+            user = ChatApp.getPrimaryLocalPeer(getContext());
 
             assertEquals(userId, user.getId());
         }

@@ -1,13 +1,9 @@
 package pro.dbro.ble.crypto;
 
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 
 import org.abstractj.kalium.NaCl;
 import org.abstractj.kalium.Sodium;
-
-import java.util.Arrays;
-import java.util.Date;
 
 import pro.dbro.ble.protocol.OwnedIdentity;
 
@@ -37,7 +33,7 @@ public class SodiumShaker {
         byte[] sk = new byte[crypto_sign_SECRETKEYBYTES];
 
         Sodium.crypto_sign_ed25519_keypair(pk, sk);
-        return new OwnedIdentity(sk, pk, alias);
+        return new OwnedIdentity(sk, pk, alias, null);
     }
 
     public static byte[] generateSignatureForMessage(@NonNull byte[] secret_key, @NonNull byte[] message, int message_len) {
