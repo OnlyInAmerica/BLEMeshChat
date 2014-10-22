@@ -1,6 +1,7 @@
 package pro.dbro.ble.protocol;
 
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 /**
  * Created by davidbrodsky on 10/20/14.
@@ -13,17 +14,17 @@ public interface Protocol {
     **/
 
     // TODO Decide on a consistent API here
-    public byte[] serializeIdentity(@NonNull OwnedIdentity ownedIdentity);
+    public byte[] serializeIdentity(@NonNull OwnedIdentityPacket ownedIdentity);
 
-    public Message serializeMessage(@NonNull OwnedIdentity ownedIdentity, String body);
+    public MessagePacket serializeMessage(@NonNull OwnedIdentityPacket ownedIdentity, String body);
 
     /** Incoming
      *
      * Deserialize raw transmission data into Protocol Objects
      */
 
-    public Identity deserializeIdentity(@NonNull byte[] identity);
+    public IdentityPacket deserializeIdentity(@NonNull byte[] identity);
 
-    public Message deserializeMessage(@NonNull byte[] message);
+    public MessagePacket deserializeMessage(@NonNull byte[] message, @Nullable IdentityPacket identity);
 
 }

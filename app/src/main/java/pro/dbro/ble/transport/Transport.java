@@ -2,8 +2,8 @@ package pro.dbro.ble.transport;
 
 import java.util.ArrayDeque;
 
-import pro.dbro.ble.protocol.Identity;
-import pro.dbro.ble.protocol.Message;
+import pro.dbro.ble.protocol.IdentityPacket;
+import pro.dbro.ble.protocol.MessagePacket;
 import pro.dbro.ble.protocol.Protocol;
 
 /**
@@ -11,32 +11,32 @@ import pro.dbro.ble.protocol.Protocol;
  */
 public abstract class Transport {
 
-    protected Identity mIdentity;
+    protected IdentityPacket mIdentityPacket;
     protected Protocol mProtocol;
     protected TransportEventCallback mCallback;
     protected TransportDataProvider mDataProvider;
 
     public static interface TransportEventCallback {
 
-        public void becameAvailable(Identity identity);
-        public void becameUnavailable(Identity identity);
+        public void becameAvailable(IdentityPacket identityPacket);
+        public void becameUnavailable(IdentityPacket identityPacket);
 
-        public void sentIdentity(Identity identity);
-        public void sentMessage(Message message);
+        public void sentIdentity(IdentityPacket identityPacket);
+        public void sentMessage(MessagePacket messagePacket);
 
-        public void receivedIdentity(Identity identity);
-        public void receivedMessage(Message message);
+        public void receivedIdentity(IdentityPacket identityPacket);
+        public void receivedMessage(MessagePacket messagePacket);
 
     }
 
     public static interface TransportDataProvider {
         // TODO: take Identity, not byte[] publicKey
-        public ArrayDeque<Message> getMessagesForIdentity(byte[] recipientPublicKey, int maxMessages);
-        public ArrayDeque<Identity> getIdentitiesForIdentity(byte[] recipientPublicKey, int maxIdentities);
+        public ArrayDeque<MessagePacket> getMessagesForIdentity(byte[] recipientPublicKey, int maxMessages);
+        public ArrayDeque<IdentityPacket> getIdentitiesForIdentity(byte[] recipientPublicKey, int maxIdentities);
     }
 
-    public Transport(Identity identity, Protocol protocol, TransportDataProvider dataProvider) {
-        mIdentity = identity;
+    public Transport(IdentityPacket identityPacket, Protocol protocol, TransportDataProvider dataProvider) {
+        mIdentityPacket = identityPacket;
         mProtocol = protocol;
         mDataProvider = dataProvider;
     }
@@ -47,7 +47,7 @@ public abstract class Transport {
 
     public abstract void makeAvailable();
 
-    public abstract void sendMessage(Message message);
+    public abstract void sendMessage(MessagePacket messagePacket);
 
     public abstract void makeUnavailable();
 

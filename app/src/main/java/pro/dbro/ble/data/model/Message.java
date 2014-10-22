@@ -8,6 +8,7 @@ import java.text.ParseException;
 import java.util.Date;
 
 import pro.dbro.ble.data.DataStore;
+import pro.dbro.ble.protocol.MessagePacket;
 
 /**
  * A thin model around a {@link android.database.Cursor}
@@ -54,8 +55,8 @@ public class Message extends CursorModel {
     }
 
     @Nullable
-    public pro.dbro.ble.protocol.Message getProtocolMessage(DataStore dataStore) {
-        return new pro.dbro.ble.protocol.Message(
+    public MessagePacket getProtocolMessage(DataStore dataStore) {
+        return new MessagePacket(
                 getSender(dataStore).getIdentity(),
                 getSignature(),
                 getReplySignature(),

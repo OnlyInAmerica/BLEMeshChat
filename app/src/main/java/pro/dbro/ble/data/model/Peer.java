@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.Date;
 
-import pro.dbro.ble.protocol.Identity;
-import pro.dbro.ble.protocol.OwnedIdentity;
+import pro.dbro.ble.protocol.IdentityPacket;
+import pro.dbro.ble.protocol.OwnedIdentityPacket;
 
 /**
  * A thin model around a {@link android.database.Cursor}
@@ -53,15 +53,15 @@ public class Peer extends CursorModel {
     }
 
     /**
-     * @return a {@link pro.dbro.ble.protocol.OwnedIdentity} for this peer,
-     * or an {@link pro.dbro.ble.protocol.Identity} if this peer is not a user-owned peer.
+     * @return a {@link pro.dbro.ble.protocol.OwnedIdentityPacket} for this peer,
+     * or an {@link pro.dbro.ble.protocol.IdentityPacket} if this peer is not a user-owned peer.
      * <p/>
      * see {@link #isLocalPeer()}
      */
-    public Identity getIdentity() {
+    public IdentityPacket getIdentity() {
         if (!isLocalPeer()) {
             try {
-                return new Identity(
+                return new IdentityPacket(
                         mCursor.getBlob(mCursor.getColumnIndex(PeerTable.pubKey)),
                         mCursor.getString(mCursor.getColumnIndex(PeerTable.alias)),
                         DataUtil.storedDateFormatter.parse(mCursor.getString(mCursor.getColumnIndex(PeerTable.lastSeenDate))),
@@ -70,7 +70,7 @@ public class Peer extends CursorModel {
                 throw new IllegalStateException("Unable to create Identity from data");
             }
         } else {
-            return new OwnedIdentity(
+            return new OwnedIdentityPacket(
                     mCursor.getBlob(mCursor.getColumnIndex(PeerTable.secKey)),
                     mCursor.getBlob(mCursor.getColumnIndex(PeerTable.pubKey)),
                     mCursor.getString(mCursor.getColumnIndex(PeerTable.alias)),

@@ -14,8 +14,8 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-import pro.dbro.ble.protocol.Identity;
-import pro.dbro.ble.protocol.Message;
+import pro.dbro.ble.protocol.IdentityPacket;
+import pro.dbro.ble.protocol.MessagePacket;
 import pro.dbro.ble.protocol.Protocol;
 import pro.dbro.ble.transport.Transport;
 
@@ -37,16 +37,16 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     /** Identity public key -> outbox
      * use public key instead of Identity to avoid overriding Identity#equals, #hashcode 'for now'
     */
-    private HashMap<byte[], ArrayDeque<Message>> mMessageOutboxes = new HashMap<>();
-    private HashMap<byte[], ArrayDeque<Identity>> mIdentitiesOutboxes = new HashMap<>();
-    private HashMap<String, Identity> mAddressesToIdentity = new HashMap<>();
-    private ConcurrentHashMap<Identity, BluetoothGatt> mRemotePeripherals = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<Identity, BluetoothDevice> mRemoteCentrals = new ConcurrentHashMap<>();
+    private HashMap<byte[], ArrayDeque<MessagePacket>> mMessageOutboxes = new HashMap<>();
+    private HashMap<byte[], ArrayDeque<IdentityPacket>> mIdentitiesOutboxes = new HashMap<>();
+    private HashMap<String, IdentityPacket> mAddressesToIdentity = new HashMap<>();
+    private ConcurrentHashMap<IdentityPacket, BluetoothGatt> mRemotePeripherals = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<IdentityPacket, BluetoothDevice> mRemoteCentrals = new ConcurrentHashMap<>();
 
     // <editor-fold desc="Public API">
 
-    public BLETransport(@NonNull Context context, @NonNull Identity identity, @NonNull Protocol protocol, @NonNull TransportDataProvider dataProvider) {
-        super(identity, protocol, dataProvider);
+    public BLETransport(@NonNull Context context, @NonNull IdentityPacket identityPacket, @NonNull Protocol protocol, @NonNull TransportDataProvider dataProvider) {
+        super(identityPacket, protocol, dataProvider);
         mContext = context.getApplicationContext();
         init();
     }
@@ -58,7 +58,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     }
 
     @Override
-    public void sendMessage(Message message) {
+    public void sendMessage(MessagePacket messagePacket) {
         // TODO  If Message is instanceof DirectMessage etc, try to send directly to device
         // Note the message should already be stored and will be automatically delivered on next connection
     }
@@ -112,8 +112,8 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             // Consume message from characteristic.getValue()
             // If status == GATT_SUCCESS, return false to re-issue this request
             // else if status == READ_NOT_PERMITTED, return true
-            Message receivedMessage = mProtocol.deserializeMessage(characteristic.getValue());
-            if (mCallback != null) mCallback.receivedMessage(receivedMessage);
+            MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(characteristic.getValue(), null);
+            if (mCallback != null) mCallback.receivedMessage(receivedMessagePacket);
 
             return isCentralRequestComplete(status);
         }
@@ -125,11 +125,11 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             // Consume Identity from characteristic.getValue()
             // If status == GATT_SUCCESS, return false to re-issue this request
             // else if status == READ_NOT_PERMITTED, return true
-            Identity receivedIdentity = mProtocol.deserializeIdentity(characteristic.getValue());
-            mAddressesToIdentity.put(remotePeripheral.getDevice().getAddress(), receivedIdentity);
+            IdentityPacket receivedIdentityPacket = mProtocol.deserializeIdentity(characteristic.getValue());
+            mAddressesToIdentity.put(remotePeripheral.getDevice().getAddress(), receivedIdentityPacket);
             if (mCallback != null) {
-                mCallback.receivedIdentity(receivedIdentity);
-                mCallback.becameAvailable(receivedIdentity);
+                mCallback.receivedIdentity(receivedIdentityPacket);
+                mCallback.becameAvailable(receivedIdentityPacket);
             }
             return isCentralRequestComplete(status);
         }
@@ -148,7 +148,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public byte[] getDataToWrite(BluetoothGatt remotePeripheral) {
             //return byte[] next_message
-            Message forRecipient = getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
+            MessagePacket forRecipient = getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
             return forRecipient.rawPacket;
         }
     };
@@ -166,7 +166,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public byte[] getDataToWrite(BluetoothGatt remotePeripheral) {
             //return byte[] next_identity
-            Identity forRecipient = getNextIdentityForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
+            IdentityPacket forRecipient = getNextIdentityForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
             return forRecipient.rawPacket;
         }
     };
@@ -177,7 +177,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
             // Get messages to send and send first
-            Message forRecipient = getNextMessageForDeviceAddress(remoteCentral.getAddress(), true);
+            MessagePacket forRecipient = getNextMessageForDeviceAddress(remoteCentral.getAddress(), true);
             boolean haveAnotherMessage = getNextMessageForDeviceAddress(remoteCentral.getAddress(), false) != null;
             byte[] payload = forRecipient.rawPacket;
             int gattStatus = haveAnotherMessage ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
@@ -191,7 +191,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
             // Get identities to send and send first
-            Identity forRecipient = getNextIdentityForDeviceAddress(remoteCentral.getAddress(), true);
+            IdentityPacket forRecipient = getNextIdentityForDeviceAddress(remoteCentral.getAddress(), true);
             boolean haveAnotherIdentity = getNextIdentityForDeviceAddress(remoteCentral.getAddress(), false) != null;
             byte[] payload = forRecipient.rawPacket;
             int gattStatus = haveAnotherIdentity ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
@@ -204,8 +204,8 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
             // Consume message and send GATT_SUCCESS If valid and response needed
-            Message receivedMessage = mProtocol.deserializeMessage(characteristic.getValue());
-            if (mCallback != null) mCallback.receivedMessage(receivedMessage);
+            MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(characteristic.getValue(), mAddressesToIdentity.get(remoteCentral.getAddress()));
+            if (mCallback != null) mCallback.receivedMessage(receivedMessagePacket);
             if (responseNeeded) {
                 // TODO: Response code based on message validation?
                 localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
@@ -217,9 +217,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
             // Consume Identity and send GATT_SUCCESS if valid and response needed
-            Identity receivedIdentity = mProtocol.deserializeIdentity(characteristic.getValue());
-            if (mCallback != null) mCallback.receivedIdentity(receivedIdentity);
-            mAddressesToIdentity.put(remoteCentral.getAddress(), receivedIdentity);
+            IdentityPacket receivedIdentityPacket = mProtocol.deserializeIdentity(characteristic.getValue());
+            if (mCallback != null) mCallback.receivedIdentity(receivedIdentityPacket);
+            mAddressesToIdentity.put(remoteCentral.getAddress(), receivedIdentityPacket);
             if (responseNeeded) {
                 // TODO: Response code based on message validation?
                 localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
@@ -236,31 +236,31 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
 
     @Override
     public void disconnectedFrom(String deviceAddress) {
-        Identity disconnectedIdentity = mAddressesToIdentity.remove(deviceAddress);
+        IdentityPacket disconnectedIdentityPacket = mAddressesToIdentity.remove(deviceAddress);
         if (mCallback != null) {
-            mCallback.becameUnavailable(disconnectedIdentity);
+            mCallback.becameUnavailable(disconnectedIdentityPacket);
         }
     }
 
     /** Utility */
 
     @Nullable
-    private Identity getNextIdentityForDeviceAddress(String address, boolean removeFromQueue) {
+    private IdentityPacket getNextIdentityForDeviceAddress(String address, boolean removeFromQueue) {
         byte[] publicKey = getPublicKeyForDeviceAddress(address);
         return getNextIdentityForPublicKey(publicKey, removeFromQueue);
     }
 
     @Nullable
-    private Message getNextMessageForDeviceAddress(String address, boolean removeFromQueue) {
+    private MessagePacket getNextMessageForDeviceAddress(String address, boolean removeFromQueue) {
         // Do we have an Identity on file for this address?
         byte[] publicKey = getPublicKeyForDeviceAddress(address);
         return getNextMessageForPublicKey(publicKey, removeFromQueue);
     }
 
     @Nullable
-    private Message getNextMessageForPublicKey(@Nullable byte[] publicKey, boolean removeFromQueue) {
+    private MessagePacket getNextMessageForPublicKey(@Nullable byte[] publicKey, boolean removeFromQueue) {
         if (!mMessageOutboxes.containsKey(publicKey) || mMessageOutboxes.get(publicKey).size() == 0) {
-            ArrayDeque<Message> messagesForRecipient = mDataProvider.getMessagesForIdentity(publicKey, MESSAGES_PER_RESPONSE);
+            ArrayDeque<MessagePacket> messagesForRecipient = mDataProvider.getMessagesForIdentity(publicKey, MESSAGES_PER_RESPONSE);
             mMessageOutboxes.put(publicKey, messagesForRecipient);
         }
 
@@ -268,9 +268,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     }
 
     @Nullable
-    private Identity getNextIdentityForPublicKey(@Nullable byte[] publicKey, boolean removeFromQueue) {
+    private IdentityPacket getNextIdentityForPublicKey(@Nullable byte[] publicKey, boolean removeFromQueue) {
         if (!mIdentitiesOutboxes.containsKey(publicKey) || mIdentitiesOutboxes.get(publicKey).size() == 0) {
-            ArrayDeque<Identity> identitiesForRecipient = mDataProvider.getIdentitiesForIdentity(publicKey, IDENTITIES_PER_RESPONSE);
+            ArrayDeque<IdentityPacket> identitiesForRecipient = mDataProvider.getIdentitiesForIdentity(publicKey, IDENTITIES_PER_RESPONSE);
             mIdentitiesOutboxes.put(publicKey, identitiesForRecipient);
         }
 

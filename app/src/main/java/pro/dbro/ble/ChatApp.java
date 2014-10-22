@@ -10,8 +10,9 @@ import pro.dbro.ble.data.DataStore;
 import pro.dbro.ble.data.model.MessageCollection;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.BLEProtocol;
-import pro.dbro.ble.protocol.Identity;
-import pro.dbro.ble.protocol.Message;
+import pro.dbro.ble.protocol.IdentityPacket;
+import pro.dbro.ble.protocol.MessagePacket;
+import pro.dbro.ble.protocol.OwnedIdentityPacket;
 import pro.dbro.ble.protocol.Protocol;
 import pro.dbro.ble.transport.Transport;
 import pro.dbro.ble.transport.ble.BLETransport;
@@ -68,9 +69,9 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     }
 
     public void sendPublicMessageFromPrimaryIdentity(String body) {
-        Message message = mProtocol.serializeMessage((pro.dbro.ble.protocol.OwnedIdentity) getPrimaryIdentity().getIdentity(), body);
-        mDataStore.createOrUpdateMessageWithProtocolMessage(message);
-        mTransport.sendMessage(message);
+        MessagePacket messagePacket = mProtocol.serializeMessage((OwnedIdentityPacket) getPrimaryIdentity().getIdentity(), body);
+        mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket);
+        mTransport.sendMessage(messagePacket);
     }
 
     // </editor-fold desc="Messages">
@@ -86,20 +87,20 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     /** TransportDataProvider */
 
     @Override
-    public ArrayDeque<Message> getMessagesForIdentity(byte[] recipientPublicKey, int maxMessages) {
+    public ArrayDeque<MessagePacket> getMessagesForIdentity(byte[] recipientPublicKey, int maxMessages) {
         Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
         MessageCollection messages = mDataStore.getOutgoingMessagesForPeer(recipient);
-        ArrayDeque<Message> messageQueue = new ArrayDeque<>();
+        ArrayDeque<MessagePacket> messagePacketQueue = new ArrayDeque<>();
         for (int x = 0; x < maxMessages; x++) {
-            messageQueue.push(messages.getMessageAtPosition(x).getProtocolMessage(mDataStore));
+            messagePacketQueue.push(messages.getMessageAtPosition(x).getProtocolMessage(mDataStore));
         }
-        return messageQueue;
+        return messagePacketQueue;
     }
 
     @Override
-    public ArrayDeque<Identity> getIdentitiesForIdentity(byte[] recipientPublicKey, int maxIdentities) {
+    public ArrayDeque<IdentityPacket> getIdentitiesForIdentity(byte[] recipientPublicKey, int maxIdentities) {
         // TODO: Propagate identities
-        ArrayDeque<Identity> identities = new ArrayDeque<>();
+        ArrayDeque<IdentityPacket> identities = new ArrayDeque<>();
         identities.push(mDataStore.getPrimaryLocalPeer().getIdentity());
         return identities;
     }
@@ -107,36 +108,36 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     /** TransportEventCallback */
 
     @Override
-    public void becameAvailable(Identity identity) {
-        Log.i(TAG, String.format("%s available",identity.alias));
+    public void becameAvailable(IdentityPacket identityPacket) {
+        Log.i(TAG, String.format("%s available", identityPacket.alias));
     }
 
     @Override
-    public void becameUnavailable(Identity identity) {
-        Log.i(TAG, String.format("%s unavailable",identity.alias));
+    public void becameUnavailable(IdentityPacket identityPacket) {
+        Log.i(TAG, String.format("%s unavailable", identityPacket.alias));
     }
 
     @Override
-    public void sentIdentity(Identity identity) {
-        Log.i(TAG, String.format("Send identity: %s",identity.alias));
+    public void sentIdentity(IdentityPacket identityPacket) {
+        Log.i(TAG, String.format("Send identity: %s", identityPacket.alias));
     }
 
     @Override
-    public void sentMessage(Message message) {
-        Log.i(TAG, String.format("Send message: '%s'",message.body));
+    public void sentMessage(MessagePacket messagePacket) {
+        Log.i(TAG, String.format("Send message: '%s'", messagePacket.body));
 
     }
 
     @Override
-    public void receivedIdentity(Identity identity) {
-        Log.i(TAG, String.format("Received identity for '%s'", identity.alias));
-        mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identity);
+    public void receivedIdentity(IdentityPacket identityPacket) {
+        Log.i(TAG, String.format("Received identity for '%s'", identityPacket.alias));
+        mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identityPacket);
     }
 
     @Override
-    public void receivedMessage(Message message) {
-        Log.i(TAG, String.format("Received message: '%s'",message.body));
-        mDataStore.createOrUpdateMessageWithProtocolMessage(message);
+    public void receivedMessage(MessagePacket messagePacket) {
+        Log.i(TAG, String.format("Received message: '%s'", messagePacket.body));
+        mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket);
     }
 
     // </editor-fold desc="Private API">
