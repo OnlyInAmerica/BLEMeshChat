@@ -18,7 +18,7 @@ import pro.dbro.ble.R;
  */
 public class Util {
 
-    public static void showWelcomeDialog(@NonNull final Context context, DialogInterface.OnDismissListener dismissListener) {
+    public static void showWelcomeDialog(@NonNull final ChatApp app, @NonNull final Context context, DialogInterface.OnDismissListener dismissListener) {
         View dialogView = ((LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE))
                             .inflate(R.layout.dialog_welcome, null);
         final EditText aliasEntry = ((EditText) dialogView.findViewById(R.id.aliasEntry));
@@ -29,7 +29,7 @@ public class Util {
                 .setPositiveButton(context.getString(R.string.dialog_ok), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
-                        ChatApp.createLocalPeer(context, aliasEntry.getText().toString());
+                        app.createPrimaryIdentity(aliasEntry.getText().toString());
                     }
                 })
                 .setOnDismissListener(dismissListener)
@@ -37,7 +37,7 @@ public class Util {
         aliasEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
-                ChatApp.createLocalPeer(context, textView.getText().toString());
+                app.createPrimaryIdentity(textView.getText().toString());
                 dialog.dismiss();
                 return false;
             }

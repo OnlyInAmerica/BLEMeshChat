@@ -34,7 +34,7 @@ public interface PeerTable {
      * which dictates how the packet should be created.
      *
      * Any class that needs access to the packet data should have
-     * a handle on a Protocol, which has the createIdentityResponse(OwnedIdentity)
+     * a handle on a Protocol, which has the serializeIdentity(OwnedIdentity)
      *
      * OK NEW FINAL DECISION TIME
      * For remote peer Identities it makes sense to store and forward the original response

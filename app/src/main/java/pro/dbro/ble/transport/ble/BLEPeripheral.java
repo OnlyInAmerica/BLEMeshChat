@@ -108,6 +108,7 @@ public class BLEPeripheral {
     public void addDefaultBLEPeripheralResponse(BLEPeripheralResponse response) {
         Pair<UUID, BLEPeripheralResponse.RequestType> requestFilter = new Pair<>(response.mCharacteristic.getUuid(), response.mRequestType);
         mResponses.put(requestFilter, response);
+        logEvent(String.format("Registered %s response for %s", requestFilter.second, requestFilter.first));
     }
 
     public HashSet<String> getConnectedDeviceAddresses() {
@@ -179,20 +180,24 @@ public class BLEPeripheral {
                     if (newState == BluetoothProfile.STATE_CONNECTED) {
                         if (mConnectedDevices.contains(device.getAddress())) {
                             // We're already connected (should never happen). Cancel connection
+                            logEvent("Denied connection. Already connected to " + device.getAddress());
                             mGattServer.cancelConnection(device);
                             return;
                         }
 
                         if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToCentral(device)) {
                             // The ConnectionGovernor denied the connection. Cancel connection
+                            logEvent("Denied connection. ConnectionGovernor denied " + device.getAddress());
                             mGattServer.cancelConnection(device);
                             return;
                         } else {
                             // Allow connection to proceed. Mark device connected
+                            logEvent("Accepted connection to " + device.getAddress());
                             mConnectedDevices.add(device.getAddress());
                         }
                     } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                         // We've disconnected
+                        logEvent("Disconnected from " + device.getAddress());
                         mConnectedDevices.remove(device.getAddress());
                     }
                 }
@@ -213,13 +218,14 @@ public class BLEPeripheral {
                     if (mResponses.containsKey(requestKey)) {
                         mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, false, true, offset, null);
                     } else {
+                        logEvent(String.format("No %s response registered for characteristic %s", requestKey.second, characteristic.getUuid().toString()));
                         // No response registered for this request. Send GATT_FAILURE
-                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 }); // Got NPE if sending null value
                     }
                 } else {
                     logEvent("CharacteristicReadRequest. Unrecognized characteristic " + characteristic.getUuid().toString());
                     // Request for unrecognized characteristic. Send GATT_FAILURE
-                    mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                    mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 });
                 }
                 super.onCharacteristicReadRequest(remoteCentral, requestId, offset, characteristic);
             }
@@ -233,12 +239,12 @@ public class BLEPeripheral {
                         mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
                     } else {
                         // No response registered for this request. Send GATT_FAILURE
-                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 });
                     }
                 } else {
                     logEvent("CharacteristicWriteRequest. Unrecognized characteristic " + characteristic.getUuid().toString());
                     // Request for unrecognized characteristic. Send GATT_FAILURE
-                    mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
+                    mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 });
                 }
                 super.onCharacteristicWriteRequest(remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
             }
@@ -344,6 +350,7 @@ public class BLEPeripheral {
             mAdvertiser.stopAdvertising(mAdvCallback);
         }
         mIsAdvertising = false;
+        mGattServer.close();
     }
 
     private void logEvent(String event) {

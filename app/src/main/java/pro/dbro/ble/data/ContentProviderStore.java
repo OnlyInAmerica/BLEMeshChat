@@ -30,10 +30,10 @@ import pro.dbro.ble.protocol.Protocol;
  *
  * Created by davidbrodsky on 10/20/14.
  */
-public class SQLDataStore extends DataStore {
+public class ContentProviderStore extends DataStore {
     public static final String TAG = "DataManager";
 
-    public SQLDataStore(Context context) {
+    public ContentProviderStore(Context context) {
         super(context);
     }
 
@@ -48,7 +48,7 @@ public class SQLDataStore extends DataStore {
         dbEntry.put(PeerTable.lastSeenDate, DataUtil.storedDateFormatter.format(new Date()));
         if (protocol != null) {
             // If protocol is available, use it to cache the Identity packet for transmission
-            dbEntry.put(PeerTable.rawPkt, protocol.createIdentityResponse(localPeerIdentity));
+            dbEntry.put(PeerTable.rawPkt, protocol.serializeIdentity(localPeerIdentity));
         }
         Uri newIdentityUri = mContext.getContentResolver().insert(ChatContentProvider.Peers.PEERS, dbEntry);
         return getPeerById(Integer.parseInt(newIdentityUri.getLastPathSegment()));
@@ -78,6 +78,17 @@ public class SQLDataStore extends DataStore {
     public MessageCollection getOutgoingMessagesForPeer(@NonNull Peer recipient) {
         // TODO: filtering. Don't return Cursor
         Cursor messagesCursor = mContext.getContentResolver().query(ChatContentProvider.Messages.MESSAGES, null, null, null, null);
+        return new MessageCollection(messagesCursor);
+    }
+
+    @Override
+    public MessageCollection getRecentMessages() {
+        Cursor messagesCursor = mContext.getContentResolver().query(ChatContentProvider.Messages.MESSAGES,
+                null,
+                null,
+                null,
+                MessageTable.receivedDate + " ASC");
+
         return new MessageCollection(messagesCursor);
     }
 

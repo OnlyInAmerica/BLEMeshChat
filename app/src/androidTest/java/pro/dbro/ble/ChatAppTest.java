@@ -50,10 +50,10 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
      * {@link pro.dbro.ble.protocol.Identity} -> byte[] -> {@link pro.dbro.ble.protocol.Identity}
      */
     public void testCreateAndConsumeIdentityResponse() {
-        byte[] identityResponse = BLEProtocol.createIdentityResponse(mSenderIdentity);
+        byte[] identityResponse = BLEProtocol.serializeIdentity(mSenderIdentity);
 
         // Parse Identity from sender's identityResponse response byte[]
-        Identity parsedIdentity = BLEProtocol.consumeIdentityResponse(identityResponse);
+        Identity parsedIdentity = BLEProtocol.deserializeIdentity(identityResponse);
 
         assertEquals(parsedIdentity.alias, mSenderIdentity.alias);
         assertEquals(Arrays.equals(parsedIdentity.publicKey, mSenderIdentity.publicKey), true);
@@ -66,9 +66,9 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
     public void testCreateAndConsumeMessageResponse() {
         String messageBody = new RandomString(BLEProtocol.MESSAGE_BODY_LENGTH).nextString();
 
-        byte[] messageResponse = BLEProtocol.createPublicMessageResponse(mSenderIdentity, messageBody);
+        byte[] messageResponse = BLEProtocol.serializeMessage(mSenderIdentity, messageBody);
 
-        Message parsedMessage = BLEProtocol.consumeMessageResponse(messageResponse);
+        Message parsedMessage = BLEProtocol.deserializeMessage(messageResponse);
 
         assertEquals(messageBody, parsedMessage.body);
         assertEquals(Arrays.equals(parsedMessage.sender.publicKey, mSenderIdentity.publicKey), true);
@@ -86,13 +86,13 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
         Peer user = getOrCreatePrimaryPeerIdentity();
 
         // User discovers a peer
-        Peer remotePeer = ChatApp.consumeReceivedIdentity(getContext(), BLEProtocol.createIdentityResponse(mSenderIdentity));
+        Peer remotePeer = ChatApp.consumeReceivedIdentity(getContext(), BLEProtocol.serializeIdentity(mSenderIdentity));
         // Assert Identity response parsed successfully
         assertEquals(Arrays.equals(remotePeer.getIdentity().publicKey, mSenderIdentity.publicKey), true);
 
         // Craft a mock message from remote peer
         String mockReceivedMessageBody = new RandomString(BLEProtocol.MESSAGE_BODY_LENGTH).nextString();
-        byte[] mockReceivedMessage = BLEProtocol.createPublicMessageResponse(mSenderIdentity, mockReceivedMessageBody);
+        byte[] mockReceivedMessage = BLEProtocol.serializeMessage(mSenderIdentity, mockReceivedMessageBody);
 
         // User receives mock message from remote peer
         pro.dbro.ble.data.model.Message parsedMockReceivedMessage = ChatApp.consumeReceivedBroadcastMessage(getContext(), mockReceivedMessage);

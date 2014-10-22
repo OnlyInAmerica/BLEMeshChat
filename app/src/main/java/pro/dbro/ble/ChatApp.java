@@ -5,8 +5,8 @@ import android.util.Log;
 
 import java.util.ArrayDeque;
 
+import pro.dbro.ble.data.ContentProviderStore;
 import pro.dbro.ble.data.DataStore;
-import pro.dbro.ble.data.SQLDataStore;
 import pro.dbro.ble.data.model.MessageCollection;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.BLEProtocol;
@@ -33,8 +33,10 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
         mContext = context;
 
         mProtocol  = new BLEProtocol();
-        mDataStore = new SQLDataStore(context);
+        mDataStore = new ContentProviderStore(context);
     }
+
+    // <editor-fold desc="Identity & Availability">
 
     public void makeAvailable() {
         if (mDataStore.getPrimaryLocalPeer() == null) {
@@ -55,6 +57,26 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 
     public Peer createPrimaryIdentity(String alias) {
         return mDataStore.createLocalPeerWithAlias(alias, mProtocol);
+    }
+
+    // </editor-fold desc="Identity & Availability">
+
+    // <editor-fold desc="Messages">
+
+    public MessageCollection getRecentMessagesFeed() {
+        return mDataStore.getRecentMessages();
+    }
+
+    public void sendPublicMessageFromPrimaryIdentity(String body) {
+        Message message = mProtocol.serializeMessage((pro.dbro.ble.protocol.OwnedIdentity) getPrimaryIdentity().getIdentity(), body);
+        mDataStore.createOrUpdateMessageWithProtocolMessage(message);
+        mTransport.sendMessage(message);
+    }
+
+    // </editor-fold desc="Messages">
+
+    public DataStore getDataStore() {
+        return mDataStore;
     }
 
     // </editor-fold desc="Public API">
@@ -86,30 +108,34 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 
     @Override
     public void becameAvailable(Identity identity) {
+        Log.i(TAG, String.format("%s available",identity.alias));
     }
 
     @Override
     public void becameUnavailable(Identity identity) {
-
+        Log.i(TAG, String.format("%s unavailable",identity.alias));
     }
 
     @Override
     public void sentIdentity(Identity identity) {
-
+        Log.i(TAG, String.format("Send identity: %s",identity.alias));
     }
 
     @Override
     public void sentMessage(Message message) {
+        Log.i(TAG, String.format("Send message: '%s'",message.body));
 
     }
 
     @Override
     public void receivedIdentity(Identity identity) {
+        Log.i(TAG, String.format("Received identity for '%s'", identity.alias));
         mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identity);
     }
 
     @Override
     public void receivedMessage(Message message) {
+        Log.i(TAG, String.format("Received message: '%s'",message.body));
         mDataStore.createOrUpdateMessageWithProtocolMessage(message);
     }
 
@@ -126,7 +152,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 //
 //        if (primaryIdentity == null) throw new IllegalStateException("No primary Identity");
 //
-//        return ChatProtocol.createIdentityResponse((OwnedIdentity) primaryIdentity.getIdentity());
+//        return ChatProtocol.serializeIdentity((OwnedIdentity) primaryIdentity.getIdentity());
 //    }
 //
 //    public static Cursor getMessagesToSend(@NonNull Context context) {
@@ -140,7 +166,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 //     */
 //    public static byte[] saveAndCreateBroadcastMessageResponseForString(@NonNull Context context, @NonNull String message) {
 //        Peer user = getPrimaryLocalPeer(context);
-//        byte[] messageResponse = ChatProtocol.createPublicMessageResponse((OwnedIdentity) user.getIdentity(), message);
+//        byte[] messageResponse = ChatProtocol.serializeMessage((OwnedIdentity) user.getIdentity(), message);
 //        // Create an entry for the Message in our application database
 //        Message parsedMessage = consumeReceivedBroadcastMessage(context, messageResponse);
 //        return messageResponse;
@@ -148,14 +174,14 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 //
 //    public static byte[] createBroadcastMessageResponseForString(@NonNull Context context, @NonNull String message) {
 //        Peer user = getPrimaryLocalPeer(context);
-//        byte[] messageResponse = ChatProtocol.createPublicMessageResponse((OwnedIdentity) user.getIdentity(), message);
+//        byte[] messageResponse = ChatProtocol.serializeMessage((OwnedIdentity) user.getIdentity(), message);
 //        return messageResponse;
 //    }
 //
 //    /** Incoming Data **/
 //
 //    public static Peer consumeReceivedIdentity(@NonNull Context context, @NonNull byte[] identity) {
-//        Identity protocolIdentity = ChatProtocol.consumeIdentityResponse(identity);
+//        Identity protocolIdentity = ChatProtocol.deserializeIdentity(identity);
 //
 //        // insert or update
 //        Peer applicationIdentity = getOrCreatePeerByProtocolIdentity(context, protocolIdentity);
@@ -166,7 +192,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 //
 //    @Nullable
 //    public static Message consumeReceivedBroadcastMessage(@NonNull Context context, @NonNull byte[] message) {
-//        pro.dbro.ble.protocol.Message protocolMessage = ChatProtocol.consumeMessageResponse(message);
+//        pro.dbro.ble.protocol.Message protocolMessage = ChatProtocol.deserializeMessage(message);
 //
 //        // Query if peer exists
 //        Peer peer = getOrCreatePeerByProtocolIdentity(context, protocolMessage.sender);

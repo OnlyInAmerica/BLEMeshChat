@@ -32,6 +32,8 @@ public abstract class DataStore {
 
     public abstract MessageCollection getOutgoingMessagesForPeer(@NonNull Peer recipient);
 
+    public abstract MessageCollection getRecentMessages();
+
     public abstract Peer createOrUpdateRemotePeerWithProtocolIdentity(@NonNull Identity identity);
 
     public abstract Message createOrUpdateMessageWithProtocolMessage(@NonNull pro.dbro.ble.protocol.Message protocolMessage);

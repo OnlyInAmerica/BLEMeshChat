@@ -23,4 +23,8 @@ public class MessageCollection extends CursorModel {
             return new Message(mCursor);
         return null;
     }
+
+    public Cursor getCursor() {
+        return mCursor;
+    }
 }

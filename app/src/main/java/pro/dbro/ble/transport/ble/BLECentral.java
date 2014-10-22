@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -22,29 +23,51 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 
 import pro.dbro.ble.R;
+import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
  * A basic BLE Central device that discovers peripherals
- *
+ * <p/>
  * Created by davidbrodsky on 10/2/14.
  */
 public class BLECentral {
     public static final String TAG = "BLECentral";
     private static final boolean REPORT_NON_SUCCESSES = false;
 
-    /** Requests to perform against each discovered peripheral */
+    /**
+     * Requests to perform against each discovered peripheral
+     */
     private ArrayDeque<BLECentralRequest> mDefaultRequests = new ArrayDeque<>();
-    /** Map of request queues by remote peripheral address */
+    /**
+     * Map of request queues by remote peripheral address
+     */
     private HashMap<String, ArrayDeque<BLECentralRequest>> mRequestsForDevice = new HashMap<>();
-    /** Set of connected device addresses */
+    /**
+     * Set of connected device addresses
+     */
     private HashSet<String> mConnectedDevices = new HashSet<>();
+    /**
+     * Set of 'connecting' device addresses. Intended to prevent multiple simultaneous connection requests
+     */
+    private HashSet<String> mConnectingDevices = new HashSet<>();
+    /**
+     * Map of Characteristic UUID to BLECentralRequests registered via {@link #addDefaultBLECentralRequest(BLECentralRequest)}
+     * This is required because I'm currently unable to execute a GATT operation on the remote peripheral without using the
+     * characteristic instance returned to onServicesDiscovered. Therefore I have to swap out the characteristic
+     * in each request with the instance received onServicesDiscovered. This map helps this process.
+     *
+     * TODO Figure out how to execute gatt requests without discovering services
+     */
+    private HashMap<UUID, BLECentralRequest> mCharacteristicUUIDToRequest = new HashMap<>();
 
     public interface BLECentralConnectionListener {
         public void connectedTo(String deviceAddress);
-        public void disconnectedTo(String deviceAddress);
+
+        public void disconnectedFrom(String deviceAddress);
     }
 
     public interface BLECentralConnectionGovernor {
@@ -102,6 +125,7 @@ public class BLECentral {
      */
     public void addDefaultBLECentralRequest(BLECentralRequest request) {
         mDefaultRequests.add(request);
+        mCharacteristicUUIDToRequest.put(request.mCharacteristic.getUuid(), request);
     }
     // </editor-fold>
 
@@ -136,14 +160,26 @@ public class BLECentral {
             public void onAdvertisementUpdate(ScanResult scanResult) {
                 if (mConnectedDevices.contains(scanResult.getDevice().getAddress())) {
                     // If we're already connected, forget it
+                    logEvent("Denied connection. Already connected to  " + scanResult.getDevice().getAddress());
+
+                    return;
+                }
+
+                if (mConnectingDevices.contains(scanResult.getDevice().getAddress())) {
+                    // If we're already connected, forget it
+                    logEvent("Denied connection. Already connecting to  " + scanResult.getDevice().getAddress());
+
                     return;
                 }
 
                 if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToPeripheral(scanResult)) {
                     // If the BLEConnectionGovernor says we should not bother connecting to this peer, don't
+                    logEvent("Denied connection. ConnectionGovernor denied  " + scanResult.getDevice().getAddress());
                     return;
                 }
-                final BluetoothGatt bleGatt = scanResult.getDevice().connectGatt(mContext, false, new BluetoothGattCallback() {
+                mConnectingDevices.add(scanResult.getDevice().getAddress());
+                logEvent("Initiating connection to " + scanResult.getDevice().getAddress());
+                scanResult.getDevice().connectGatt(mContext, false, new BluetoothGattCallback() {
                     @Override
                     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
 
@@ -155,22 +191,29 @@ public class BLECentral {
 
                         switch (newState) {
                             case BluetoothProfile.STATE_DISCONNECTED:
-                                Log.i(TAG, "disconnected from " + gatt.getDevice().getName());
-                                if (REPORT_NON_SUCCESSES) logEvent("newState indicates GATT disconnected");
-                                if (status == BluetoothGatt.GATT_SUCCESS) {
-                                    mConnectedDevices.remove(gatt.getDevice().getAddress());
-                                    if (mConnectionListener != null) mConnectionListener.disconnectedTo(gatt.getDevice().getAddress());
-                                }
+                                logEvent("Disconnected from " + gatt.getDevice().getAddress());
+                                mConnectedDevices.remove(gatt.getDevice().getAddress());
+                                mConnectingDevices.remove(gatt.getDevice().getAddress());
+                                if (mConnectionListener != null)
+                                    mConnectionListener.disconnectedFrom(gatt.getDevice().getAddress());
+                                gatt.close();
+                                startScanning();
+
                                 break;
                             case BluetoothProfile.STATE_CONNECTED:
-                                logEvent("newState indicates indicates GATT connected");
+                                logEvent("Connected to " + gatt.getDevice().getAddress());
                                 mConnectedDevices.add(gatt.getDevice().getAddress());
-                                if (mConnectionListener != null) mConnectionListener.connectedTo(gatt.getDevice().getAddress());
+                                mConnectingDevices.remove(gatt.getDevice().getAddress());
+                                if (mConnectionListener != null)
+                                    mConnectionListener.connectedTo(gatt.getDevice().getAddress());
+                                // Stop scanning until this connection is lost
+                                // For debugging, work with one device at a time
+                                stopScanning();
                                 // TODO: Stop discovering services once we can
                                 // TOOD: reliably craft characteristics
                                 boolean discovering = gatt.discoverServices();
                                 logEvent("Discovering services : " + discovering);
-                                beginRequestFlowWithPeripheral(gatt);
+                                //beginRequestFlowWithPeripheral(gatt);
                                 break;
                         }
                         super.onConnectionStateChange(gatt, status, newState);
@@ -178,38 +221,72 @@ public class BLECentral {
 
                     @Override
                     public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+                        if (status == BluetoothGatt.GATT_SUCCESS)
+                            logEvent("Discovered services");
+                        else
+                            logEvent("Discovered services appears unsuccessful with code " + status);
                         // TODO: Keep this here to examine characteristics
                         // eventually we should get rid of the discoverServices step
-                        boolean foundExpectedCharacteristic = false;
-                        List<BluetoothGattService> serviceList = gatt.getServices();
-                        for (BluetoothGattService service : serviceList) {
-                            List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
-                            for (BluetoothGattCharacteristic characteristic : characteristics) {
-                                if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
-                                    logEvent("Queuing identity read");
-                                }
-                                else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
-                                    characteristic.setValue("id-w-really long and whatnot ok why not hello goodbye Bonjour Shalom Hola id-w-really long and whatnot ok why not hello goodbye twerky tweet");
-                                    logEvent("Queuing identity write");
-                                }
-                                if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
-                                    logEvent("Queuing message read");
-                                }
-                                else if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
-                                    logEvent("Queuing message write");
-                                    characteristic.setValue("msg-w-reall long and whatnot ok why not hello goodbye Bonjour Shalom Hola id-w-really long and whatnot ok why not hello goodbye twerky tweet");
-                                }
+                        boolean foundService = false;
 
+                        try {
+                            List<BluetoothGattService> serviceList = gatt.getServices();
+                            for (BluetoothGattService service : serviceList) {
+                                if (service.getUuid().equals(GATT.SERVICE_UUID)) {
+                                    logEvent("Discovered Chat service");
+                                    foundService = true;
+                                    List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+                                    for (BluetoothGattCharacteristic characteristic : characteristics) {
+                                        if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
+                                            mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
+//                                            logEvent("Discovered Readable Identity");
+//                                            logCharacteristic(characteristic);
+//                                            logEvent("Expected Readable Identity");
+//                                            logCharacteristic(GATT.IDENTITY_READ);
+//                                            logEvent("Characteristis equal: " + String.valueOf(GATT.IDENTITY_READ.equals(characteristic)));
+                                        } else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
+                                            mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
+//
+//                                            logEvent("Discovered Writable Identity");
+//                                            logCharacteristic(characteristic);
+//                                            logEvent("Expected Writable Identity");
+//                                            logCharacteristic(GATT.IDENTITY_WRITE);
+//                                            logEvent("Characteristis equal: " + String.valueOf(GATT.IDENTITY_WRITE.equals(characteristic)));
+                                        } else if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
+                                            mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
+
+//                                            logEvent("Discovered Readable Messages");
+//                                            logCharacteristic(characteristic);
+//                                            logEvent("Expected Readable Messages");
+//                                            logCharacteristic(GATT.MESSAGES_READ);
+//                                            logEvent("Characteristis equal: " + String.valueOf(GATT.MESSAGES_READ.equals(characteristic)));
+                                        } else if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
+                                            mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
+
+//                                            logEvent("Discovered Writable Messages");
+//                                            logCharacteristic(characteristic);
+//                                            logEvent("Expected Writable Messages");
+//                                            logCharacteristic(GATT.MESSAGES_WRITE);
+//                                            logEvent("Characteristis equal: " + String.valueOf(GATT.MESSAGES_WRITE.equals(characteristic)));
+                                        }
+
+                                    }
+                                }
                             }
+                        } catch (Exception e) {
+                            logEvent("Exception analyzing discovered services " + e.getLocalizedMessage());
+                            e.printStackTrace();
                         }
-                        if (foundExpectedCharacteristic)
-                            logEvent("Found Characteristic. Requesting Read!");
+                        if (!foundService)
+                            logEvent("Could not discover chat service!");
+                        else
+                            beginRequestFlowWithPeripheral(gatt);
                         super.onServicesDiscovered(gatt, status);
                     }
 
                     @Override
                     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                        logEvent(String.format("onCharacteristicRead %s status: %d", characteristic.getStringValue(0), status));
+                        logEvent(String.format("onCharacteristicRead %s value: %s status: %d", characteristic.getUuid().toString().substring(0,3), characteristic.getValue() == null ? "null" : DataUtil.bytesToHex(characteristic.getValue()), status));
                         handleResponseForCurrentRequestToPeripheral(gatt, BLECentralRequest.RequestType.READ, characteristic, status);
                         super.onCharacteristicRead(gatt, characteristic, status);
                     }
@@ -247,7 +324,7 @@ public class BLECentral {
             @Override
             public void onScanFailed(int i) {
                 String toLog = "Scan failed with code " + i;
-                Log.i(TAG, toLog);
+                logEvent(toLog);
             }
         };
     }
@@ -310,7 +387,7 @@ public class BLECentral {
             if (mScanCallback == null) setScanCallback(null);
 
             mScanner.startScan(createScanFilters(), createScanSettings(), mScanCallback);
-            Toast.makeText(mContext, mContext.getString(R.string.scan_started), Toast.LENGTH_SHORT).show();
+            //Toast.makeText(mContext, mContext.getString(R.string.scan_started), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -332,7 +409,7 @@ public class BLECentral {
     private void stopScanning() {
         if (mScanner != null) {
             mScanner.stopScan(mScanCallback);
-            Toast.makeText(mContext, mContext.getString(R.string.scan_stopped), Toast.LENGTH_SHORT).show();
+            //Toast.makeText(mContext, mContext.getString(R.string.scan_stopped), Toast.LENGTH_SHORT).show();
         }
         mIsScanning = false;
     }
@@ -343,6 +420,38 @@ public class BLECentral {
         } else {
             Log.i(TAG, event);
         }
+    }
+
+    private void logCharacteristic(BluetoothGattCharacteristic characteristic) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(characteristic.getUuid().toString().substring(0, 3));
+        builder.append("... instance: ");
+        builder.append(characteristic.getInstanceId());
+        builder.append(" properties: ");
+        builder.append(characteristic.getProperties());
+        builder.append(" permissions: ");
+        builder.append(characteristic.getPermissions());
+        builder.append(" value: ");
+        if (characteristic.getValue() != null)
+            builder.append(DataUtil.bytesToHex(characteristic.getValue()));
+        else
+            builder.append("null");
+
+        if (characteristic.getDescriptors().size() > 0) builder.append("descriptors: [\n");
+        for (BluetoothGattDescriptor descriptor : characteristic.getDescriptors()) {
+            builder.append("{\n");
+            builder.append(descriptor.getUuid().toString());
+            builder.append(" permissions: ");
+            builder.append(descriptor.getPermissions());
+            builder.append("\n value: ");
+            if (descriptor.getValue() != null)
+                builder.append(DataUtil.bytesToHex(descriptor.getValue()));
+            else
+                builder.append("null");
+            builder.append("\n}");
+        }
+        if (characteristic.getDescriptors().size() > 0) builder.append("]");
+        logEvent(builder.toString());
     }
 
     //</editor-fold>

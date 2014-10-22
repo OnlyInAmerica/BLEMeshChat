@@ -2,6 +2,7 @@ package pro.dbro.ble.transport.ble;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.util.Log;
 
 /**
  * A request the BLECentral should perform on a remote BLEPeripheral
@@ -9,6 +10,7 @@ import android.bluetooth.BluetoothGattCharacteristic;
  * Created by davidbrodsky on 10/20/14.
  */
 public abstract class BLECentralRequest {
+    private static final String TAG = "BLECentralRequest";
 
     public static enum RequestType { READ, WRITE }
 
@@ -21,15 +23,17 @@ public abstract class BLECentralRequest {
     }
 
     public final void doRequest(BluetoothGatt remotePeripheral) {
+        boolean success = false;
         switch (mRequestType) {
             case READ:
-                remotePeripheral.readCharacteristic(mCharacteristic);
+                success = remotePeripheral.readCharacteristic(mCharacteristic);
                 break;
             case WRITE:
                 mCharacteristic.setValue(getDataToWrite(remotePeripheral));
-                remotePeripheral.writeCharacteristic(mCharacteristic);
+                success = remotePeripheral.writeCharacteristic(mCharacteristic);
                 break;
         }
+        Log.i(TAG, String.format("%s to %s... success: %b", mRequestType.toString(), mCharacteristic.getUuid().toString().substring(0,3), success));
     }
 
     /**

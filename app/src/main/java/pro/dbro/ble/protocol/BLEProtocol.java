@@ -10,6 +10,7 @@ import java.nio.ByteOrder;
 import java.util.Date;
 
 import pro.dbro.ble.crypto.SodiumShaker;
+import pro.dbro.ble.data.model.DataUtil;
 
 /**
  * Created by davidbrodsky on 10/14/14.
@@ -39,7 +40,7 @@ public class BLEProtocol implements Protocol {
     */
 
     @Nullable
-    public byte[] createIdentityResponse(@NonNull OwnedIdentity ownedIdentity) {
+    public byte[] serializeIdentity(@NonNull OwnedIdentity ownedIdentity) {
         // Protocol version 1
         //[[version=1][timestamp=8][sender_public_key=32][display_name=35]][signature=64]
         try {
@@ -62,7 +63,7 @@ public class BLEProtocol implements Protocol {
         return null;
     }
 
-    public byte[] createPublicMessageResponse(@NonNull OwnedIdentity ownedIdentity, String body) {
+    public Message serializeMessage(@NonNull OwnedIdentity ownedIdentity, String body) {
         // Protocol version 1
         //[[version=1][timestamp=8][sender_public_key=32][message=140][reply_signature=64]][signature=64]
         try {
@@ -78,7 +79,7 @@ public class BLEProtocol implements Protocol {
             if (writeIndex != MESSAGE_RESPONSE_LENGTH)
                 throw new IllegalStateException("Generated Message does not match expected length");
 
-            return message;
+            return deserializeMessage(message);
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -92,9 +93,10 @@ public class BLEProtocol implements Protocol {
      */
 
     @Nullable
-    public Identity consumeIdentityResponse(@NonNull byte[] identity) {
+    public Identity deserializeIdentity(@NonNull byte[] identity) {
+        Log.i("deserializeIdentity", DataUtil.bytesToHex(identity));
         if (identity.length != IDENTITY_RESPONSE_LENGTH)
-            throw new IllegalArgumentException("Identity response is illegal length");
+            throw new IllegalArgumentException(String.format("Identity response is %d bytes. Expect %d", identity.length, IDENTITY_RESPONSE_LENGTH));
 
         // Protocol version 1
         //[[version=1][timestamp=8][sender_public_key=32][display_name=35]][signature=64]
@@ -126,7 +128,7 @@ public class BLEProtocol implements Protocol {
     }
 
     @Nullable
-    public Message consumeMessageResponse(@NonNull byte[] message) {
+    public Message deserializeMessage(@NonNull byte[] message) {
         if (message.length != MESSAGE_RESPONSE_LENGTH)
             throw new IllegalArgumentException("Identity response is illegal length");
 

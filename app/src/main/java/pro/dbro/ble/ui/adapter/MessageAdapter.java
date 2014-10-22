@@ -14,7 +14,10 @@ import java.text.ParseException;
 
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
+import pro.dbro.ble.data.ContentProviderStore;
+import pro.dbro.ble.data.DataStore;
 import pro.dbro.ble.data.model.DataUtil;
+import pro.dbro.ble.data.model.MessageCollection;
 import pro.dbro.ble.data.model.MessageTable;
 import pro.dbro.ble.data.model.Peer;
 
@@ -23,6 +26,8 @@ import pro.dbro.ble.data.model.Peer;
  */
 public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.ViewHolder> {
     public static final String TAG = "MessageAdapter";
+
+    private ChatApp mApp;
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public TextView senderView;
@@ -37,12 +42,26 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
         }
     }
 
+    /**
+     * Recommended constructor.
+     *
+     * @param context       The context
+     * @param app
+     * @param flags         Flags used to determine the behavior of the adapter;
+     *                Currently it accept {@link #FLAG_REGISTER_CONTENT_OBSERVER}.
+     */
+    public MessageAdapter(Context context, ChatApp app, int flags) {
+        super(context, app.getRecentMessagesFeed().getCursor(), flags);
+        mApp = app;
+    }
+
     @Override
     public void onBindViewHolder(ViewHolder holder, Cursor cursor) {
         // TODO: cache message sender alias to avoid additional query
-        Cursor peer = ChatApp.getPeerById(mContext, cursor.getInt(cursor.getColumnIndex(MessageTable.peerId)));
-        if (peer != null && peer.moveToFirst()) {
-            holder.senderView.setText(new Peer(peer).getAlias());
+
+        Peer peer = mApp.getDataStore().getPeerById(cursor.getInt(cursor.getColumnIndex(MessageTable.peerId)));
+        if (peer != null) {
+            holder.senderView.setText(peer.getAlias());
         } else {
             holder.senderView.setText("?");
         }
@@ -56,22 +75,10 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
         }
     }
 
-    /**
-     * Recommended constructor.
-     *
-     * @param context The context
-     * @param c       The cursor from which to get the data.
-     * @param flags   Flags used to determine the behavior of the adapter;
-     *                Currently it accept {@link #FLAG_REGISTER_CONTENT_OBSERVER}.
-     */
-    public MessageAdapter(Context context, Cursor c, int flags) {
-        super(context, c, flags);
-    }
-
     @Override
     protected void onContentChanged() {
         Log.i(TAG, "onContentChanged");
-        changeCursor(ChatApp.getMessagesToSend(mContext));
+        changeCursor(mApp.getRecentMessagesFeed().getCursor());
     }
 
     @Override

@@ -10,13 +10,12 @@ import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Message;
 import pro.dbro.ble.data.model.Peer;
-import pro.dbro.ble.transport.ble.BLETransportOld;
 import pro.dbro.ble.transport.ble.BLETransportCallback;
 import pro.dbro.ble.ui.fragment.MessageListFragment;
 
 public class MainActivity extends Activity implements /* PeerListFragment.PeerFragmentListener,*/ BLETransportCallback {
 
-    private BLETransportOld mMeshManager;
+    public ChatApp mApp;
     //private PeerListFragment mPeerListFragment;
     private MessageListFragment mMessageListFragment;
     private Peer mUserIdentity;
@@ -26,6 +25,8 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
         super.onCreate(savedInstanceState);
         getActionBar().setDisplayShowTitleEnabled(false);
         setContentView(R.layout.activity_main);
+        if (mApp == null) mApp = new ChatApp(this);
+
         if (savedInstanceState == null) {
             /*
             mPeerListFragment = new PeerListFragment();
@@ -33,23 +34,24 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
                     .add(R.id.container, mPeerListFragment)
                     .commit();
             */
-            mUserIdentity = ChatApp.getPrimaryLocalPeer(this);
+            mUserIdentity = mApp.getPrimaryIdentity();
             if (mUserIdentity == null) {
-                Util.showWelcomeDialog(this, new DialogInterface.OnDismissListener() {
+                Util.showWelcomeDialog(mApp, this, new DialogInterface.OnDismissListener() {
                     @Override
                     public void onDismiss(DialogInterface dialogInterface) {
-                        mUserIdentity = ChatApp.getPrimaryLocalPeer(MainActivity.this);
-                        addMessageListFragment();
+                        mUserIdentity = mApp.getPrimaryIdentity();
+                        showMessageListFragment();
                     }
                 });
             } else {
-                addMessageListFragment();
+              showMessageListFragment();
             }
 
         }
     }
 
-    private void addMessageListFragment() {
+    private void showMessageListFragment() {
+        mApp.makeAvailable();
         mMessageListFragment = new MessageListFragment();
         getFragmentManager().beginTransaction()
                 .add(R.id.container, mMessageListFragment)
@@ -59,18 +61,18 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
     @Override
     public void onStart() {
         super.onStart();
-        if (mMeshManager == null) {
-            mMeshManager = new BLETransportOld(this, ChatApp.getPrimaryLocalPeer(this));
-            mMeshManager.setMeshCallback(this);
-        }
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (mMeshManager != null) {
-            mMeshManager.stop();
-        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mApp.makeUnavailable();
+        mApp = null;
     }
 
 

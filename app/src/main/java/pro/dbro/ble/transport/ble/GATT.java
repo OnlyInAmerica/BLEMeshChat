@@ -16,6 +16,7 @@
 package pro.dbro.ble.transport.ble;
 
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 
 import java.util.UUID;
 
@@ -31,15 +32,59 @@ public class GATT {
     public static final UUID MESSAGES_READ_UUID = UUID.fromString("A109B433-96A0-463A-A070-542C5A15E177");
     public static final UUID MESSAGES_WRITE_UUID = UUID.fromString("6EAEC220-5EB0-4181-8858-D40E1EE072F6");
 
+    /** Descriptors */
+    private static final UUID MYSTERY_DESCRIPTOR_UUID = UUID.fromString("00002900-0000-1000-8000-00805f9b34fb");
+
+    /** Properties */
+    // Received from iOS app
+    private static final int CHARACTERISTIC_READABLE_PROPERTY = 34;
+    private static final int CHARACTERISTIC_WRITABLE_PROPERTY = 136;
+
+    /** Permissions */
+    // Received from iOS app
+    private static final int PERMISSION = 0;
+
+
     public static final BluetoothGattCharacteristic IDENTITY_READ =
-            new BluetoothGattCharacteristic(IDENTITY_READ_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            new BluetoothGattCharacteristic(IDENTITY_READ_UUID,
+//                                            CHARACTERISTIC_READABLE_PROPERTY,
+                                            BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_INDICATE,
+//                                            PERMISSION);
+                                            BluetoothGattCharacteristic.PERMISSION_READ);
 
     public static final BluetoothGattCharacteristic MESSAGES_READ =
-            new BluetoothGattCharacteristic(MESSAGES_READ_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            new BluetoothGattCharacteristic(MESSAGES_READ_UUID,
+//                                            CHARACTERISTIC_READABLE_PROPERTY,
+                                            BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_INDICATE,
+//                                            PERMISSION);
+                                            BluetoothGattCharacteristic.PERMISSION_READ);
 
     public static final BluetoothGattCharacteristic IDENTITY_WRITE =
-            new BluetoothGattCharacteristic(IDENTITY_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            new BluetoothGattCharacteristic(IDENTITY_WRITE_UUID,
+//                                            CHARACTERISTIC_WRITABLE_PROPERTY,
+                                            BluetoothGattCharacteristic.PROPERTY_WRITE,
+//                                            PERMISSION);
+                                            BluetoothGattCharacteristic.PERMISSION_WRITE);
 
     public static final BluetoothGattCharacteristic MESSAGES_WRITE =
-            new BluetoothGattCharacteristic(MESSAGES_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            new BluetoothGattCharacteristic(MESSAGES_WRITE_UUID,
+//                                            CHARACTERISTIC_WRITABLE_PROPERTY,
+                                            BluetoothGattCharacteristic.PROPERTY_WRITE,
+//                                            PERMISSION);
+                                            BluetoothGattCharacteristic.PERMISSION_WRITE);
+
+    private static final BluetoothGattDescriptor READ_DESCRIPTOR = new BluetoothGattDescriptor(MYSTERY_DESCRIPTOR_UUID,
+                                                                                               0);
+                                                                                               //BluetoothGattDescriptor.PERMISSION_READ);
+    private static final BluetoothGattDescriptor WRITE_DESCRIPTOR = new BluetoothGattDescriptor(MYSTERY_DESCRIPTOR_UUID,
+                                                                                                0);
+                                                                                                //BluetoothGattDescriptor.PERMISSION_WRITE);
+
+
+    static {
+        IDENTITY_READ.addDescriptor(READ_DESCRIPTOR);
+        IDENTITY_WRITE.addDescriptor(WRITE_DESCRIPTOR);
+        MESSAGES_READ.addDescriptor(READ_DESCRIPTOR);
+        MESSAGES_WRITE.addDescriptor(WRITE_DESCRIPTOR);
+    }
 }

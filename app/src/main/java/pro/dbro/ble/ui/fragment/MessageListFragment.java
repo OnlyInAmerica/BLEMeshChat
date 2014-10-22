@@ -18,8 +18,10 @@ import android.widget.TextView;
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Message;
+import pro.dbro.ble.data.model.MessageCollection;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.transport.ble.BLETransportCallback;
+import pro.dbro.ble.ui.activities.MainActivity;
 import pro.dbro.ble.ui.adapter.MessageAdapter;
 
 /**
@@ -28,6 +30,7 @@ import pro.dbro.ble.ui.adapter.MessageAdapter;
 public class MessageListFragment extends Fragment implements BLETransportCallback {
     public static final String TAG = "MessageListFragment";
 
+    ChatApp mApp;
     RecyclerView mRecyclerView;
     MessageAdapter mAdapter;
     EditText mMessageEntry;
@@ -39,6 +42,7 @@ public class MessageListFragment extends Fragment implements BLETransportCallbac
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        mApp = ((MainActivity) getActivity()).mApp;
         // Inflate the layout for this fragment
         View root = inflater.inflate(R.layout.fragment_message, container, false);
         mMessageEntry = (EditText) root.findViewById(R.id.messageEntry);
@@ -59,10 +63,9 @@ public class MessageListFragment extends Fragment implements BLETransportCallbac
                 onSendMessageButtonClick(v);
             }
         });
-        Cursor messages = ChatApp.getMessagesToSend(getActivity());
         mRecyclerView = (RecyclerView) root.findViewById(R.id.recyclerView);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
-        mAdapter = new MessageAdapter(getActivity(), messages, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
+        mAdapter = new MessageAdapter(getActivity(), mApp, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
         mRecyclerView.setAdapter(mAdapter);
         return root;
     }
@@ -91,7 +94,7 @@ public class MessageListFragment extends Fragment implements BLETransportCallbac
         if (message.length() == 0) return;
         Log.i(TAG, "Sending message " + message);
         // For now treat all messsages as public broadcast
-        ChatApp.saveAndCreateBroadcastMessageResponseForString(getActivity(), message);
+        mApp.sendPublicMessageFromPrimaryIdentity(message);
         mRecyclerView.smoothScrollToPosition(mAdapter.getItemCount());
     }
 }
