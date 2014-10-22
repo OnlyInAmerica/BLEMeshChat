@@ -12,6 +12,7 @@ import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.BLEProtocol;
 import pro.dbro.ble.protocol.Identity;
 import pro.dbro.ble.protocol.Message;
+import pro.dbro.ble.protocol.Protocol;
 import pro.dbro.ble.transport.Transport;
 import pro.dbro.ble.transport.ble.BLETransport;
 
@@ -21,15 +22,18 @@ import pro.dbro.ble.transport.ble.BLETransport;
 public class ChatApp implements Transport.TransportDataProvider, Transport.TransportEventCallback {
     public static final String TAG = "ChatApp";
 
-    private Context mContext;
+    private Context   mContext;
     private DataStore mDataStore;
     private Transport mTransport;
+    private Protocol  mProtocol;
 
     // <editor-fold desc="Public API">
 
     public ChatApp(Context context) {
-        mDataStore = new SQLDataStore(context);
         mContext = context;
+
+        mProtocol  = new BLEProtocol();
+        mDataStore = new SQLDataStore(context);
     }
 
     public void makeAvailable() {
@@ -37,12 +41,20 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
             Log.e(TAG, "Now primary Identity. Cannot make client available");
             return;
         }
-        mTransport = new BLETransport(mContext, mDataStore.getPrimaryLocalPeer().getIdentity(), new BLEProtocol(), this);
+        mTransport = new BLETransport(mContext, mDataStore.getPrimaryLocalPeer().getIdentity(), mProtocol, this);
         mTransport.makeAvailable();
     }
 
     public void makeUnavailable() {
         mTransport.makeUnavailable();
+    }
+
+    public Peer getPrimaryIdentity() {
+        return mDataStore.getPrimaryLocalPeer();
+    }
+
+    public Peer createPrimaryIdentity(String alias) {
+        return mDataStore.createLocalPeerWithAlias(alias, mProtocol);
     }
 
     // </editor-fold desc="Public API">
@@ -93,12 +105,12 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 
     @Override
     public void receivedIdentity(Identity identity) {
-        mDataStore.createRemotePeerWithProtocolIdentity(identity);
+        mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identity);
     }
 
     @Override
     public void receivedMessage(Message message) {
-        mDataStore.createMessageWithProtocolMessage(message);
+        mDataStore.createOrUpdateMessageWithProtocolMessage(message);
     }
 
     // </editor-fold desc="Private API">

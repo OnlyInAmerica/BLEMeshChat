@@ -40,5 +40,16 @@ public interface PeerTable {
      * For remote peer Identities it makes sense to store and forward the original response
      * since it should be considered immutable.
      * For owned Identities it makes sense to generate it each time as our alias etc. might change
+     *
+     *
+     * SCHEME
+     *
+     * Messages will always have rawPkt available. When user sends message, store serialized packet
+     * immediately.
+     *
+     * Identities may not have rawPkt (e.g: If they're inferred from a message), but generally
+     * we should have the peer's identity before exchanging messages so we run our redundant
+     * delivery avoidance algo.
+     *
      */
 }
