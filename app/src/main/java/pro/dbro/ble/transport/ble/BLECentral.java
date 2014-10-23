@@ -286,7 +286,7 @@ public class BLECentral {
 
                     @Override
                     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                        logEvent(String.format("onCharacteristicRead %s value: %s status: %d", characteristic.getUuid().toString().substring(0,3), characteristic.getValue() == null ? "null" : DataUtil.bytesToHex(characteristic.getValue()), status));
+                        logEvent(String.format("onCharacteristicRead %s value: %s status: %d", characteristic.getUuid().toString().substring(0, 3), characteristic.getValue() == null ? "null" : DataUtil.bytesToHex(characteristic.getValue()), status));
                         handleResponseForCurrentRequestToPeripheral(gatt, BLECentralRequest.RequestType.READ, characteristic, status);
                         super.onCharacteristicRead(gatt, characteristic, status);
                     }
@@ -342,8 +342,10 @@ public class BLECentral {
         String remotePeripheralAddress = remotePeripheral.getDevice().getAddress();
         ArrayDeque<BLECentralRequest> requestsForPeripheral = mRequestsForDevice.get(remotePeripheralAddress);
 
-        if (requestsForPeripheral != null) {
-            requestsForPeripheral.peek().doRequest(remotePeripheral);
+        if (requestsForPeripheral != null && requestsForPeripheral.size() > 0) {
+            boolean performedRequest = requestsForPeripheral.peek().doRequest(remotePeripheral);
+            // If the request could not be made for this peer, try the next request
+            if (!performedRequest) performCurrentRequestToPeripheral(remotePeripheral);
         } else {
             logEvent(String.format("performCurrentRequestToPeripheral found no requests available for device %s", remotePeripheralAddress));
         }
@@ -365,15 +367,17 @@ public class BLECentral {
             }
 
             // Handle response
+            if (characteristic.getValue() == null || characteristic.getValue().length == 0) {
+                logEvent(String.format("Got no data for %s to %s", type.toString(), characteristic.getUuid().toString().substring(0,3)));
+            }
             boolean complete = requestsForPeripheral.peek().handleResponse(remotePeripheral, characteristic, status);
             if (complete) {
                 // Request is complete
                 requestsForPeripheral.pop();
                 logEvent("Request complete!");
-            } else {
-                // Request should be re-issued
-                performCurrentRequestToPeripheral(remotePeripheral);
             }
+            // Perform next request
+            performCurrentRequestToPeripheral(remotePeripheral);
         } else {
             logEvent(String.format("handleCurrentResponseForPeripheral found no requests available for device %s", remotePeripheralAddress));
         }

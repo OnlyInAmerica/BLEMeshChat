@@ -22,18 +22,28 @@ public abstract class BLECentralRequest {
         mRequestType = requestType;
     }
 
-    public final void doRequest(BluetoothGatt remotePeripheral) {
+    /**
+     * Return true if a request was made, false if there is no appropriate request
+     * for the given remotePeripheral
+     */
+    public final boolean doRequest(BluetoothGatt remotePeripheral) {
         boolean success = false;
         switch (mRequestType) {
             case READ:
                 success = remotePeripheral.readCharacteristic(mCharacteristic);
                 break;
             case WRITE:
-                mCharacteristic.setValue(getDataToWrite(remotePeripheral));
-                success = remotePeripheral.writeCharacteristic(mCharacteristic);
+                byte[] dataToWrite = getDataToWrite(remotePeripheral);
+                if (dataToWrite != null) {
+                    mCharacteristic.setValue(dataToWrite);
+                    success = remotePeripheral.writeCharacteristic(mCharacteristic);
+                } else {
+                    Log.i(TAG, "getDataToWrite returned null, no request made for this peripheral");
+                }
                 break;
         }
         Log.i(TAG, String.format("%s to %s... success: %b", mRequestType.toString(), mCharacteristic.getUuid().toString().substring(0,3), success));
+        return success;
     }
 
     /**
