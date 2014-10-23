@@ -7,6 +7,7 @@ import java.util.ArrayDeque;
 
 import pro.dbro.ble.data.ContentProviderStore;
 import pro.dbro.ble.data.DataStore;
+import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.data.model.MessageCollection;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.BLEProtocol;
@@ -45,6 +46,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
             return;
         }
         mTransport = new BLETransport(mContext, mDataStore.getPrimaryLocalPeer().getIdentity(), mProtocol, this);
+        mTransport.setTransportCallback(this);
         mTransport.makeAvailable();
     }
 
@@ -91,8 +93,13 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
         Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
         MessageCollection messages = mDataStore.getOutgoingMessagesForPeer(recipient);
         ArrayDeque<MessagePacket> messagePacketQueue = new ArrayDeque<>();
-        for (int x = 0; x < maxMessages; x++) {
-            messagePacketQueue.push(messages.getMessageAtPosition(x).getProtocolMessage(mDataStore));
+        if (messages == null || messages.getCursor().getCount() == 0) {
+            Log.i(TAG, "Got no messages for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey));
+            // TODO Should never be called... Right?
+        }
+        else {
+            for (int x = 0; x < Math.min(maxMessages, messages.getCursor().getCount()); x++)
+                messagePacketQueue.push(messages.getMessageAtPosition(x).getProtocolMessage(mDataStore));
         }
         return messagePacketQueue;
     }
