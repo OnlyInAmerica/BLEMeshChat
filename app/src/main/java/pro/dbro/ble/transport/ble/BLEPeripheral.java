@@ -214,7 +214,7 @@ public class BLEPeripheral {
             public void onCharacteristicReadRequest(BluetoothDevice remoteCentral, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
-                    Pair<UUID, BLECentralRequest.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLECentralRequest.RequestType.READ);
+                    Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.READ);
                     if (mResponses.containsKey(requestKey)) {
                         mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, false, true, offset, null);
                     } else {
@@ -234,11 +234,12 @@ public class BLEPeripheral {
             public void onCharacteristicWriteRequest(BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
-                    Pair<UUID, BLECentralRequest.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLECentralRequest.RequestType.WRITE);
+                    Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.WRITE);
                     if (mResponses.containsKey(requestKey)) {
                         mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
                     } else {
                         // No response registered for this request. Send GATT_FAILURE
+                        logEvent(String.format("No %s response registered for characteristic %s", requestKey.second, characteristic.getUuid().toString()));
                         mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 });
                     }
                 } else {
