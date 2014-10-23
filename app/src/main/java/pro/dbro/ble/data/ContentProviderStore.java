@@ -82,7 +82,10 @@ public class ContentProviderStore extends DataStore {
     public MessageCollection getOutgoingMessagesForPeer(@NonNull Peer recipient) {
         // TODO: filtering. Don't return Cursor
         Cursor messagesCursor = mContext.getContentResolver().query(ChatContentProvider.Messages.MESSAGES, null, null, null, null);
-        return new MessageCollection(messagesCursor);
+        if (messagesCursor != null && messagesCursor.moveToFirst()) {
+            return new MessageCollection(messagesCursor);
+        }
+        return null;
     }
 
     @Override
@@ -93,7 +96,10 @@ public class ContentProviderStore extends DataStore {
                 null,
                 MessageTable.receivedDate + " ASC");
 
-        return new MessageCollection(messagesCursor);
+        if (messagesCursor != null && messagesCursor.moveToFirst()) {
+            return new MessageCollection(messagesCursor);
+        }
+        return null;
     }
 
     @Nullable
