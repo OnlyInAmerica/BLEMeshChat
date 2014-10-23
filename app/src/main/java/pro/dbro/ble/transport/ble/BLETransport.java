@@ -14,6 +14,7 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.protocol.IdentityPacket;
 import pro.dbro.ble.protocol.MessagePacket;
 import pro.dbro.ble.protocol.Protocol;
@@ -22,7 +23,9 @@ import pro.dbro.ble.transport.Transport;
 /**
  * Created by davidbrodsky on 10/20/14.
  */
-public class BLETransport extends Transport implements BLECentral.BLECentralConnectionGovernor, BLEPeripheral.BLEPeripheralConnectionGovernor, BLECentral.BLECentralConnectionListener {
+public class BLETransport extends Transport implements BLECentral.BLECentralConnectionGovernor,
+                                                       BLEPeripheral.BLEPeripheralConnectionGovernor,
+                                                       BLECentral.BLECentralConnectionListener {
     public static final String TAG = "BLETransport";
 
     /** How many items to send for each request for this client's items */
@@ -138,18 +141,24 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     BLECentralRequest mMessageWriteRequest = new BLECentralRequest(GATT.MESSAGES_WRITE, BLECentralRequest.RequestType.WRITE) {
         @Override
         public boolean handleResponse(BluetoothGatt remotePeripheral, BluetoothGattCharacteristic characteristic, int status) {
-            if (status == BluetoothGatt.GATT_SUCCESS && mCallback != null) {
-                mCallback.sentMessage(getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), false));
+            MessagePacket justSent = getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
+            if (justSent == null) {
+                // No data was available for this request. Mark request complete
+                return true;
+            } else {
+                if (status == BluetoothGatt.GATT_SUCCESS && mCallback != null) {
+                    mCallback.sentMessage(getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), false));
+                }
+                // If we have more messages to send, indicate request should be repeated
+                return (getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), false) == null);
             }
-            // If we have more messages to send, indicate request should be repeated
-            return (getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), false) == null);
         }
 
         @Override
         public byte[] getDataToWrite(BluetoothGatt remotePeripheral) {
             //return byte[] next_message
             MessagePacket forRecipient = getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
-            return forRecipient.rawPacket;
+            return (forRecipient == null ) ? null : forRecipient.rawPacket;
         }
     };
 
@@ -176,13 +185,24 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     BLEPeripheralResponse mMessageReadResponse = new BLEPeripheralResponse(GATT.MESSAGES_READ, BLEPeripheralResponse.RequestType.READ) {
         @Override
         public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
-            // Get messages to send and send first
-            MessagePacket forRecipient = getNextMessageForDeviceAddress(remoteCentral.getAddress(), true);
-            byte[] payload = forRecipient.rawPacket;
-            int gattStatus = haveAnotherMessage ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
-            boolean success = localPeripheral.sendResponse(remoteCentral, requestId, gattStatus, 0, payload);
-            if (success && mCallback != null) mCallback.sentMessage(forRecipient);
-
+            try {
+                // Get messages to send and send first
+                MessagePacket forRecipient = getNextMessageForDeviceAddress(remoteCentral.getAddress(), true);
+                if (forRecipient != null) {
+                    boolean haveAnotherMessage = getNextMessageForDeviceAddress(remoteCentral.getAddress(), false) != null;
+                    byte[] payload = forRecipient.rawPacket;
+                    int gattStatus = haveAnotherMessage ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
+                    boolean success = localPeripheral.sendResponse(remoteCentral, requestId, gattStatus, 0, payload);
+                    Log.i(TAG, "Sent message payload " + DataUtil.bytesToHex(payload));
+                    if (success && mCallback != null) mCallback.sentMessage(forRecipient);
+                } else {
+                    boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
+                    Log.i(TAG, "Had no messages for peer. Sent READ_NOT_PERMITTED with success " + success);
+                }
+            } catch(Exception e) {
+                Log.i(TAG, "Failed to respond to message read request");
+                e.printStackTrace();
+            }
         }
     };
 
@@ -195,6 +215,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             byte[] payload = forRecipient.rawPacket;
             int gattStatus = haveAnotherIdentity ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
             boolean success = localPeripheral.sendResponse(remoteCentral, requestId, gattStatus, 0, payload);
+            Log.i(TAG, String.format("Responded to read request success: %b data: %s", success, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
             if (success && mCallback != null) mCallback.sentIdentity(forRecipient);
         }
     };
@@ -216,9 +237,18 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
             // Consume Identity and send GATT_SUCCESS if valid and response needed
-            IdentityPacket receivedIdentityPacket = mProtocol.deserializeIdentity(characteristic.getValue());
-            if (mCallback != null) mCallback.receivedIdentity(receivedIdentityPacket);
-            mAddressesToIdentity.put(remoteCentral.getAddress(), receivedIdentityPacket);
+            if (value == null || value.length == 0) {
+                Log.i(TAG, "got empty write data");
+            } else {
+                Log.i(TAG, "got non-empty write data! length: " + value.length);
+                IdentityPacket receivedIdentityPacket = mProtocol.deserializeIdentity(value);
+                if (mCallback != null) {
+                    Log.i(TAG, "delivering identity to callback: ");
+                    mCallback.receivedIdentity(receivedIdentityPacket);
+                }
+                mAddressesToIdentity.put(remoteCentral.getAddress(), receivedIdentityPacket);
+            }
+
             if (responseNeeded) {
                 // TODO: Response code based on message validation?
                 localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
@@ -278,7 +308,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     }
 
     private byte[] getPublicKeyForDeviceAddress(String address) {
-        byte[] publicKey = mAddressesToIdentity.get(address).publicKey;
+        byte[] publicKey = null;
+        if (mAddressesToIdentity.containsKey(address)) publicKey = mAddressesToIdentity.get(address).publicKey;
+
         if (publicKey == null) {
             // No public key on file, perform naive message send for now
             Log.w(TAG, String.format("Don't have identity on file for device %s. Naively sending messages", address));
