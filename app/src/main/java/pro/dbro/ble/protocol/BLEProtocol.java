@@ -188,7 +188,7 @@ public class BLEProtocol implements Protocol {
             int bytesToWrite = Long.SIZE / 8;
             assertBufferLength(input, offset + bytesToWrite);
 
-            long unixTime64 = System.currentTimeMillis() / 1000L;
+            long unixTime64 = System.currentTimeMillis();
             sTimeStampBuffer.rewind();
             sTimeStampBuffer.putLong(unixTime64);
             System.arraycopy(sTimeStampBuffer.array(), 0, input, offset, bytesToWrite);

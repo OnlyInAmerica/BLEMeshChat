@@ -178,7 +178,6 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
             // Get messages to send and send first
             MessagePacket forRecipient = getNextMessageForDeviceAddress(remoteCentral.getAddress(), true);
-            boolean haveAnotherMessage = getNextMessageForDeviceAddress(remoteCentral.getAddress(), false) != null;
             byte[] payload = forRecipient.rawPacket;
             int gattStatus = haveAnotherMessage ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
             boolean success = localPeripheral.sendResponse(remoteCentral, requestId, gattStatus, 0, payload);
