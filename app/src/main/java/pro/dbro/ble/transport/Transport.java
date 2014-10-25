@@ -1,5 +1,7 @@
 package pro.dbro.ble.transport;
 
+import android.provider.ContactsContract;
+
 import java.util.ArrayDeque;
 
 import pro.dbro.ble.protocol.IdentityPacket;
@@ -21,8 +23,8 @@ public abstract class Transport {
         public void becameAvailable(IdentityPacket identityPacket);
         public void becameUnavailable(IdentityPacket identityPacket);
 
-        public void sentIdentity(IdentityPacket identityPacket);
-        public void sentMessage(MessagePacket messagePacket);
+        public void sentIdentity(IdentityPacket payloadIdentity, IdentityPacket recipientIdentity);
+        public void sentMessage(MessagePacket messagePacket, IdentityPacket recipientIdentity);
 
         public void receivedIdentity(IdentityPacket identityPacket);
         public void receivedMessage(MessagePacket messagePacket);

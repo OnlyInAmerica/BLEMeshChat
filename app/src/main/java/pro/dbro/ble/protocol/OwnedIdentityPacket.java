@@ -12,7 +12,7 @@ public class OwnedIdentityPacket extends IdentityPacket {
 
     public OwnedIdentityPacket(@NonNull final byte[] secretKey, @NonNull final byte[] publicKey,
                                @NonNull String alias, byte[] rawPacket) {
-        super(publicKey, alias, null, null);
+        super(publicKey, alias, null, rawPacket);
         this.secretKey = secretKey;
     }
 }

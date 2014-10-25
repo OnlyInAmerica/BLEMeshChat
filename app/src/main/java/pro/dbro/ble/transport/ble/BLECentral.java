@@ -36,7 +36,6 @@ import pro.dbro.ble.ui.activities.LogConsumer;
  */
 public class BLECentral {
     public static final String TAG = "BLECentral";
-    private static final boolean REPORT_NON_SUCCESSES = false;
 
     /**
      * Requests to perform against each discovered peripheral
@@ -161,14 +160,12 @@ public class BLECentral {
                 if (mConnectedDevices.contains(scanResult.getDevice().getAddress())) {
                     // If we're already connected, forget it
                     logEvent("Denied connection. Already connected to  " + scanResult.getDevice().getAddress());
-
                     return;
                 }
 
                 if (mConnectingDevices.contains(scanResult.getDevice().getAddress())) {
                     // If we're already connected, forget it
                     logEvent("Denied connection. Already connecting to  " + scanResult.getDevice().getAddress());
-
                     return;
                 }
 
@@ -228,7 +225,6 @@ public class BLECentral {
                         // TODO: Keep this here to examine characteristics
                         // eventually we should get rid of the discoverServices step
                         boolean foundService = false;
-
                         try {
                             List<BluetoothGattService> serviceList = gatt.getServices();
                             for (BluetoothGattService service : serviceList) {
@@ -239,37 +235,13 @@ public class BLECentral {
                                     for (BluetoothGattCharacteristic characteristic : characteristics) {
                                         if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
                                             mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
-//                                            logEvent("Discovered Readable Identity");
-//                                            logCharacteristic(characteristic);
-//                                            logEvent("Expected Readable Identity");
-//                                            logCharacteristic(GATT.IDENTITY_READ);
-//                                            logEvent("Characteristis equal: " + String.valueOf(GATT.IDENTITY_READ.equals(characteristic)));
                                         } else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
                                             mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
-//
-//                                            logEvent("Discovered Writable Identity");
-//                                            logCharacteristic(characteristic);
-//                                            logEvent("Expected Writable Identity");
-//                                            logCharacteristic(GATT.IDENTITY_WRITE);
-//                                            logEvent("Characteristis equal: " + String.valueOf(GATT.IDENTITY_WRITE.equals(characteristic)));
                                         } else if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
                                             mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
-
-//                                            logEvent("Discovered Readable Messages");
-//                                            logCharacteristic(characteristic);
-//                                            logEvent("Expected Readable Messages");
-//                                            logCharacteristic(GATT.MESSAGES_READ);
-//                                            logEvent("Characteristis equal: " + String.valueOf(GATT.MESSAGES_READ.equals(characteristic)));
                                         } else if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
                                             mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
-
-//                                            logEvent("Discovered Writable Messages");
-//                                            logCharacteristic(characteristic);
-//                                            logEvent("Expected Writable Messages");
-//                                            logCharacteristic(GATT.MESSAGES_WRITE);
-//                                            logEvent("Characteristis equal: " + String.valueOf(GATT.MESSAGES_WRITE.equals(characteristic)));
                                         }
-
                                     }
                                 }
                             }
@@ -329,6 +301,10 @@ public class BLECentral {
         };
     }
 
+    /**
+     * Add a fresh queue of requests to {@link #mRequestsForDevice} for the given peripheral.
+     * see {@link #mDefaultRequests}
+     */
     private void beginRequestFlowWithPeripheral(BluetoothGatt remotePeripheral) {
         ArrayDeque<BLECentralRequest> requestsForPeripheral = mDefaultRequests.clone();
         String remotePeripheralAddress = remotePeripheral.getDevice().getAddress();
@@ -338,20 +314,27 @@ public class BLECentral {
         performCurrentRequestToPeripheral(remotePeripheral);
     }
 
+    /**
+     * Perform the next request in the queue provided by {@link #mRequestsForDevice} for this peripheral.
+     */
     private void performCurrentRequestToPeripheral(BluetoothGatt remotePeripheral) {
         String remotePeripheralAddress = remotePeripheral.getDevice().getAddress();
         ArrayDeque<BLECentralRequest> requestsForPeripheral = mRequestsForDevice.get(remotePeripheralAddress);
 
         if (requestsForPeripheral != null && requestsForPeripheral.size() > 0) {
             boolean performedRequest = requestsForPeripheral.peek().doRequest(remotePeripheral);
-            // If the request could not be made for this peer, try the next request
-            if (!performedRequest) performCurrentRequestToPeripheral(remotePeripheral);
+            if (!performedRequest) {
+                // If the request could not be made for this peer, remove it from the device queue
+                // and try the next request
+                requestsForPeripheral.pop();
+                performCurrentRequestToPeripheral(remotePeripheral);
+            }
         } else {
             logEvent(String.format("performCurrentRequestToPeripheral found no requests available for device %s", remotePeripheralAddress));
         }
     }
 
-    private void handleResponseForCurrentRequestToPeripheral(BluetoothGatt remotePeripheral, BLECentralRequest.RequestType type, BluetoothGattCharacteristic characteristic, int status) {
+    private void handleResponseForCurrentRequestToPeripheral(@NonNull BluetoothGatt remotePeripheral, @NonNull BLECentralRequest.RequestType type, @NonNull BluetoothGattCharacteristic characteristic, int status) {
         String remotePeripheralAddress = remotePeripheral.getDevice().getAddress();
         ArrayDeque<BLECentralRequest> requestsForPeripheral = mRequestsForDevice.get(remotePeripheralAddress);
 
@@ -413,7 +396,6 @@ public class BLECentral {
     private void stopScanning() {
         if (mScanner != null) {
             mScanner.stopScan(mScanCallback);
-            //Toast.makeText(mContext, mContext.getString(R.string.scan_stopped), Toast.LENGTH_SHORT).show();
         }
         mIsScanning = false;
     }

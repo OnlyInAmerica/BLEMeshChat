@@ -21,7 +21,7 @@ import pro.dbro.ble.protocol.MessagePacket;
 public class Message extends CursorModel {
 
     public Message(@NonNull Cursor cursor) {
-        super(cursor, false); // Not a collection
+        super(cursor);
 
     }
 

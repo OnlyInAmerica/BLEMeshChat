@@ -287,7 +287,7 @@ public class BLEProtocol implements Protocol {
             sTimeStampBuffer.put(timestamp);
             sTimeStampBuffer.rewind();
             // TODO: Test if flip needed
-            return new Date(sTimeStampBuffer.getLong() * 1000);
+            return new Date(sTimeStampBuffer.getLong());
         }
     }
 

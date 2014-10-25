@@ -1,8 +1,11 @@
 package pro.dbro.ble.data;
 
 import android.content.Context;
+import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+
+import java.util.List;
 
 import pro.dbro.ble.data.model.Message;
 import pro.dbro.ble.data.model.MessageCollection;
@@ -25,11 +28,17 @@ public abstract class DataStore {
         mContext = context.getApplicationContext();
     }
 
+    public abstract void markMessageDeliveredToPeer(@NonNull MessagePacket message, @NonNull IdentityPacket recipient);
+
+    public abstract void markIdentityDeliveredToPeer(@NonNull IdentityPacket payloadIdentity, @NonNull IdentityPacket recipientIdentity);
+
     public abstract Peer createLocalPeerWithAlias(@NonNull String alias, @Nullable Protocol protocol);
 
     public abstract Peer getPrimaryLocalPeer();
 
-    public abstract MessageCollection getOutgoingMessagesForPeer(@NonNull Peer recipient);
+    public abstract List<MessagePacket> getOutgoingMessagesForPeer(@NonNull Peer recipient, int maxMessages);
+
+    public abstract List<IdentityPacket> getOutgoingIdentitiesForPeer(@NonNull Peer recipient, int maxMessages);
 
     public abstract MessageCollection getRecentMessages();
 

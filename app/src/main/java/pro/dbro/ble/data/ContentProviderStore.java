@@ -7,16 +7,20 @@ import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
-import android.util.Pair;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import pro.dbro.ble.crypto.KeyPair;
 import pro.dbro.ble.crypto.SodiumShaker;
 import pro.dbro.ble.data.model.ChatContentProvider;
 import pro.dbro.ble.data.model.DataUtil;
+import pro.dbro.ble.data.model.IdentityDeliveryTable;
 import pro.dbro.ble.data.model.Message;
 import pro.dbro.ble.data.model.MessageCollection;
+import pro.dbro.ble.data.model.MessageDeliveryTable;
 import pro.dbro.ble.data.model.MessageTable;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.data.model.PeerTable;
@@ -38,6 +42,48 @@ public class ContentProviderStore extends DataStore {
 
     public ContentProviderStore(Context context) {
         super(context);
+    }
+
+    @Override
+    public void markMessageDeliveredToPeer(@NonNull MessagePacket messagePacket, @NonNull IdentityPacket recipientPacket) {
+        Message message = getMessageBySignature(messagePacket.signature);
+        Peer recipient = getPeerByPubKey(recipientPacket.publicKey);
+
+        if (message == null || recipient == null) {
+            Log.w(TAG, "Unable to record message delivery. No peer or message database id available");
+            return;
+        }
+
+        ContentValues delivery = new ContentValues();
+        delivery.put(MessageDeliveryTable.messageId, message.getId());
+        delivery.put(MessageDeliveryTable.peerId, recipient.getId());
+
+        mContext.getContentResolver().insert(ChatContentProvider.MessageDeliveries.MESSAGE_DELIVERIES, delivery);
+        Log.i(TAG, "Recorded message delivery");
+        try {
+            message.close();
+            recipient.close();
+        } catch (IOException e) {/* do nothing*/ }
+    }
+
+    @Override
+    public void markIdentityDeliveredToPeer(@NonNull IdentityPacket payloadIdentity, @NonNull IdentityPacket recipientIdentity) {
+        Peer payloadPeer = getPeerByPubKey(payloadIdentity.publicKey);
+        Peer recipientPeer = getPeerByPubKey(recipientIdentity.publicKey);
+
+        if (payloadPeer == null || recipientPeer == null) {
+            Log.w(TAG, "Unable to fetch payload or recipient identity. Cannot mark identity delivered");
+            return;
+        }
+
+        ContentValues delivery = new ContentValues();
+        delivery.put(IdentityDeliveryTable.peerPayloadId, payloadPeer.getId());
+        delivery.put(IdentityDeliveryTable.peerRecipientId, recipientPeer.getId());
+
+        mContext.getContentResolver().insert(ChatContentProvider.IdentityDeliveries.IDENTITY_DELIVERIES, delivery);
+        Log.i(TAG, "Recorded identity delivery");
+        payloadPeer.close();
+        recipientPeer.close();
     }
 
     @Nullable
@@ -79,13 +125,50 @@ public class ContentProviderStore extends DataStore {
 
     @Nullable
     @Override
-    public MessageCollection getOutgoingMessagesForPeer(@NonNull Peer recipient) {
-        // TODO: filtering. Don't return Cursor
-        Cursor messagesCursor = mContext.getContentResolver().query(ChatContentProvider.Messages.MESSAGES, null, null, null, null);
-        if (messagesCursor != null && messagesCursor.moveToFirst()) {
-            return new MessageCollection(messagesCursor);
+    public List<MessagePacket> getOutgoingMessagesForPeer(@NonNull Peer recipient, int maxMessages) {
+        Cursor messagesCursor = null;
+        try {
+            // TODO : Don't send messages past a certain age etc?
+            messagesCursor = mContext.getContentResolver().query(ChatContentProvider.Messages.MESSAGES, null, null, null, null);
+            if (messagesCursor != null) {
+                List<MessagePacket> messagesToSend = new ArrayList<>();
+                while (messagesCursor.moveToNext()) {
+                    Message individualMessage = new Message(messagesCursor);
+                    if (!haveDeliveredMessageToPeer(individualMessage, recipient)) {
+                        messagesToSend.add(individualMessage.getProtocolMessage(this));
+                        if (messagesToSend.size() > maxMessages) break;
+                    }
+                }
+                return messagesToSend;
+            }
+            return null;
+        } finally {
+            if (messagesCursor != null) messagesCursor.close();
         }
-        return null;
+    }
+
+    @Override
+    public List<IdentityPacket> getOutgoingIdentitiesForPeer(@NonNull Peer recipient, int maxIdentities) {
+        Cursor identitiesCursor = null;
+        try {
+            // TODO : Don't send identities past a certain age etc?
+            identitiesCursor = mContext.getContentResolver().query(ChatContentProvider.Peers.PEERS, null, null, null, null);
+            if (identitiesCursor != null) {
+                List<IdentityPacket> identitiesToSend = new ArrayList<>();
+                while (identitiesCursor.moveToNext()) {
+                    Peer payloadPeer = new Peer(identitiesCursor);
+                    if (!haveDeliveredPeerIdentityToPeer(payloadPeer, recipient)) {
+                        identitiesToSend.add(payloadPeer.getIdentity());
+                        if (identitiesToSend.size() > maxIdentities) break;
+                    }
+
+                }
+                return identitiesToSend;
+            }
+            return null;
+        } finally {
+            if (identitiesCursor != null) identitiesCursor.close();
+        }
     }
 
     @Override
@@ -96,10 +179,10 @@ public class ContentProviderStore extends DataStore {
                 null,
                 MessageTable.receivedDate + " ASC");
 
-        if (messagesCursor != null && messagesCursor.moveToFirst()) {
+        if (messagesCursor != null /*&& messagesCursor.moveToFirst()*/) {
             return new MessageCollection(messagesCursor);
         }
-        return null;
+        return null; //
     }
 
     @Nullable
@@ -233,5 +316,36 @@ public class ContentProviderStore extends DataStore {
             return new Peer(peerCursor);
         }
         return null;
+    }
+
+    /** Utility */
+
+    private boolean haveDeliveredMessageToPeer(Message message, Peer peer) {
+        Cursor deliveryCursor = mContext.getContentResolver().query(ChatContentProvider.MessageDeliveries.MESSAGE_DELIVERIES,
+                null,
+                MessageDeliveryTable.messageId + " = ? AND " + MessageDeliveryTable.peerId + " = ?",
+                new String[]{String.valueOf(message.getId()), String.valueOf(peer.getId())},
+                null);
+        try {
+            return deliveryCursor != null && deliveryCursor.moveToFirst();
+        } finally {
+            if (deliveryCursor != null) deliveryCursor.close();
+        }
+    }
+
+    /**
+     * @return whether peerPayload has been delivered to peerRecipient
+     */
+    private boolean haveDeliveredPeerIdentityToPeer(Peer peerPayload, Peer peerRecipient) {
+        Cursor deliveryCursor = mContext.getContentResolver().query(ChatContentProvider.IdentityDeliveries.IDENTITY_DELIVERIES,
+                null,
+                IdentityDeliveryTable.peerRecipientId + " = ? AND " + IdentityDeliveryTable.peerPayloadId + " = ?",
+                new String[]{String.valueOf(peerRecipient.getId()), String.valueOf(peerPayload.getId())},
+                null);
+        try {
+            return deliveryCursor != null && deliveryCursor.moveToFirst();
+        } finally {
+            if (deliveryCursor != null) deliveryCursor.close();
+        }
     }
 }

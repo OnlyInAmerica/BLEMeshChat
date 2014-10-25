@@ -16,11 +16,8 @@ public abstract class CursorModel implements Closeable{
     /**
      * Use this constructor if you intend to immediately access model data.
      * @param cursor A cursor that is already moved to the row corresponding to the desired model instance
-     * @param isCollection whether this model represents a collection of items
      */
-    public CursorModel(@NonNull Cursor cursor, boolean isCollection) {
-        if (!isCollection && cursor.getCount() != 1)
-            throw new IllegalArgumentException("Do not initialize CursorModel with a Cursor representing multiple rows");
+    public CursorModel(@NonNull Cursor cursor) {
         mCursor = cursor;
     }
 

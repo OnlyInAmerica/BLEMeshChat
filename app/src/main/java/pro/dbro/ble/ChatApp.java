@@ -1,13 +1,18 @@
 package pro.dbro.ble;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.List;
 
 import pro.dbro.ble.data.ContentProviderStore;
 import pro.dbro.ble.data.DataStore;
 import pro.dbro.ble.data.model.DataUtil;
+import pro.dbro.ble.data.model.Message;
 import pro.dbro.ble.data.model.MessageCollection;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.BLEProtocol;
@@ -91,25 +96,48 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     @Override
     public ArrayDeque<MessagePacket> getMessagesForIdentity(byte[] recipientPublicKey, int maxMessages) {
         Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
-        MessageCollection messages = mDataStore.getOutgoingMessagesForPeer(recipient);
+        List<MessagePacket> messages = mDataStore.getOutgoingMessagesForPeer(recipient, maxMessages);
         ArrayDeque<MessagePacket> messagePacketQueue = new ArrayDeque<>();
-        if (messages == null || messages.getCursor().getCount() == 0) {
+        if (messages == null || messages.size() == 0) {
             Log.i(TAG, "Got no messages for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey));
-            // TODO Should never be called... Right?
         }
         else {
-            for (int x = 0; x < Math.min(maxMessages, messages.getCursor().getCount()); x++)
-                messagePacketQueue.push(messages.getMessageAtPosition(x).getProtocolMessage(mDataStore));
+            messagePacketQueue.addAll(messages);
         }
         return messagePacketQueue;
     }
 
+    /**
+     * Return a queue of identity packets for delivery to the remote identity with the given
+     * public key.
+     *
+     * If recipientPublicKey is null only the user identity will be propagated
+     */
     @Override
-    public ArrayDeque<IdentityPacket> getIdentitiesForIdentity(byte[] recipientPublicKey, int maxIdentities) {
-        // TODO: Propagate identities
-        ArrayDeque<IdentityPacket> identities = new ArrayDeque<>();
-        identities.push(mDataStore.getPrimaryLocalPeer().getIdentity());
-        return identities;
+    public ArrayDeque<IdentityPacket> getIdentitiesForIdentity(@Nullable byte[] recipientPublicKey, int maxIdentities) {
+        List<IdentityPacket> identities;
+        ArrayDeque<IdentityPacket> identityPacketQueue = new ArrayDeque<>();
+        if (recipientPublicKey != null) {
+            // We have a public key for the remote peer, fetch undelivered identities
+            Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
+            identities = mDataStore.getOutgoingIdentitiesForPeer(recipient, maxIdentities);
+            if (identities == null || identities.size() == 0) {
+                Log.i(TAG, "Got no identities to send for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey));
+            }
+            else {
+                identityPacketQueue.addAll(identities);
+            }
+        } else {
+            // No public key for the remote peer, just send our identity
+            // NOTE: The caller of this method must know not to re-try the request
+            // else it could get in an endless loop
+            Peer user = mDataStore.getPrimaryLocalPeer();
+            if (user != null)
+                identityPacketQueue.add(user.getIdentity());
+            user.close();
+        }
+
+        return identityPacketQueue;
     }
 
     /** TransportEventCallback */
@@ -125,14 +153,16 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     }
 
     @Override
-    public void sentIdentity(IdentityPacket identityPacket) {
-        Log.i(TAG, String.format("Send identity: %s", identityPacket.alias));
+    public void sentIdentity(@NonNull IdentityPacket payloadIdentity, @Nullable IdentityPacket recipientIdentity) {
+        Log.i(TAG, String.format("Sent identity: %s", payloadIdentity.alias));
+        if (recipientIdentity != null)
+            mDataStore.markIdentityDeliveredToPeer(payloadIdentity, recipientIdentity);
     }
 
     @Override
-    public void sentMessage(MessagePacket messagePacket) {
-        Log.i(TAG, String.format("Send message: '%s'", messagePacket.body));
-
+    public void sentMessage(MessagePacket messagePacket, IdentityPacket recipientIdentity) {
+        Log.i(TAG, String.format("Sent message: '%s'", messagePacket.body));
+        mDataStore.markMessageDeliveredToPeer(messagePacket, recipientIdentity);
     }
 
     @Override

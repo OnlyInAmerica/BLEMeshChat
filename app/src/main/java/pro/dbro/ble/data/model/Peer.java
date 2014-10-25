@@ -22,7 +22,7 @@ import pro.dbro.ble.protocol.OwnedIdentityPacket;
 public class Peer extends CursorModel {
 
     public Peer(@NonNull Cursor cursor) {
-        super(cursor, false); // Not a collection
+        super(cursor);
 
     }
 
@@ -79,7 +79,7 @@ public class Peer extends CursorModel {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         mCursor.close();
     }
 

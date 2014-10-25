@@ -45,7 +45,7 @@ public final class ChatContentProvider {
     @TableEndpoint(table = ChatDatabase.MESSAGES)
     public static class Messages {
 
-        private static final String ENDPOINT = "camps";
+        private static final String ENDPOINT = "msgs";
 
         @ContentUri(
                 path = ENDPOINT,
@@ -54,4 +54,35 @@ public final class ChatContentProvider {
         public static final Uri MESSAGES = buildUri(ENDPOINT);
 
     }
+
+    /** MessageDelivery API **/
+
+    @TableEndpoint(table = ChatDatabase.DELIVERED_MESSAGES)
+    public static class MessageDeliveries {
+
+        private static final String ENDPOINT = "message_deliveries";
+
+        @ContentUri(
+                path = ENDPOINT,
+                type = "vnd.android.cursor.dir/list",
+                defaultSort = MessageDeliveryTable.messageId + " ASC")
+        public static final Uri MESSAGE_DELIVERIES = buildUri(ENDPOINT);
+
+    }
+
+    /** IdentityDelivery API **/
+
+    @TableEndpoint(table = ChatDatabase.DELIVERED_IDENTITIES)
+    public static class IdentityDeliveries {
+
+        private static final String ENDPOINT = "identity_deliveries";
+
+        @ContentUri(
+                path = ENDPOINT,
+                type = "vnd.android.cursor.dir/list",
+                defaultSort = IdentityDeliveryTable.peerRecipientId + " ASC")
+        public static final Uri IDENTITY_DELIVERIES = buildUri(ENDPOINT);
+
+    }
+
 }

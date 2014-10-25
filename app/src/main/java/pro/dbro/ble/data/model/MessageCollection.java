@@ -13,7 +13,7 @@ import java.util.Date;
 public class MessageCollection extends CursorModel {
 
     public MessageCollection(@NonNull Cursor cursor) {
-        super(cursor, true); // Is a collection
+        super(cursor);
     }
 
     @Nullable

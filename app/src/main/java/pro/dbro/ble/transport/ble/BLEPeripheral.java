@@ -167,39 +167,42 @@ public class BLEPeripheral {
             @Override
             public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
                 StringBuilder event = new StringBuilder();
+                event.append("local peripheral ");
                 if (newState == BluetoothProfile.STATE_DISCONNECTED)
-                    event.append("Disconnected");
+                    event.append(" disconnected from ");
                 else if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    event.append("Connected");
+                    event.append(" connected to ");
                 }
 
+                event.append(device.getAddress());
                 if (status == BluetoothGatt.GATT_SUCCESS) {
-                    event.append(" Successfully to ");
-                    event.append(device.getAddress());
-                    logEvent("Peripheral " + event.toString());
-                    if (newState == BluetoothProfile.STATE_CONNECTED) {
-                        if (mConnectedDevices.contains(device.getAddress())) {
-                            // We're already connected (should never happen). Cancel connection
-                            logEvent("Denied connection. Already connected to " + device.getAddress());
-                            mGattServer.cancelConnection(device);
-                            return;
-                        }
+                    event.append(" with GATT_SUCCESS ");
+                }
+                logEvent(event.toString());
 
-                        if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToCentral(device)) {
-                            // The ConnectionGovernor denied the connection. Cancel connection
-                            logEvent("Denied connection. ConnectionGovernor denied " + device.getAddress());
-                            mGattServer.cancelConnection(device);
-                            return;
-                        } else {
-                            // Allow connection to proceed. Mark device connected
-                            logEvent("Accepted connection to " + device.getAddress());
-                            mConnectedDevices.add(device.getAddress());
-                        }
-                    } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                        // We've disconnected
-                        logEvent("Disconnected from " + device.getAddress());
-                        mConnectedDevices.remove(device.getAddress());
+
+                if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    if (mConnectedDevices.contains(device.getAddress())) {
+                        // We're already connected (should never happen). Cancel connection
+                        logEvent("Denied connection. Already connected to " + device.getAddress());
+                        mGattServer.cancelConnection(device);
+                        return;
                     }
+
+                    if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToCentral(device)) {
+                        // The ConnectionGovernor denied the connection. Cancel connection
+                        logEvent("Denied connection. ConnectionGovernor denied " + device.getAddress());
+                        mGattServer.cancelConnection(device);
+                        return;
+                    } else {
+                        // Allow connection to proceed. Mark device connected
+                        logEvent("Accepted connection to " + device.getAddress());
+                        mConnectedDevices.add(device.getAddress());
+                    }
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    // We've disconnected
+                    logEvent("Disconnected from " + device.getAddress());
+                    mConnectedDevices.remove(device.getAddress());
                 }
                 super.onConnectionStateChange(device, status, newState);
             }
@@ -212,6 +215,7 @@ public class BLEPeripheral {
 
             @Override
             public void onCharacteristicReadRequest(BluetoothDevice remoteCentral, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
+                logEvent(String.format("onCharacteristicReadRequest for %s with offset %d", characteristic.getUuid().toString().substring(0,3), offset));
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
                     Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.READ);
