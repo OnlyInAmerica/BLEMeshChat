@@ -60,10 +60,8 @@ public class ContentProviderStore extends DataStore {
 
         mContext.getContentResolver().insert(ChatContentProvider.MessageDeliveries.MESSAGE_DELIVERIES, delivery);
         Log.i(TAG, "Recorded message delivery");
-        try {
-            message.close();
-            recipient.close();
-        } catch (IOException e) {/* do nothing*/ }
+        message.close();
+        recipient.close();
     }
 
     @Override

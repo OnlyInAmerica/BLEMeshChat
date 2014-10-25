@@ -57,8 +57,8 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
 
     @Override
     public void makeAvailable() {
-//        mCentral.start();
-        mPeripheral.start();
+        mCentral.start();
+//        mPeripheral.start();
     }
 
     @Override
@@ -69,8 +69,8 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
 
     @Override
     public void makeUnavailable() {
-//        mCentral.stop();
-        mPeripheral.stop();
+        mCentral.stop();
+//        mPeripheral.stop();
     }
 
     // </editor-fold desc="Public API">
@@ -124,6 +124,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             // Consume message from characteristic.getValue()
             // If status == GATT_SUCCESS, return false to re-issue this request
             // else if status == READ_NOT_PERMITTED, return true
+            if (characteristic.getValue() == null || characteristic.getValue().length == 0) {
+                return isCentralRequestComplete(status); // retry if got status success
+            }
             MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(characteristic.getValue(), null);
             if (mCallback != null) mCallback.receivedMessage(receivedMessagePacket);
 
@@ -137,6 +140,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             // Consume Identity from characteristic.getValue()
             // If status == GATT_SUCCESS, return false to re-issue this request
             // else if status == READ_NOT_PERMITTED, return true
+            if (characteristic.getValue() == null || characteristic.getValue().length == 0) {
+                return isCentralRequestComplete(status); // retry if got status success
+            }
             IdentityPacket receivedIdentityPacket;
             try {
                 receivedIdentityPacket = mProtocol.deserializeIdentity(characteristic.getValue());

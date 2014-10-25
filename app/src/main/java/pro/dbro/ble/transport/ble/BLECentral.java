@@ -16,6 +16,7 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.util.Pair;
 import android.widget.Toast;
 
 import java.util.ArrayDeque;
@@ -159,19 +160,19 @@ public class BLECentral {
             public void onAdvertisementUpdate(ScanResult scanResult) {
                 if (mConnectedDevices.contains(scanResult.getDevice().getAddress())) {
                     // If we're already connected, forget it
-                    logEvent("Denied connection. Already connected to  " + scanResult.getDevice().getAddress());
+                    //logEvent("Denied connection. Already connected to  " + scanResult.getDevice().getAddress());
                     return;
                 }
 
                 if (mConnectingDevices.contains(scanResult.getDevice().getAddress())) {
                     // If we're already connected, forget it
-                    logEvent("Denied connection. Already connecting to  " + scanResult.getDevice().getAddress());
+                    //logEvent("Denied connection. Already connecting to  " + scanResult.getDevice().getAddress());
                     return;
                 }
 
                 if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToPeripheral(scanResult)) {
                     // If the BLEConnectionGovernor says we should not bother connecting to this peer, don't
-                    logEvent("Denied connection. ConnectionGovernor denied  " + scanResult.getDevice().getAddress());
+                    //logEvent("Denied connection. ConnectionGovernor denied  " + scanResult.getDevice().getAddress());
                     return;
                 }
                 mConnectingDevices.add(scanResult.getDevice().getAddress());
@@ -194,8 +195,6 @@ public class BLECentral {
                                 if (mConnectionListener != null)
                                     mConnectionListener.disconnectedFrom(gatt.getDevice().getAddress());
                                 gatt.close();
-                                startScanning();
-
                                 break;
                             case BluetoothProfile.STATE_CONNECTED:
                                 logEvent("Connected to " + gatt.getDevice().getAddress());
@@ -203,9 +202,6 @@ public class BLECentral {
                                 mConnectingDevices.remove(gatt.getDevice().getAddress());
                                 if (mConnectionListener != null)
                                     mConnectionListener.connectedTo(gatt.getDevice().getAddress());
-                                // Stop scanning until this connection is lost
-                                // For debugging, work with one device at a time
-                                stopScanning();
                                 // TODO: Stop discovering services once we can
                                 // TOOD: reliably craft characteristics
                                 boolean discovering = gatt.discoverServices();

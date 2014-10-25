@@ -22,7 +22,7 @@ public abstract class CursorModel implements Closeable{
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         if (mCursor != null) {
             mCursor.close();
         }

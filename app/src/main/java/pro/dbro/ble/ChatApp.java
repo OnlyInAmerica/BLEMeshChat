@@ -94,15 +94,29 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     /** TransportDataProvider */
 
     @Override
-    public ArrayDeque<MessagePacket> getMessagesForIdentity(byte[] recipientPublicKey, int maxMessages) {
-        Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
-        List<MessagePacket> messages = mDataStore.getOutgoingMessagesForPeer(recipient, maxMessages);
+    public ArrayDeque<MessagePacket> getMessagesForIdentity(@Nullable byte[] recipientPublicKey, int maxMessages) {
         ArrayDeque<MessagePacket> messagePacketQueue = new ArrayDeque<>();
-        if (messages == null || messages.size() == 0) {
-            Log.i(TAG, "Got no messages for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey));
-        }
-        else {
-            messagePacketQueue.addAll(messages);
+
+        if (recipientPublicKey != null) {
+            // Get messages not delievered to peer
+            Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
+            List<MessagePacket> messages = mDataStore.getOutgoingMessagesForPeer(recipient, maxMessages);
+            recipient.close();
+
+            if (messages == null || messages.size() == 0) {
+                Log.i(TAG, "Got no messages for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey));
+            } else {
+                messagePacketQueue.addAll(messages);
+            }
+        } else {
+            // Get most recent messages
+            MessageCollection recentMessages = getRecentMessagesFeed();
+            for (int x = 0; x < Math.min(maxMessages, recentMessages.getCursor().getCount()); x++) {
+                Message currentMessage = recentMessages.getMessageAtPosition(x);
+                if (currentMessage != null)
+                    messagePacketQueue.add(currentMessage.getProtocolMessage(mDataStore));
+            }
+            recentMessages.close();
         }
         return messagePacketQueue;
     }
@@ -160,9 +174,10 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     }
 
     @Override
-    public void sentMessage(MessagePacket messagePacket, IdentityPacket recipientIdentity) {
+    public void sentMessage(@NonNull MessagePacket messagePacket, IdentityPacket recipientIdentity) {
         Log.i(TAG, String.format("Sent message: '%s'", messagePacket.body));
-        mDataStore.markMessageDeliveredToPeer(messagePacket, recipientIdentity);
+        if (recipientIdentity != null)
+            mDataStore.markMessageDeliveredToPeer(messagePacket, recipientIdentity);
     }
 
     @Override
