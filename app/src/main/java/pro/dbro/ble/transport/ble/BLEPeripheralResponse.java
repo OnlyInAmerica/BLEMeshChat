@@ -19,7 +19,11 @@ public abstract class BLEPeripheralResponse {
         mRequestType = requestType;
     }
 
-    public abstract void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral,
+    /**
+     * @return any data sent in this response for caching purposes. Large requests/responses will be packetized
+     * over several requests, but BLEPeripheral will deliver the final recombined result.
+     */
+    public abstract byte[] respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral,
                                           int requestId, BluetoothGattCharacteristic characteristic,
-                                          boolean preparedWrite, boolean responseNeeded, int offset, byte[] value);
+                                          boolean preparedWrite, boolean responseNeeded, byte[] value);
 }

@@ -20,12 +20,16 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
+import pro.dbro.ble.data.model.DataUtil;
+import pro.dbro.ble.protocol.BLEProtocol;
 import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
@@ -36,10 +40,14 @@ import pro.dbro.ble.ui.activities.LogConsumer;
 public class BLEPeripheral {
     public static final String TAG = "BLEPeripheral";
 
-    /** Responses to perform against requests for Characteristic UUID */
+    /** Map of Responses to perform keyed by request characteristic & type pair */
     private HashMap<Pair<UUID, BLEPeripheralResponse.RequestType>, BLEPeripheralResponse> mResponses = new HashMap<>();
     /** Set of connected device addresses */
     private HashSet<String> mConnectedDevices = new HashSet<>();
+    /** Map of cached response payloads keyed by request characteristic & type pair.
+     * Used to respond to repeat requests provided by the framework when packetization is necessary
+     */
+    private HashMap<Pair<UUID, BLEPeripheralResponse.RequestType>, byte[]> mCachedResponsePayloads = new HashMap<>();
 
     public interface BLEPeripheralConnectionGovernor {
         public boolean shouldConnectToCentral(BluetoothDevice potentialPeer);
@@ -215,12 +223,25 @@ public class BLEPeripheral {
 
             @Override
             public void onCharacteristicReadRequest(BluetoothDevice remoteCentral, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
-                logEvent(String.format("onCharacteristicReadRequest for %s with offset %d", characteristic.getUuid().toString().substring(0,3), offset));
+                logEvent(String.format("onCharacteristicReadRequest for request %d on characteristic %s with offset %d", requestId, characteristic.getUuid().toString().substring(0,3), offset));
+
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
                     Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.READ);
-                    if (mResponses.containsKey(requestKey)) {
-                        mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, false, true, offset, null);
+                    if (offset != 0) {
+                        // This is a framework-generated follow-up request for another section of data
+                        byte[] cachedResponse = mCachedResponsePayloads.get(requestKey);
+                        byte[] toSend = new byte[cachedResponse.length - offset];
+                        System.arraycopy(cachedResponse, offset, toSend, 0, toSend.length);
+                        if (cachedResponse == null) logEvent("Couldn't retrieve response cache for extended response");
+                        else {
+                            logEvent(String.format("Sending extended response chunk for offset %d : %s", offset, DataUtil.bytesToHex(toSend)));
+                            mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, toSend);
+                        }
+                    } else if (mResponses.containsKey(requestKey)) {
+                        // This is a fresh request
+                        byte[] cachedResponse = mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, false, true, null);
+                        if (cachedResponse != null) mCachedResponsePayloads.put(requestKey, cachedResponse);
                     } else {
                         logEvent(String.format("No %s response registered for characteristic %s", requestKey.second, characteristic.getUuid().toString()));
                         // No response registered for this request. Send GATT_FAILURE
@@ -236,16 +257,60 @@ public class BLEPeripheral {
 
             @Override
             public void onCharacteristicWriteRequest(BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
+                logEvent(String.format("onCharacteristicWriteRequest for request %d on characteristic %s with offset %d", requestId, characteristic.getUuid().toString().substring(0,3), offset));
+
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
                     Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.WRITE);
-                    if (mResponses.containsKey(requestKey)) {
-                        mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, offset, value);
+                    if (offset == 0) {
+                        // This is a fresh write request so start recording data. This will work in a bit of an opposite way from the readrequest batching
+                        mCachedResponsePayloads.put(requestKey, value); // Cache the payload data in case more is coming
+                        logEvent(String.format("onCharacteristicWriteRequest had %d bytes, offset : %d", value == null ? 0 : value.length, offset));
+                        if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
+                            // We know this is a one-packet response
+                            if (mResponses.containsKey(requestKey)) {
+                                // This is a fresh request
+                                mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, value);
+                                logEvent("Sent identity write to response handler");
+                            }
+                        }
+                        if (responseNeeded) {
+                            // Signal we received the write
+                            mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
+                            logEvent("Notifying central we received data");
+                        }
                     } else {
-                        // No response registered for this request. Send GATT_FAILURE
-                        logEvent(String.format("No %s response registered for characteristic %s", requestKey.second, characteristic.getUuid().toString()));
-                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 });
+                        // this is a subsequent request with more data
+                        byte[] cachedResponse = mCachedResponsePayloads.get(requestKey);
+                        int cachedResponseLength = (cachedResponse == null ? 0 : cachedResponse.length);
+                        //if (cachedResponse.length != offset) logEvent(String.format("Got more data. Original payload len %d. offset %d (should be equal)", cachedResponse.length, offset));
+                        byte[] updatedData = new byte[cachedResponseLength + value.length];
+                        if (cachedResponseLength > 0)
+                            System.arraycopy(cachedResponse, 0, updatedData, 0, cachedResponseLength);
+
+                        System.arraycopy(value, 0, updatedData, cachedResponseLength, value.length);
+                        logEvent(String.format("Got %d bytes for write request", updatedData.length));
+                        if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID) && updatedData.length == BLEProtocol.MESSAGE_RESPONSE_LENGTH) {
+                            // We've reconstructed a complete message
+                            mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, updatedData);
+                            logEvent("Sent message write to response handler");
+                            mCachedResponsePayloads.remove(requestKey); // Clear cached data
+                        } else if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID) && responseNeeded) {
+                            // Signal we received the write and are ready for more data
+                            mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
+                            logEvent("Notifying central we received data");
+                            mCachedResponsePayloads.put(requestKey, updatedData);
+                        }
                     }
+//                    else if (mResponses.containsKey(requestKey)) {
+//                        // This is a fresh request
+//                        mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, value);
+//                    }
+//                    else {
+//                        // No response registered for this request. Send GATT_FAILURE
+//                        logEvent(String.format("No %s response registered for characteristic %s", requestKey.second, characteristic.getUuid().toString()));
+//                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 });
+//                    }
                 } else {
                     logEvent("CharacteristicWriteRequest. Unrecognized characteristic " + characteristic.getUuid().toString());
                     // Request for unrecognized characteristic. Send GATT_FAILURE
@@ -282,15 +347,15 @@ public class BLEPeripheral {
         if (mGattServer != null) {
             BluetoothGattService chatService = new BluetoothGattService(GATT.SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
-            BluetoothGattCharacteristic identityRead = new BluetoothGattCharacteristic(GATT.IDENTITY_READ_UUID, BluetoothGattCharacteristic.PROPERTY_INDICATE | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
-            BluetoothGattCharacteristic identityWrite = new BluetoothGattCharacteristic(GATT.IDENTITY_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
-            chatService.addCharacteristic(identityRead);
-            chatService.addCharacteristic(identityWrite);
+//            BluetoothGattCharacteristic identityRead = new BluetoothGattCharacteristic(GATT.IDENTITY_READ_UUID, BluetoothGattCharacteristic.PROPERTY_INDICATE | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+//            BluetoothGattCharacteristic identityWrite = new BluetoothGattCharacteristic(GATT.IDENTITY_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
+            chatService.addCharacteristic(GATT.IDENTITY_READ);
+            chatService.addCharacteristic(GATT.IDENTITY_WRITE);
 
-            BluetoothGattCharacteristic messagesRead = new BluetoothGattCharacteristic(GATT.MESSAGES_READ_UUID, BluetoothGattCharacteristic.PROPERTY_INDICATE | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
-            BluetoothGattCharacteristic messagesWrite = new BluetoothGattCharacteristic(GATT.IDENTITY_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
-            chatService.addCharacteristic(messagesRead);
-            chatService.addCharacteristic(messagesWrite);
+//            BluetoothGattCharacteristic messagesRead = new BluetoothGattCharacteristic(GATT.MESSAGES_READ_UUID, BluetoothGattCharacteristic.PROPERTY_INDICATE | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
+            BluetoothGattCharacteristic messagesWrite = new BluetoothGattCharacteristic(GATT.MESSAGES_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
+            chatService.addCharacteristic(GATT.MESSAGES_READ);
+            chatService.addCharacteristic(GATT.MESSAGES_WRITE);
 
             mGattServer.addService(chatService);
         }

@@ -130,7 +130,7 @@ public class BLEProtocol implements Protocol {
     @Nullable
     public MessagePacket deserializeMessage(@NonNull byte[] message, @Nullable IdentityPacket identity) {
         if (message.length != MESSAGE_RESPONSE_LENGTH)
-            throw new IllegalArgumentException("Identity response is illegal length");
+            throw new IllegalArgumentException(String.format("Message response is illegal length. Got %d expected %d", message.length, MESSAGE_RESPONSE_LENGTH));
 
         // Protocol version 1
         //[[version=1][timestamp=8][sender_public_key=32][message=140][reply_signature=64]][signature=64]

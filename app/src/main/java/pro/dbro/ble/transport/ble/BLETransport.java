@@ -11,6 +11,7 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -205,7 +206,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
 
     BLEPeripheralResponse mMessageReadResponse = new BLEPeripheralResponse(GATT.MESSAGES_READ, BLEPeripheralResponse.RequestType.READ) {
         @Override
-        public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
+        public byte[] respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, byte[] value) {
             try {
                 // Get messages to send and send first
                 MessagePacket forRecipient = getNextMessageForDeviceAddress(remoteCentral.getAddress(), true);
@@ -214,9 +215,11 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                     byte[] payload = forRecipient.rawPacket;
                     int responseGattStatus = haveAnotherMessage ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
                     boolean responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
-                    Log.i(TAG, String.format("Responded to message read request with outgoing status %b. response sent: %b data: %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
-                    if (responseSent && mCallback != null) {
-                        mCallback.sentMessage(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                    Log.i(TAG, String.format("Responded to message read request with outgoing status %b. response sent: %b data (%d bytes): %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? 0 : payload.length, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
+                    if (responseSent) {
+                        if (mCallback != null)
+                            mCallback.sentMessage(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                        return payload;
                     }
                 } else {
                     boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
@@ -226,12 +229,13 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                 Log.i(TAG, "Failed to respond to message read request");
                 e.printStackTrace();
             }
+            return null;
         }
     };
 
     BLEPeripheralResponse mIdentityReadResponse = new BLEPeripheralResponse(GATT.IDENTITY_READ, BLEPeripheralResponse.RequestType.READ) {
         @Override
-        public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
+        public byte[] respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, byte[] value) {
             // Get identities to send and send first
             IdentityPacket forRecipient = getNextIdentityForDeviceAddress(remoteCentral.getAddress(), true);
             if (forRecipient != null) {
@@ -242,31 +246,41 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                 boolean responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
                 Log.i(TAG, String.format("Responded to identity read request with outgoing status %b. response sent: %b data: %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
                 if (responseSent && mCallback != null) mCallback.sentIdentity(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                if (responseSent) {
+                    if (mCallback != null)
+                        mCallback.sentIdentity(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                    return payload;
+                }
             } else {
                 boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
                 Log.i(TAG, "Had no identities for peer. Sent READ_NOT_PERMITTED with success " + success);
             }
-
+            return null;
         }
     };
 
     BLEPeripheralResponse mMessageWriteResponse = new BLEPeripheralResponse(GATT.MESSAGES_WRITE, BLEPeripheralResponse.RequestType.WRITE) {
         @Override
-        public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
+        public byte[] respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, byte[] value) {
             // Consume message and send GATT_SUCCESS If valid and response needed
-            MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(characteristic.getValue(), mAddressesToIdentity.get(remoteCentral.getAddress()));
+            testValueVsCharacteristicValue(value, characteristic);
+
+            MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(value, mAddressesToIdentity.get(remoteCentral.getAddress()));
             if (mCallback != null) mCallback.receivedMessage(receivedMessagePacket);
             if (responseNeeded) {
                 // TODO: Response code based on message validation?
                 localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
             }
+            return null;
         }
     };
 
     BLEPeripheralResponse mIdentityWriteResponse = new BLEPeripheralResponse(GATT.IDENTITY_WRITE, BLEPeripheralResponse.RequestType.WRITE) {
         @Override
-        public void respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
+        public byte[] respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, byte[] value) {
             // Consume Identity and send GATT_SUCCESS if valid and response needed
+            testValueVsCharacteristicValue(value, characteristic);
+
             if (value == null || value.length == 0) {
                 Log.i(TAG, "got empty write data");
             } else {
@@ -283,6 +297,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                 // TODO: Response code based on message validation?
                 localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
             }
+            return null;
         }
     };
 
@@ -358,6 +373,16 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             default:
                 Log.w(TAG, String.format("Got unexpected GATT status %d", gattStatus));
                 return true;
+        }
+    }
+
+    private void testValueVsCharacteristicValue(byte[] value, BluetoothGattCharacteristic characteristic) {
+        if (value != null && characteristic.getValue() != null) {
+            Log.i(TAG, "are value and characteristic.getValue equal: " + Arrays.equals(value, characteristic.getValue()));
+        } else if (value != null) {
+            Log.i(TAG, "characteristic.getValue null, but value not null");
+        } else if(characteristic.getValue() != null) {
+            Log.i(TAG, "value is null but characterisitc.getValue not null");
         }
     }
 
