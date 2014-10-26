@@ -30,6 +30,10 @@ public class Peer extends CursorModel {
         return mCursor.getInt(mCursor.getColumnIndex(PeerTable.id));
     }
 
+    public byte[] getPublicKey() {
+        return mCursor.getBlob(mCursor.getColumnIndex(PeerTable.pubKey));
+    }
+
     public String getAlias() {
         return mCursor.getString(mCursor.getColumnIndex(PeerTable.alias));
     }

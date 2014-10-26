@@ -15,6 +15,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Message;

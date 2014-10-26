@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="primary_subdued">#09307adf</color>
     <color name="primary">#ff307adf</color>
     <color name="primaryDark">#22569D</color>
 
     <color name="message_header_subdued_text">#cfd8dc</color>
-    <color name="message_header">#90a4ae</color>
+    <color name="message_header">#ff8a8c89</color>
     <!--#bdbdbd
     <color name="dull">#738ffe</color>
     -->

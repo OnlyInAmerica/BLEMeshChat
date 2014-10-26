@@ -11,7 +11,9 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import java.text.ParseException;
+import java.util.UUID;
 
+import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.ContentProviderStore;
@@ -33,12 +35,16 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
         public TextView senderView;
         public TextView messageView;
         public TextView authoredView;
+        SymmetricIdenticon mIdenticon;
+
 
         public ViewHolder(View v) {
             super(v);
             senderView = (TextView) v.findViewById(R.id.sender);
             messageView = (TextView) v.findViewById(R.id.messageBody);
             authoredView = (TextView) v.findViewById(R.id.authoredDate);
+            mIdenticon = (SymmetricIdenticon) v.findViewById(R.id.identicon);
+
         }
     }
 
@@ -62,8 +68,10 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
         Peer peer = mApp.getDataStore().getPeerById(cursor.getInt(cursor.getColumnIndex(MessageTable.peerId)));
         if (peer != null) {
             holder.senderView.setText(peer.getAlias());
+            holder.mIdenticon.show(new String(peer.getPublicKey()));
         } else {
             holder.senderView.setText("?");
+            holder.mIdenticon.show(UUID.randomUUID());
         }
         holder.messageView.setText(cursor.getString(cursor.getColumnIndex(MessageTable.body)));
         try {
