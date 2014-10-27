@@ -87,4 +87,20 @@ public class GATT {
         MESSAGES_READ.addDescriptor(READ_DESCRIPTOR);
         MESSAGES_WRITE.addDescriptor(WRITE_DESCRIPTOR);
     }
+
+    public static String getNameForCharacteristic(BluetoothGattCharacteristic characteristic) {
+        if(characteristic.getUuid().equals(IDENTITY_READ_UUID)) {
+            return "identity read";
+        }
+        else if (characteristic.getUuid().equals(IDENTITY_WRITE_UUID)) {
+            return "identity write";
+        }
+        else if (characteristic.getUuid().equals(MESSAGES_READ_UUID)) {
+            return "messages read";
+        }
+        else if (characteristic.getUuid().equals(MESSAGES_WRITE_UUID)) {
+            return "messages write";
+        }
+        return "?";
+    }
 }

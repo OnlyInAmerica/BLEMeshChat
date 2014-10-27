@@ -163,6 +163,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public boolean handleResponse(BluetoothGatt remotePeripheral, BluetoothGattCharacteristic characteristic, int status) {
             MessagePacket justSent = getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
+            Log.i(TAG, "Handling response after central sent message " + justSent.body);
             if (justSent == null) {
                 // No data was available for this request. Mark request complete
                 return true;
@@ -342,10 +343,11 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         if (!mMessageOutboxes.containsKey(publicKey) || mMessageOutboxes.get(publicKey).size() == 0) {
             ArrayDeque<MessagePacket> messagesForRecipient = mDataProvider.getMessagesForIdentity(publicKey, MESSAGES_PER_RESPONSE);
             mMessageOutboxes.put(publicKey, messagesForRecipient);
+            Log.i(TAG, String.format("Got %d messages for pk %s", messagesForRecipient.size(), (publicKey == null) ? "null" : DataUtil.bytesToHex(publicKey)));
         }
 
         if (mMessageOutboxes.get(publicKey).size() == 0) return null;
-        return removeFromQueue ? mMessageOutboxes.get(publicKey).pop() : mMessageOutboxes.get(publicKey).peek();
+        return removeFromQueue ? mMessageOutboxes.get(publicKey).poll() : mMessageOutboxes.get(publicKey).peek();
     }
 
     @Nullable
@@ -355,7 +357,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             mIdentitiesOutboxes.put(publicKey, identitiesForRecipient);
         }
         if (mIdentitiesOutboxes.get(publicKey).size() == 0) return null;
-        return removeFromQueue ? mIdentitiesOutboxes.get(publicKey).pop() : mIdentitiesOutboxes.get(publicKey).peek();
+        return removeFromQueue ? mIdentitiesOutboxes.get(publicKey).poll() : mIdentitiesOutboxes.get(publicKey).peek();
     }
 
     private byte[] getPublicKeyForDeviceAddress(String address) {

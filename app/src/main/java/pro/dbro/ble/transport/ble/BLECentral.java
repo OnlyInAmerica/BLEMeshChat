@@ -229,13 +229,9 @@ public class BLECentral {
                                     foundService = true;
                                     List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
                                     for (BluetoothGattCharacteristic characteristic : characteristics) {
-                                        if (characteristic.getUuid().equals(GATT.IDENTITY_READ_UUID)) {
-                                            mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
-                                        } else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
-                                            mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
-                                        } else if (characteristic.getUuid().equals(GATT.MESSAGES_READ_UUID)) {
-                                            mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
-                                        } else if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID)) {
+                                        if (mCharacteristicUUIDToRequest.containsKey(characteristic.getUuid())) {
+                                            // If a request is registered for this uuid, replace the BluetoothGattCharacteristic with that
+                                            // discovered on the device
                                             mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
                                         }
                                     }
@@ -254,7 +250,8 @@ public class BLECentral {
 
                     @Override
                     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-                        logEvent(String.format("onCharacteristicRead %s value: %s status: %d", characteristic.getUuid().toString().substring(0, 3), characteristic.getValue() == null ? "null" : DataUtil.bytesToHex(characteristic.getValue()), status));
+                        if (status != BluetoothGatt.GATT_SUCCESS) logEvent(String.format("OnCharacteristicRead Got non-successful response!"));
+                        logEvent(String.format("onCharacteristicRead %s value: %s status: %d", GATT.getNameForCharacteristic(characteristic), characteristic.getValue() == null ? "null" : DataUtil.bytesToHex(characteristic.getValue()), status));
                         handleResponseForCurrentRequestToPeripheral(gatt, BLECentralRequest.RequestType.READ, characteristic, status);
                         super.onCharacteristicRead(gatt, characteristic, status);
                     }
@@ -320,9 +317,10 @@ public class BLECentral {
         if (requestsForPeripheral != null && requestsForPeripheral.size() > 0) {
             boolean performedRequest = requestsForPeripheral.peek().doRequest(remotePeripheral);
             if (!performedRequest) {
+                logEvent(String.format("Request not executed for %s", remotePeripheralAddress));
                 // If the request could not be made for this peer, remove it from the device queue
                 // and try the next request
-                requestsForPeripheral.pop();
+                requestsForPeripheral.poll();
                 performCurrentRequestToPeripheral(remotePeripheral);
             }
         } else {
@@ -352,8 +350,10 @@ public class BLECentral {
             boolean complete = requestsForPeripheral.peek().handleResponse(remotePeripheral, characteristic, status);
             if (complete) {
                 // Request is complete
-                requestsForPeripheral.pop();
-                logEvent("Request complete!");
+                requestsForPeripheral.poll();
+                logEvent(String.format("Completed %s to %s", type.toString(), characteristic.getUuid().toString().substring(0,3)));
+            } else {
+                logEvent(String.format("Repeating %s to %s", type.toString(), characteristic.getUuid().toString().substring(0,3)));
             }
             // Perform next request
             performCurrentRequestToPeripheral(remotePeripheral);
