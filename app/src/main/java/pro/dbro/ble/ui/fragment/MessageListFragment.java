@@ -68,6 +68,7 @@ public class MessageListFragment extends Fragment implements BLETransportCallbac
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
         mAdapter = new MessageAdapter(getActivity(), mApp, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
         mRecyclerView.setAdapter(mAdapter);
+        mRecyclerView.scrollToPosition(mAdapter.getItemCount());
         return root;
     }
 
