@@ -42,7 +42,7 @@ public abstract class BLECentralRequest {
                 }
                 break;
         }
-        Log.i(TAG, String.format("%s to %s... success: %b", mRequestType.toString(), mCharacteristic.getUuid().toString().substring(0,3), success));
+        Log.i(TAG, String.format("%s success: %b", GATT.getNameForCharacteristic(mCharacteristic), success));
         return success;
     }
 

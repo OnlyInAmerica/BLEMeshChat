@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
+import pro.dbro.ble.BuildConfig;
 import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.protocol.BLEProtocol;
 import pro.dbro.ble.ui.activities.LogConsumer;
@@ -46,6 +47,7 @@ public class BLEPeripheral {
     private HashSet<String> mConnectedDevices = new HashSet<>();
     /** Map of cached response payloads keyed by request characteristic & type pair.
      * Used to respond to repeat requests provided by the framework when packetization is necessary
+     * TODO We need to create a Key object that is specific to remote central, e.g: What happens when we're doing this with multiple centrals at once?
      */
     private HashMap<Pair<UUID, BLEPeripheralResponse.RequestType>, byte[]> mCachedResponsePayloads = new HashMap<>();
 
@@ -228,18 +230,15 @@ public class BLEPeripheral {
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
                     Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.READ);
-                    if (offset != 0) {
+                    if (offset > 0) {
                         // This is a framework-generated follow-up request for another section of data
                         byte[] cachedResponse = mCachedResponsePayloads.get(requestKey);
                         byte[] toSend = new byte[cachedResponse.length - offset];
                         System.arraycopy(cachedResponse, offset, toSend, 0, toSend.length);
-                        if (cachedResponse == null) logEvent("Couldn't retrieve response cache for extended response");
-                        else {
-                            logEvent(String.format("Sending extended response chunk for offset %d : %s", offset, DataUtil.bytesToHex(toSend)));
-                            mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, toSend);
-                        }
+                        logEvent(String.format("Sending extended response chunk for offset %d : %s", offset, DataUtil.bytesToHex(toSend)));
+                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, toSend);
                     } else if (mResponses.containsKey(requestKey)) {
-                        // This is a fresh request
+                        // This is a fresh request with a registered response
                         byte[] cachedResponse = mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, false, true, null);
                         if (cachedResponse != null) mCachedResponsePayloads.put(requestKey, cachedResponse);
                     } else {

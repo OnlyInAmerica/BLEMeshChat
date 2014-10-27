@@ -182,14 +182,15 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 
     @Override
     public void receivedIdentity(IdentityPacket identityPacket) {
-        Log.i(TAG, String.format("Received identity for '%s'", identityPacket.alias));
+        Log.i(TAG, String.format("Received identity for '%s' with pubkey %s", identityPacket.alias, DataUtil.bytesToHex(identityPacket.publicKey)));
         mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identityPacket);
     }
 
     @Override
     public void receivedMessage(MessagePacket messagePacket) {
-        Log.i(TAG, String.format("Received message: '%s'", messagePacket.body));
+        Log.i(TAG, String.format("Received message: '%s' from peer '%s' with pubkey '%s' ", messagePacket.body, messagePacket.sender.alias, DataUtil.bytesToHex(messagePacket.sender.publicKey)));
         mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket);
+        mDataStore.markMessageDeliveredToPeer(messagePacket, messagePacket.sender); // Never deliver this message back to peer it came from
     }
 
     // </editor-fold desc="Private API">

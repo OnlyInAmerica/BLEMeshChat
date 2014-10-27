@@ -197,6 +197,8 @@ public class ContentProviderStore extends DataStore {
 
         if (peer != null) {
             // Peer exists. Modify lastSeenDate
+            Log.i(TAG, "Updating peer for pubkey " + DataUtil.bytesToHex(remoteIdentityPacket.publicKey));
+
             int updated = mContext.getContentResolver().update(
                     ChatContentProvider.Peers.PEERS,
                     peerValues,
@@ -213,6 +215,7 @@ public class ContentProviderStore extends DataStore {
 
             // Fetch newly created peer
             peer = getPeerById(Integer.parseInt(peerUri.getLastPathSegment()));
+            Log.i(TAG, String.format("Created new peer %d for pubkey %s", Integer.parseInt(peerUri.getLastPathSegment()), DataUtil.bytesToHex(remoteIdentityPacket.publicKey)));
 
             if (peer == null) {
                 Log.e(TAG, "Failed to query peer after insertion.");
