@@ -1,24 +1,37 @@
 package pro.dbro.ble.ui.activities;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
 
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Message;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.transport.ble.BLETransportCallback;
+import pro.dbro.ble.transport.ble.BLEUtil;
 import pro.dbro.ble.ui.fragment.MessageListFragment;
 
 public class MainActivity extends Activity implements /* PeerListFragment.PeerFragmentListener,*/ BLETransportCallback {
+
+    public static final String TAG = "MainActivity";
 
     public ChatApp mApp;
     //private PeerListFragment mPeerListFragment;
     private MessageListFragment mMessageListFragment;
     private Peer mUserIdentity;
+
+    private AlertDialog mBluetoothEnableDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +47,22 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
                     .add(R.id.container, mPeerListFragment)
                     .commit();
             */
+            checkChatPreconditions();
+        }
+    }
+
+    /**
+     * Evaluate preconditions to showing MessageListFragment.
+     * e.g: Is Bluetooth enabled? Is a primary identity created
+     */
+    private void checkChatPreconditions() {
+        if (!BLEUtil.isBluetoothEnabled(this)) {
+            // Bluetooth is not Enabled.
+            // await result in OnActivityResult
+            registerBroadcastReceiver();
+            showEnableBluetoothDialog();
+        } else {
+            // Bluetooth Enabled, Check if primary identity is created
             mUserIdentity = mApp.getPrimaryIdentity();
             if (mUserIdentity == null) {
                 Util.showWelcomeDialog(mApp, this, new DialogInterface.OnDismissListener() {
@@ -44,10 +73,43 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
                     }
                 });
             } else {
-              showMessageListFragment();
+                Log.i(TAG, "showing messageListFragment");
+                showMessageListFragment();
             }
-
         }
+    }
+
+    /**
+     * Prompt the user to enable Bluetooth
+     */
+    private void showEnableBluetoothDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Enable Bluetooth")
+                .setMessage("This app requires Bluetooth on to function. May we enable Bluetooth?")
+                .setPositiveButton("Enable Bluetooth", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        mBluetoothEnableDialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                        mBluetoothEnableDialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
+                        ((TextView) mBluetoothEnableDialog.findViewById(android.R.id.message)).setText("Enabling...");
+                        BLEUtil.getManager(MainActivity.this).getAdapter().enable();
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        MainActivity.this.finish();
+                    }
+                });
+        builder.setCancelable(false);
+        mBluetoothEnableDialog = builder.create();
+
+        mBluetoothEnableDialog.show();
+    }
+
+    private void registerBroadcastReceiver() {
+        IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        this.registerReceiver(mBluetoothBroadcastReceiver, filter);
     }
 
     private void showMessageListFragment() {
@@ -73,6 +135,9 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
         super.onDestroy();
         mApp.makeUnavailable();
         mApp = null;
+
+        // Hopefully this doesn't crash if no receiver was set
+        this.unregisterReceiver(mBluetoothBroadcastReceiver);
     }
 
 
@@ -117,4 +182,30 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
 //        }
 
     }
+
+    private final BroadcastReceiver mBluetoothBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+
+            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
+                        BluetoothAdapter.ERROR);
+                switch (state) {
+                    case BluetoothAdapter.STATE_OFF:
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+                        break;
+                    case BluetoothAdapter.STATE_ON:
+                        if (mBluetoothEnableDialog != null && mBluetoothEnableDialog.isShowing()) {
+                            mBluetoothEnableDialog.dismiss();
+                        }
+                        checkChatPreconditions();
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_ON:
+                        break;
+                }
+            }
+        }
+    };
 }

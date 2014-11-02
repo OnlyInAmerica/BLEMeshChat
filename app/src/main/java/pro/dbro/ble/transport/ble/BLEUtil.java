@@ -15,14 +15,22 @@
  */
 package pro.dbro.ble.transport.ble;
 
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.util.Log;
 
 /**
  * Util for Bluetooth Low Energy
  */
 public class BLEUtil {
+    public static final String TAG = "BLEUtil";
 
     private BLEUtil() {
         // Util
@@ -35,8 +43,20 @@ public class BLEUtil {
 
     /** get BluetoothManager */
     public static BluetoothManager getManager(Context context) {
-        return (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothManager manager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        return manager;
     }
+
+    /**
+     * Return whether Bluetooth is currently enabled. If request is true, prompt
+     * for permission to enable. If so host should be configured to evaluate the result
+     * via a call to {@link android.app.Activity#onActivityResult(int, int, android.content.Intent)}
+    */
+    public static boolean isBluetoothEnabled(Context context) {
+        boolean enabled = getManager(context).getAdapter().isEnabled();
+        return enabled;
+    }
+
 
 
 }
