@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
+import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -58,7 +59,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     @Override
     public void makeAvailable() {
         mCentral.start();
-//        mPeripheral.start();
+        if (Build.VERSION.SDK_INT >= 21) {
+            mPeripheral.start();
+        }
     }
 
     @Override
@@ -70,7 +73,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     @Override
     public void makeUnavailable() {
         mCentral.stop();
-//        mPeripheral.stop();
+        if (Build.VERSION.SDK_INT >= 21) {
+            mPeripheral.stop();
+        }
     }
 
     // </editor-fold desc="Public API">
@@ -87,18 +92,22 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         mCentral.addDefaultBLECentralRequest(mMessageReadRequest);
         mCentral.addDefaultBLECentralRequest(mMessageWriteRequest);
 
-        mPeripheral = new BLEPeripheral(mContext);
-        mPeripheral.setConnectionGovernor(this);
-        mPeripheral.addDefaultBLEPeripheralResponse(mMessageReadResponse);
-        mPeripheral.addDefaultBLEPeripheralResponse(mIdentityReadResponse);
-        mPeripheral.addDefaultBLEPeripheralResponse(mMessageWriteResponse);
-        mPeripheral.addDefaultBLEPeripheralResponse(mIdentityWriteResponse);
+        if (Build.VERSION.SDK_INT >= 21) {
+            mPeripheral = new BLEPeripheral(mContext);
+            mPeripheral.setConnectionGovernor(this);
+            mPeripheral.addDefaultBLEPeripheralResponse(mMessageReadResponse);
+            mPeripheral.addDefaultBLEPeripheralResponse(mIdentityReadResponse);
+            mPeripheral.addDefaultBLEPeripheralResponse(mMessageWriteResponse);
+            mPeripheral.addDefaultBLEPeripheralResponse(mIdentityWriteResponse);
+        }
     }
 
     /** BLECentralConnectionGovernor */
     @Override
     public boolean shouldConnectToPeripheral(ScanResult potentialPeer) {
         // If the peripheral is connected to this device, don't duplicate the connection as central
+        if (Build.VERSION.SDK_INT < 21) return true;
+
         boolean mayConnect =  !mPeripheral.getConnectedDeviceAddresses().contains(potentialPeer.getDevice().getAddress());
         if (!mayConnect) {
             Log.i("CentralGovernor", String.format("peripheral connected to %d devices, including potential peer", mPeripheral.getConnectedDeviceAddresses().size()));

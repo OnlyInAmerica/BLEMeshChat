@@ -7,7 +7,7 @@ android {
 
     defaultConfig {
         applicationId "pro.dbro.ble"
-        minSdkVersion 'L'
+        minSdkVersion 18
         targetSdkVersion 'L'
         versionCode 1
         versionName "1.0"
