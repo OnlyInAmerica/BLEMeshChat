@@ -33,6 +33,15 @@ public class Message extends CursorModel {
         return mCursor.getString(mCursor.getColumnIndex(MessageTable.body));
     }
 
+    public Date getAuthoredDate() {
+        try {
+            return DataUtil.storedDateFormatter.parse(mCursor.getString(mCursor.getColumnIndex(MessageTable.authoredDate)));
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public byte[] getPublicKey(DataStore dataStore) {
         return getSender(dataStore).getIdentity().publicKey;
     }
@@ -61,7 +70,8 @@ public class Message extends CursorModel {
                 getSignature(),
                 getReplySignature(),
                 getBody(),
-                getRawPacket());
+                getRawPacket(),
+                getAuthoredDate());
 
     }
 

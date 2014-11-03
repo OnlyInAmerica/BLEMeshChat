@@ -42,8 +42,8 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     /** Identity public key -> outbox
      * use public key instead of Identity to avoid overriding Identity#equals, #hashcode 'for now'
     */
-    private HashMap<byte[], ArrayDeque<MessagePacket>> mMessageOutboxes = new HashMap<>();
-    private HashMap<byte[], ArrayDeque<IdentityPacket>> mIdentitiesOutboxes = new HashMap<>();
+    private HashMap<String, ArrayDeque<MessagePacket>> mMessageOutboxes = new HashMap<>();
+    private HashMap<String, ArrayDeque<IdentityPacket>> mIdentitiesOutboxes = new HashMap<>();
     private HashMap<String, IdentityPacket> mAddressesToIdentity = new HashMap<>();
     private ConcurrentHashMap<IdentityPacket, BluetoothGatt> mRemotePeripherals = new ConcurrentHashMap<>();
     private ConcurrentHashMap<IdentityPacket, BluetoothDevice> mRemoteCentrals = new ConcurrentHashMap<>();
@@ -87,8 +87,10 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         mCentral.setConnectionGovernor(this);
         mCentral.setConnectionListener(this);
         // These Central requests are executed in order
-        mCentral.addDefaultBLECentralRequest(mIdentityReadRequest);
+        // Note the local Identity must be first presented to the remote peer
+        // so that it can calculate which identities to present back
         mCentral.addDefaultBLECentralRequest(mIdentityWriteRequest);
+        mCentral.addDefaultBLECentralRequest(mIdentityReadRequest);
         mCentral.addDefaultBLECentralRequest(mMessageReadRequest);
         mCentral.addDefaultBLECentralRequest(mMessageWriteRequest);
 
@@ -214,7 +216,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         public byte[] getDataToWrite(BluetoothGatt remotePeripheral) {
             //return byte[] next_identity
             IdentityPacket forRecipient = getNextIdentityForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
-            return forRecipient.rawPacket;
+            return (forRecipient == null) ? null : forRecipient.rawPacket;
         }
     };
 
@@ -337,36 +339,64 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     @Nullable
     private IdentityPacket getNextIdentityForDeviceAddress(String address, boolean removeFromQueue) {
         byte[] publicKey = getPublicKeyForDeviceAddress(address);
-        return getNextIdentityForPublicKey(publicKey, removeFromQueue);
+        return getNextIdentityForDevice(publicKey, address, removeFromQueue);
     }
 
     @Nullable
     private MessagePacket getNextMessageForDeviceAddress(String address, boolean removeFromQueue) {
         // Do we have an Identity on file for this address?
         byte[] publicKey = getPublicKeyForDeviceAddress(address);
-        return getNextMessageForPublicKey(publicKey, removeFromQueue);
+        return getNextMessageForDevice(publicKey, address, removeFromQueue);
     }
 
     @Nullable
-    private MessagePacket getNextMessageForPublicKey(@Nullable byte[] publicKey, boolean removeFromQueue) {
-        if (!mMessageOutboxes.containsKey(publicKey) || mMessageOutboxes.get(publicKey).size() == 0) {
+    private MessagePacket getNextMessageForDevice(@Nullable byte[] publicKey, @NonNull String address, boolean removeFromQueue) {
+        String deviceKey = getKeyForDevice(publicKey, address);
+
+        if (publicKey == null) {
+            if (!mMessageOutboxes.containsKey(deviceKey)) {
+                ArrayDeque<MessagePacket> messagesForRecipient = mDataProvider.getMessagesForIdentity(null, IDENTITIES_PER_RESPONSE);
+                mMessageOutboxes.put(deviceKey, messagesForRecipient);
+            } else {
+                // We've already sent our own Identity for this identity-less peer
+                Log.i(TAG, "Returning null for nextMessage to " + address);
+                return null;
+            }
+        }
+        else if (!mMessageOutboxes.containsKey(deviceKey) || mMessageOutboxes.get(deviceKey).size() == 0) {
             ArrayDeque<MessagePacket> messagesForRecipient = mDataProvider.getMessagesForIdentity(publicKey, MESSAGES_PER_RESPONSE);
-            mMessageOutboxes.put(publicKey, messagesForRecipient);
-            Log.i(TAG, String.format("Got %d messages for pk %s", messagesForRecipient.size(), (publicKey == null) ? "null" : DataUtil.bytesToHex(publicKey)));
+            mMessageOutboxes.put(deviceKey, messagesForRecipient);
+            Log.i(TAG, String.format("Got %d messages for pk %s", messagesForRecipient.size(), DataUtil.bytesToHex(publicKey)));
         }
 
-        if (mMessageOutboxes.get(publicKey).size() == 0) return null;
-        return removeFromQueue ? mMessageOutboxes.get(publicKey).poll() : mMessageOutboxes.get(publicKey).peek();
+        if (mMessageOutboxes.get(deviceKey).size() == 0) return null;
+        return removeFromQueue ? mMessageOutboxes.get(deviceKey).poll() : mMessageOutboxes.get(deviceKey).peek();
     }
 
     @Nullable
-    private IdentityPacket getNextIdentityForPublicKey(@Nullable byte[] publicKey, boolean removeFromQueue) {
-        if (!mIdentitiesOutboxes.containsKey(publicKey) || mIdentitiesOutboxes.get(publicKey).size() == 0) {
-            ArrayDeque<IdentityPacket> identitiesForRecipient = mDataProvider.getIdentitiesForIdentity(publicKey, IDENTITIES_PER_RESPONSE);
-            mIdentitiesOutboxes.put(publicKey, identitiesForRecipient);
+    private IdentityPacket getNextIdentityForDevice(@Nullable byte[] publicKey, String address, boolean removeFromQueue) {
+        String deviceKey = getKeyForDevice(publicKey, address);
+        if (publicKey == null) {
+            Log.i(TAG, "Getting identity response for no-identity peer at " + address);
+            // This is a special case because we have no public key so we can't record delivery of any items
+            // Therefore we can't rely on mDataProvider.getIdentitiesForIdentity to not return items that were already sent
+            // So we'll ensure that we only perform that request once per device address
+            if (!mIdentitiesOutboxes.containsKey(deviceKey)) {
+                ArrayDeque<IdentityPacket> identitiesForRecipient = mDataProvider.getIdentitiesForIdentity(null, IDENTITIES_PER_RESPONSE);
+                mIdentitiesOutboxes.put(deviceKey, identitiesForRecipient);
+            } else {
+                // We've already sent our own Identity for this identity-less peer
+                Log.i(TAG, "Returning null for nextIdentity to " + address);
+                return null;
+            }
         }
-        if (mIdentitiesOutboxes.get(publicKey).size() == 0) return null;
-        return removeFromQueue ? mIdentitiesOutboxes.get(publicKey).poll() : mIdentitiesOutboxes.get(publicKey).peek();
+        else if (!mIdentitiesOutboxes.containsKey(deviceKey) || mIdentitiesOutboxes.get(deviceKey).size() == 0) {
+            // We have a public key for this peer. Proceed as normal
+            ArrayDeque<IdentityPacket> identitiesForRecipient = mDataProvider.getIdentitiesForIdentity(publicKey, IDENTITIES_PER_RESPONSE);
+            mIdentitiesOutboxes.put(deviceKey, identitiesForRecipient);
+        }
+        if (mIdentitiesOutboxes.get(deviceKey).size() == 0) return null;
+        return removeFromQueue ? mIdentitiesOutboxes.get(deviceKey).poll() : mIdentitiesOutboxes.get(deviceKey).peek();
     }
 
     private byte[] getPublicKeyForDeviceAddress(String address) {
@@ -375,7 +405,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
 
         if (publicKey == null) {
             // No public key on file, perform naive message send for now
-            Log.w(TAG, String.format("Don't have identity on file for device %s. Naively sending messages", address));
+            Log.w(TAG, String.format("Don't have identity on file for device %s.", address));
         }
         return publicKey;
     }
@@ -401,6 +431,16 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         } else if(characteristic.getValue() != null) {
             Log.i(TAG, "value is null but characterisitc.getValue not null");
         }
+    }
+
+    /**
+     * Return a key used for {@link #mIdentitiesOutboxes} and {@link #mMessageOutboxes} using
+     * a string representation of the public key or device address if public key is null
+     */
+    private String getKeyForDevice(@Nullable byte[] publicKey, @Nullable String deviceAddress) {
+        if (publicKey != null) return DataUtil.bytesToHex(publicKey);
+
+        return deviceAddress;
     }
 
     // </editor-fold desc="Private API">

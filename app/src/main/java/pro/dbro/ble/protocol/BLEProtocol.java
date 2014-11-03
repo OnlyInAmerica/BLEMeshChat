@@ -155,7 +155,7 @@ public class BLEProtocol implements Protocol {
             if (!validSignature)
                 throw new IllegalStateException("Message signature does not match content!");
 
-            return new MessagePacket(public_key, signature, replySignature, (identity == null ?  null : identity.alias), getDateFromTimestampBuffer(timestamp), new String(body, "UTF_8"), message);
+            return new MessagePacket(identity, signature, replySignature, new String(body, "UTF-8"), message, getDateFromTimestampBuffer(timestamp));
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();

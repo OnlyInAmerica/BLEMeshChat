@@ -21,6 +21,10 @@ public abstract class CursorModel implements Closeable{
         mCursor = cursor;
     }
 
+    public Cursor getCursor() {
+        return mCursor;
+    }
+
     @Override
     public void close() {
         if (mCursor != null) {
