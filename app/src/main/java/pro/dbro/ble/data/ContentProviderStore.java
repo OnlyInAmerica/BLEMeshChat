@@ -124,49 +124,43 @@ public class ContentProviderStore extends DataStore {
     @Nullable
     @Override
     public List<MessagePacket> getOutgoingMessagesForPeer(@NonNull Peer recipient, int maxMessages) {
-        Cursor messagesCursor = null;
-        try {
-            // TODO : Don't send messages past a certain age etc?
-            messagesCursor = mContext.getContentResolver().query(ChatContentProvider.Messages.MESSAGES, null, null, null, null);
-            if (messagesCursor != null) {
-                List<MessagePacket> messagesToSend = new ArrayList<>();
-                while (messagesCursor.moveToNext()) {
-                    Message individualMessage = new Message(messagesCursor);
-                    if (!haveDeliveredMessageToPeer(individualMessage, recipient)) {
-                        messagesToSend.add(individualMessage.getProtocolMessage(this));
-                        if (messagesToSend.size() > maxMessages) break;
-                    }
+        // TODO : Don't send messages past a certain age etc?
+        Cursor messagesCursor = mContext.getContentResolver().query(ChatContentProvider.Messages.MESSAGES, null, null, null, null);
+        if (messagesCursor != null) {
+            List<MessagePacket> messagesToSend = new ArrayList<>();
+            while (messagesCursor.moveToNext()) {
+                Message individualMessage = new Message(messagesCursor);
+                if (!haveDeliveredMessageToPeer(individualMessage, recipient)) {
+                    messagesToSend.add(individualMessage.getProtocolMessage(this));
+                    if (messagesToSend.size() > maxMessages) break;
                 }
-                return messagesToSend;
             }
-            return null;
-        } finally {
-            if (messagesCursor != null) messagesCursor.close();
+
+            messagesCursor.close();
+            return messagesToSend;
         }
+        return null;
     }
 
     @Override
     public List<IdentityPacket> getOutgoingIdentitiesForPeer(@NonNull Peer recipient, int maxIdentities) {
-        Cursor identitiesCursor = null;
-        try {
-            // TODO : Don't send identities past a certain age etc?
-            identitiesCursor = mContext.getContentResolver().query(ChatContentProvider.Peers.PEERS, null, null, null, null);
-            if (identitiesCursor != null) {
-                List<IdentityPacket> identitiesToSend = new ArrayList<>();
-                while (identitiesCursor.moveToNext()) {
-                    Peer payloadPeer = new Peer(identitiesCursor);
-                    if (!haveDeliveredPeerIdentityToPeer(payloadPeer, recipient)) {
-                        identitiesToSend.add(payloadPeer.getIdentity());
-                        if (identitiesToSend.size() > maxIdentities) break;
-                    }
-
+        // TODO : Don't send identities past a certain age etc?
+        Cursor identitiesCursor = mContext.getContentResolver().query(ChatContentProvider.Peers.PEERS, null, null, null, null);
+        if (identitiesCursor != null) {
+            List<IdentityPacket> identitiesToSend = new ArrayList<>();
+            while (identitiesCursor.moveToNext()) {
+                Peer payloadPeer = new Peer(identitiesCursor);
+                if (!haveDeliveredPeerIdentityToPeer(payloadPeer, recipient)) {
+                    identitiesToSend.add(payloadPeer.getIdentity());
+                    if (identitiesToSend.size() > maxIdentities) break;
                 }
-                return identitiesToSend;
+
             }
-            return null;
-        } finally {
-            if (identitiesCursor != null) identitiesCursor.close();
+
+            identitiesCursor.close();
+            return identitiesToSend;
         }
+        return null;
     }
 
     @Override
@@ -258,6 +252,8 @@ public class ContentProviderStore extends DataStore {
             // do nothing
             Log.i(TAG, "Received stored message. Ignoring");
         }
+
+        peer.close();
         return message;
     }
 

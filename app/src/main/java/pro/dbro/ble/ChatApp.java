@@ -77,7 +77,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 
     public void sendPublicMessageFromPrimaryIdentity(String body) {
         MessagePacket messagePacket = mProtocol.serializeMessage((OwnedIdentityPacket) getPrimaryIdentity().getIdentity(), body);
-        mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket);
+        mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket).close();
         mTransport.sendMessage(messagePacket);
     }
 
@@ -183,13 +183,13 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     @Override
     public void receivedIdentity(IdentityPacket identityPacket) {
         Log.i(TAG, String.format("Received identity for '%s' with pubkey %s", identityPacket.alias, DataUtil.bytesToHex(identityPacket.publicKey)));
-        mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identityPacket);
+        mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identityPacket).close();
     }
 
     @Override
     public void receivedMessage(MessagePacket messagePacket) {
         Log.i(TAG, String.format("Received message: '%s' from peer '%s' with pubkey '%s' ", messagePacket.body, messagePacket.sender.alias, DataUtil.bytesToHex(messagePacket.sender.publicKey)));
-        mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket);
+        mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket).close();
         mDataStore.markMessageDeliveredToPeer(messagePacket, messagePacket.sender); // Never deliver this message back to peer it came from
     }
 
