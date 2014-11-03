@@ -15,7 +15,6 @@ import pro.dbro.ble.crypto.SodiumShaker;
 import pro.dbro.ble.data.ContentProviderStore;
 import pro.dbro.ble.data.model.ChatContentProvider;
 import pro.dbro.ble.data.model.DataUtil;
-import pro.dbro.ble.data.model.MessageTable;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.data.model.PeerTable;
 import pro.dbro.ble.protocol.BLEProtocol;

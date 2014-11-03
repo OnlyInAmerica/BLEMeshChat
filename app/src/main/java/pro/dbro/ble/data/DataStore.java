@@ -1,7 +1,6 @@
 package pro.dbro.ble.data;
 
 import android.content.Context;
-import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 

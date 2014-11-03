@@ -1,29 +1,5 @@
 package pro.dbro.ble.transport.ble;
 
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattServerCallback;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanResult;
-import android.content.Context;
-import android.database.Cursor;
-import android.support.annotation.NonNull;
-import android.util.Log;
-
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayDeque;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-
-import pro.dbro.ble.ChatApp;
-import pro.dbro.ble.data.model.MessageTable;
-import pro.dbro.ble.data.model.Peer;
-import pro.dbro.ble.ui.activities.LogConsumer;
-
 /**
  * A higher level class that manages advertising and scanning for
  * other BLE devices capable of mesh chat.

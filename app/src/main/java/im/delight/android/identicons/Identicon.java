@@ -16,7 +16,6 @@ package im.delight.android.identicons;
  * limitations under the License.
  */
 
-import java.security.MessageDigest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -25,6 +24,8 @@ import android.graphics.Paint;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.view.View;
+
+import java.security.MessageDigest;
 
 abstract public class Identicon extends View {
 	

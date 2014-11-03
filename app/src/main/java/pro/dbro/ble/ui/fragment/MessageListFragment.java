@@ -2,7 +2,6 @@ package pro.dbro.ble.ui.fragment;
 
 
 import android.app.Fragment;
-import android.database.Cursor;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -15,11 +14,9 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Message;
-import pro.dbro.ble.data.model.MessageCollection;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.transport.ble.BLETransportCallback;
 import pro.dbro.ble.ui.activities.MainActivity;

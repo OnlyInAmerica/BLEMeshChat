@@ -20,15 +20,12 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
-import pro.dbro.ble.BuildConfig;
 import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.protocol.BLEProtocol;
 import pro.dbro.ble.ui.activities.LogConsumer;

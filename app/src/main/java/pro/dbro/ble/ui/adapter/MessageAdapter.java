@@ -16,10 +16,7 @@ import java.util.UUID;
 import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
-import pro.dbro.ble.data.ContentProviderStore;
-import pro.dbro.ble.data.DataStore;
 import pro.dbro.ble.data.model.DataUtil;
-import pro.dbro.ble.data.model.MessageCollection;
 import pro.dbro.ble.data.model.MessageTable;
 import pro.dbro.ble.data.model.Peer;
 

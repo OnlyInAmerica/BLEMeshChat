@@ -1,12 +1,9 @@
 package pro.dbro.ble.crypto;
 
 import android.support.annotation.NonNull;
-import android.util.Pair;
 
 import org.abstractj.kalium.NaCl;
 import org.abstractj.kalium.Sodium;
-
-import pro.dbro.ble.protocol.OwnedIdentityPacket;
 
 /**
  * Wrapper around libsodium functions.

@@ -16,7 +16,6 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.util.Log;
-import android.util.Pair;
 import android.widget.Toast;
 
 import java.util.ArrayDeque;

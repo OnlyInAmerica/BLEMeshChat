@@ -1,7 +1,5 @@
 package pro.dbro.ble.transport;
 
-import android.provider.ContactsContract;
-
 import java.util.ArrayDeque;
 
 import pro.dbro.ble.protocol.IdentityPacket;

@@ -15,16 +15,9 @@
  */
 package pro.dbro.ble.transport.ble;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.util.Log;
 
 /**
  * Util for Bluetooth Low Energy

@@ -4,7 +4,6 @@ import android.database.Cursor;
 import android.support.annotation.NonNull;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 /**
  * Created by davidbrodsky on 10/20/14.

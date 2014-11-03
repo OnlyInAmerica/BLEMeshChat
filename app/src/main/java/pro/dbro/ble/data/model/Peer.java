@@ -4,7 +4,6 @@ import android.database.Cursor;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
-import java.io.IOException;
 import java.text.ParseException;
 import java.util.Date;
 
