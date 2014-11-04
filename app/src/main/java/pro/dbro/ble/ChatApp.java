@@ -186,10 +186,14 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     }
 
     @Override
-    public void receivedMessage(MessagePacket messagePacket) {
-        Log.i(TAG, String.format("Received message: '%s' from peer '%s' with pubkey '%s' ", messagePacket.body, messagePacket.sender.alias, DataUtil.bytesToHex(messagePacket.sender.publicKey)));
+    public void receivedMessageFromIdentity(MessagePacket messagePacket, IdentityPacket identityPacket) {
+        Log.i(TAG, String.format("Received message: '%s' with sig '%s' ", messagePacket.body, DataUtil.bytesToHex(messagePacket.signature).substring(0, 3)));
         mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket).close();
-        mDataStore.markMessageDeliveredToPeer(messagePacket, messagePacket.sender); // Never deliver this message back to peer it came from
+        if (identityPacket != null) {
+            mDataStore.markMessageDeliveredToPeer(messagePacket, identityPacket); // Never deliver this message back to peer it came from
+        } else {
+            Log.w(TAG, String.format("Got no identity for message %s. Cannot record receipt from this identity", messagePacket.body));
+        }
     }
 
     // </editor-fold desc="Private API">
@@ -245,7 +249,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 //
 //    @Nullable
 //    public static Message consumeReceivedBroadcastMessage(@NonNull Context context, @NonNull byte[] message) {
-//        pro.dbro.ble.protocol.Message protocolMessage = ChatProtocol.deserializeMessage(message);
+//        pro.dbro.ble.protocol.Message protocolMessage = ChatProtocol.deserializeMessageWithIdentity(message);
 //
 //        // Query if peer exists
 //        Peer peer = getOrCreatePeerByProtocolIdentity(context, protocolMessage.sender);

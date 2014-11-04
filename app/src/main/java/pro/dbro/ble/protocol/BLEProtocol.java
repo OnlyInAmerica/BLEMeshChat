@@ -79,7 +79,7 @@ public class BLEProtocol implements Protocol {
             if (writeIndex != MESSAGE_RESPONSE_LENGTH)
                 throw new IllegalStateException("Generated Message does not match expected length");
 
-            return deserializeMessage(message, ownedIdentity);
+            return deserializeMessageWithIdentity(message, ownedIdentity);
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();
@@ -128,7 +128,22 @@ public class BLEProtocol implements Protocol {
     }
 
     @Nullable
-    public MessagePacket deserializeMessage(@NonNull byte[] message, @Nullable IdentityPacket identity) {
+    public MessagePacket deserializeMessageWithIdentity(@NonNull byte[] message, @NonNull IdentityPacket identity) {
+        if (message.length != MESSAGE_RESPONSE_LENGTH)
+            throw new IllegalArgumentException(String.format("Message response is illegal length. Got %d expected %d", message.length, MESSAGE_RESPONSE_LENGTH));
+
+        // TODO Don't duplicate this code between de
+        MessagePacket messageWithoutIdentity = deserializeMessage(message);
+        MessagePacket messageWithIdentity = null;
+
+        if (messageWithoutIdentity != null) {
+            messageWithIdentity = MessagePacket.attachIdentityToMessage(messageWithoutIdentity, identity);
+        }
+        return messageWithIdentity;
+    }
+
+    @Nullable
+    public MessagePacket deserializeMessage(@NonNull byte[] message) {
         if (message.length != MESSAGE_RESPONSE_LENGTH)
             throw new IllegalArgumentException(String.format("Message response is illegal length. Got %d expected %d", message.length, MESSAGE_RESPONSE_LENGTH));
 
@@ -155,7 +170,7 @@ public class BLEProtocol implements Protocol {
             if (!validSignature)
                 throw new IllegalStateException("Message signature does not match content!");
 
-            return new MessagePacket(identity, signature, replySignature, new String(body, "UTF-8"), message, getDateFromTimestampBuffer(timestamp));
+            return new MessagePacket(public_key, signature, replySignature, getDateFromTimestampBuffer(timestamp), new String(body, "UTF-8"), message);
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Failed to generate Identity response. Are there invalid UTF-8 characters in the user alias?");
             e.printStackTrace();

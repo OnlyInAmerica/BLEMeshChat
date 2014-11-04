@@ -39,12 +39,13 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     private BLECentral mCentral;
     private BLEPeripheral mPeripheral;
 
-    /** Identity public key -> outbox
-     * use public key instead of Identity to avoid overriding Identity#equals, #hashcode 'for now'
-    */
+    /** Outgoing message queues by device key. see {@link #getKeyForDevice(byte[], String)} */
     private HashMap<String, ArrayDeque<MessagePacket>> mMessageOutboxes = new HashMap<>();
+    /** Outgoing identity queues by device key */
     private HashMap<String, ArrayDeque<IdentityPacket>> mIdentitiesOutboxes = new HashMap<>();
+    /** Remote identities by device address */
     private HashMap<String, IdentityPacket> mAddressesToIdentity = new HashMap<>();
+
     private ConcurrentHashMap<IdentityPacket, BluetoothGatt> mRemotePeripherals = new ConcurrentHashMap<>();
     private ConcurrentHashMap<IdentityPacket, BluetoothDevice> mRemoteCentrals = new ConcurrentHashMap<>();
 
@@ -138,8 +139,10 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             if (characteristic.getValue() == null || characteristic.getValue().length == 0) {
                 return isCentralRequestComplete(status); // retry if got status success
             }
-            MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(characteristic.getValue(), null);
-            if (mCallback != null) mCallback.receivedMessage(receivedMessagePacket);
+            MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(characteristic.getValue());
+            // Note this isn't the author of the message, but the courier who delivered it to us
+            IdentityPacket courierIdentity = mAddressesToIdentity.get(remotePeripheral.getDevice().getAddress());
+            if (mCallback != null) mCallback.receivedMessageFromIdentity(receivedMessagePacket, courierIdentity);
 
             return isCentralRequestComplete(status);
         }
@@ -174,7 +177,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         @Override
         public boolean handleResponse(BluetoothGatt remotePeripheral, BluetoothGattCharacteristic characteristic, int status) {
             MessagePacket justSent = getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), true);
-            Log.i(TAG, "Handling response after central sent message " + justSent.body);
+            Log.i(TAG, "Handling response after central sent message with body " + (justSent == null ? "null" : justSent.body));
             if (justSent == null) {
                 // No data was available for this request. Mark request complete
                 return true;
@@ -283,8 +286,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             // Consume message and send GATT_SUCCESS If valid and response needed
             testValueVsCharacteristicValue(value, characteristic);
 
-            MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(value, mAddressesToIdentity.get(remoteCentral.getAddress()));
-            if (mCallback != null) mCallback.receivedMessage(receivedMessagePacket);
+            MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(value);
+            IdentityPacket courierIdentity = mAddressesToIdentity.get(remoteCentral.getAddress());
+            if (mCallback != null) mCallback.receivedMessageFromIdentity(receivedMessagePacket, courierIdentity);
             if (responseNeeded) {
                 // TODO: Response code based on message validation?
                 localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
@@ -344,7 +348,6 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
 
     @Nullable
     private MessagePacket getNextMessageForDeviceAddress(String address, boolean removeFromQueue) {
-        // Do we have an Identity on file for this address?
         byte[] publicKey = getPublicKeyForDeviceAddress(address);
         return getNextMessageForDevice(publicKey, address, removeFromQueue);
     }
@@ -354,6 +357,9 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         String deviceKey = getKeyForDevice(publicKey, address);
 
         if (publicKey == null) {
+            // This is a special case because we have no public key so we can't record delivery of any items
+            // Therefore we can't rely on mDataProvider.getMessagesForIdentity to not return items that were already sent
+            // So we'll ensure that we only perform that request once per device address
             if (!mMessageOutboxes.containsKey(deviceKey)) {
                 ArrayDeque<MessagePacket> messagesForRecipient = mDataProvider.getMessagesForIdentity(null, IDENTITIES_PER_RESPONSE);
                 mMessageOutboxes.put(deviceKey, messagesForRecipient);

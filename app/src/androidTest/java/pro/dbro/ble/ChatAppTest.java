@@ -76,7 +76,7 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
 
         MessagePacket messageResponse = bleProtocol.serializeMessage(mSenderIdentity, messageBody);
 
-        MessagePacket parsedMessagePacket = bleProtocol.deserializeMessage(messageResponse.rawPacket, mSenderIdentity);
+        MessagePacket parsedMessagePacket = bleProtocol.deserializeMessage(messageResponse.rawPacket);
 
         assertEquals(messageBody, parsedMessagePacket.body);
         assertEquals(Arrays.equals(parsedMessagePacket.sender.publicKey, mSenderIdentity.publicKey), true);

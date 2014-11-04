@@ -25,6 +25,10 @@ public interface Protocol {
 
     public IdentityPacket deserializeIdentity(@NonNull byte[] identity);
 
-    public MessagePacket deserializeMessage(@NonNull byte[] message, @Nullable IdentityPacket identity);
+    /** Deserialize a message where the author identity is known */
+    public MessagePacket deserializeMessageWithIdentity(@NonNull byte[] message, @Nullable IdentityPacket identity);
+
+    /** Deserialize a message where the author identity is not known */
+    public MessagePacket deserializeMessage(@NonNull byte[] message);
 
 }

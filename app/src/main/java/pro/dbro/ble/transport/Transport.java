@@ -1,5 +1,8 @@
 package pro.dbro.ble.transport;
 
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
 import java.util.ArrayDeque;
 
 import pro.dbro.ble.protocol.IdentityPacket;
@@ -25,7 +28,7 @@ public abstract class Transport {
         public void sentMessage(MessagePacket messagePacket, IdentityPacket recipientIdentity);
 
         public void receivedIdentity(IdentityPacket identityPacket);
-        public void receivedMessage(MessagePacket messagePacket);
+        public void receivedMessageFromIdentity(@NonNull MessagePacket messagePacket, @Nullable IdentityPacket identityPacket);
 
     }
 
