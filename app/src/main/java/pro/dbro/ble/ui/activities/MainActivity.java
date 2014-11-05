@@ -12,6 +12,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -42,8 +43,10 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getActionBar().setDisplayShowTitleEnabled(false);
         setContentView(R.layout.activity_main);
+
+        DrawerLayout drawerLayout = (DrawerLayout) findViewById(R.id.my_drawer_layout);
+        drawerLayout.setStatusBarBackground(R.color.primaryDark);
 
         if (savedInstanceState == null) {
             /*
