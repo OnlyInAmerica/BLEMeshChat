@@ -4,17 +4,20 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
-import pro.dbro.ble.ChatApp;
+import pro.dbro.ble.ChatService;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Message;
 import pro.dbro.ble.data.model.Peer;
@@ -22,11 +25,14 @@ import pro.dbro.ble.transport.ble.BLETransportCallback;
 import pro.dbro.ble.transport.ble.BLEUtil;
 import pro.dbro.ble.ui.fragment.MessageListFragment;
 
-public class MainActivity extends Activity implements /* PeerListFragment.PeerFragmentListener,*/ BLETransportCallback {
+public class MainActivity extends Activity implements BLETransportCallback, ServiceConnection {
 
     public static final String TAG = "MainActivity";
 
-    public ChatApp mApp;
+    public ChatService.ChatServiceBinder mChatServiceBinder;
+    private boolean mServiceBound = false;  // Are we bound to the ChatService?
+    private boolean mBluetoothReceiverRegistered = false; // Are we registered for Bluetooth status broadcasts?
+
     //private PeerListFragment mPeerListFragment;
     private MessageListFragment mMessageListFragment;
     private Peer mUserIdentity;
@@ -38,7 +44,6 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
         super.onCreate(savedInstanceState);
         getActionBar().setDisplayShowTitleEnabled(false);
         setContentView(R.layout.activity_main);
-        if (mApp == null) mApp = new ChatApp(this);
 
         if (savedInstanceState == null) {
             /*
@@ -47,8 +52,33 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
                     .add(R.id.container, mPeerListFragment)
                     .commit();
             */
-            checkChatPreconditions();
         }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (!mServiceBound) {
+            startAndBindToService();
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (!mServiceBound) {
+            unBindService();
+        }
+    }
+
+    private void startAndBindToService() {
+        Intent intent = new Intent(this, ChatService.class);
+        startService(intent);
+        bindService(intent, this, 0);
+    }
+
+    private void unBindService() {
+        unbindService(this);
     }
 
     /**
@@ -63,16 +93,19 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
             showEnableBluetoothDialog();
         } else {
             // Bluetooth Enabled, Check if primary identity is created
-            mUserIdentity = mApp.getPrimaryIdentity();
+
+            mUserIdentity = mChatServiceBinder.getChatApp().getPrimaryIdentity();
             if (mUserIdentity == null) {
-                Util.showWelcomeDialog(mApp, this, new DialogInterface.OnDismissListener() {
+                Util.showWelcomeDialog(mChatServiceBinder.getChatApp(), this, new DialogInterface.OnDismissListener() {
                     @Override
                     public void onDismiss(DialogInterface dialogInterface) {
-                        mUserIdentity = mApp.getPrimaryIdentity();
+                        mChatServiceBinder.getChatApp().makeAvailable();
+                        mUserIdentity = mChatServiceBinder.getChatApp().getPrimaryIdentity();
                         showMessageListFragment();
                     }
                 });
             } else {
+                mChatServiceBinder.getChatApp().makeAvailable();
                 Log.i(TAG, "showing messageListFragment");
                 showMessageListFragment();
             }
@@ -110,10 +143,10 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
     private void registerBroadcastReceiver() {
         IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
         this.registerReceiver(mBluetoothBroadcastReceiver, filter);
+        mBluetoothReceiverRegistered = true;
     }
 
     private void showMessageListFragment() {
-        mApp.makeAvailable();
         mMessageListFragment = new MessageListFragment();
         getFragmentManager().beginTransaction()
                 .add(R.id.container, mMessageListFragment)
@@ -121,23 +154,11 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-    }
-
-    @Override
     public void onDestroy() {
         super.onDestroy();
-        mApp.makeUnavailable();
-        mApp = null;
 
-        // Hopefully this doesn't crash if no receiver was set
-        this.unregisterReceiver(mBluetoothBroadcastReceiver);
+        if (mBluetoothReceiverRegistered)
+            this.unregisterReceiver(mBluetoothBroadcastReceiver);
     }
 
 
@@ -208,4 +229,20 @@ public class MainActivity extends Activity implements /* PeerListFragment.PeerFr
             }
         }
     };
+
+    /** ServiceConnection interface */
+    @Override
+    public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+        mChatServiceBinder = (ChatService.ChatServiceBinder) iBinder;
+        mServiceBound = true;
+        Log.i(TAG, "Bound to service");
+        checkChatPreconditions();
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName componentName) {
+        Log.i(TAG, "Unbound from service");
+        mChatServiceBinder = null;
+        mServiceBound = false;
+    }
 }

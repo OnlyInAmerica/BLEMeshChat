@@ -46,7 +46,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 
     public void makeAvailable() {
         if (mDataStore.getPrimaryLocalPeer() == null) {
-            Log.e(TAG, "Now primary Identity. Cannot make client available");
+            Log.e(TAG, "No primary Identity. Cannot make client available");
             return;
         }
         mTransport = new BLETransport(mContext, mDataStore.getPrimaryLocalPeer().getIdentity(), mProtocol, this);
@@ -63,6 +63,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     }
 
     public Peer createPrimaryIdentity(String alias) {
+        // TODO Test if this should be moved to background thread and async call?
         return mDataStore.createLocalPeerWithAlias(alias, mProtocol);
     }
 

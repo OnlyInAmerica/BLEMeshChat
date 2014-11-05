@@ -40,7 +40,7 @@ public class MessageListFragment extends Fragment implements BLETransportCallbac
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        mApp = ((MainActivity) getActivity()).mApp;
+        mApp = ((MainActivity) getActivity()).mChatServiceBinder.getChatApp(); // TODO Remove
         // Inflate the layout for this fragment
         View root = inflater.inflate(R.layout.fragment_message, container, false);
         mMessageEntry = (EditText) root.findViewById(R.id.messageEntry);
