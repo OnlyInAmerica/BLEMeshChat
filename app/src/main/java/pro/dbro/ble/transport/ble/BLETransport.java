@@ -21,6 +21,7 @@ import pro.dbro.ble.protocol.IdentityPacket;
 import pro.dbro.ble.protocol.MessagePacket;
 import pro.dbro.ble.protocol.Protocol;
 import pro.dbro.ble.transport.Transport;
+import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
  * Created by davidbrodsky on 10/20/14.
@@ -38,6 +39,8 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
 
     private BLECentral mCentral;
     private BLEPeripheral mPeripheral;
+
+    private LogConsumer mLogger;
 
     /** Outgoing message queues by device key. see {@link #getKeyForDevice(byte[], String)} */
     private HashMap<String, ArrayDeque<MessagePacket>> mMessageOutboxes = new HashMap<>();
@@ -57,12 +60,16 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         init();
     }
 
+    public void setLogConsumer(LogConsumer logger) {
+        mLogger = logger;
+        mCentral.setLogConsumer(logger);
+        mPeripheral.setLogConsumer(logger);
+    }
+
     @Override
     public void makeAvailable() {
         mCentral.start();
-        if (Build.VERSION.SDK_INT >= 21) {
-            mPeripheral.start();
-        }
+        mPeripheral.start();
     }
 
     @Override
@@ -74,9 +81,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     @Override
     public void makeUnavailable() {
         mCentral.stop();
-        if (Build.VERSION.SDK_INT >= 21) {
-            mPeripheral.stop();
-        }
+        mPeripheral.stop();
     }
 
     // </editor-fold desc="Public API">
@@ -95,22 +100,18 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         mCentral.addDefaultBLECentralRequest(mMessageReadRequest);
         mCentral.addDefaultBLECentralRequest(mMessageWriteRequest);
 
-        if (Build.VERSION.SDK_INT >= 21) {
-            mPeripheral = new BLEPeripheral(mContext);
-            mPeripheral.setConnectionGovernor(this);
-            mPeripheral.addDefaultBLEPeripheralResponse(mMessageReadResponse);
-            mPeripheral.addDefaultBLEPeripheralResponse(mIdentityReadResponse);
-            mPeripheral.addDefaultBLEPeripheralResponse(mMessageWriteResponse);
-            mPeripheral.addDefaultBLEPeripheralResponse(mIdentityWriteResponse);
-        }
+        mPeripheral = new BLEPeripheral(mContext);
+        mPeripheral.setConnectionGovernor(this);
+        mPeripheral.addDefaultBLEPeripheralResponse(mMessageReadResponse);
+        mPeripheral.addDefaultBLEPeripheralResponse(mIdentityReadResponse);
+        mPeripheral.addDefaultBLEPeripheralResponse(mMessageWriteResponse);
+        mPeripheral.addDefaultBLEPeripheralResponse(mIdentityWriteResponse);
     }
 
     /** BLECentralConnectionGovernor */
     @Override
     public boolean shouldConnectToPeripheral(ScanResult potentialPeer) {
         // If the peripheral is connected to this device, don't duplicate the connection as central
-        if (Build.VERSION.SDK_INT < 21) return true;
-
         boolean mayConnect =  !mPeripheral.getConnectedDeviceAddresses().contains(potentialPeer.getDevice().getAddress());
         if (!mayConnect) {
             Log.i("CentralGovernor", String.format("peripheral connected to %d devices, including potential peer", mPeripheral.getConnectedDeviceAddresses().size()));
@@ -143,6 +144,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             // Note this isn't the author of the message, but the courier who delivered it to us
             IdentityPacket courierIdentity = mAddressesToIdentity.get(remotePeripheral.getDevice().getAddress());
             if (mCallback != null) mCallback.receivedMessageFromIdentity(receivedMessagePacket, courierIdentity);
+            logEvent("Central read message " + receivedMessagePacket.body);
 
             return isCentralRequestComplete(status);
         }
@@ -169,6 +171,8 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                 mCallback.receivedIdentity(receivedIdentityPacket);
                 mCallback.becameAvailable(receivedIdentityPacket);
             }
+            logEvent(String.format("Central read identity %s..", DataUtil.bytesToHex(receivedIdentityPacket.publicKey).substring(0,3)));
+
             return isCentralRequestComplete(status);
         }
     };
@@ -180,11 +184,14 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             Log.i(TAG, "Handling response after central sent message with body " + (justSent == null ? "null" : justSent.body));
             if (justSent == null) {
                 // No data was available for this request. Mark request complete
+                logEvent("Central had no message for peer");
                 return true;
             } else {
                 if (status == BluetoothGatt.GATT_SUCCESS && mCallback != null) {
                     mCallback.sentMessage(getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), false), mAddressesToIdentity.get(remotePeripheral.getDevice().getAddress()));
                 }
+                logEvent(String.format("Central wrote message %s..", justSent.body));
+
                 // If we have more messages to send, indicate request should be repeated
                 return (getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), false) == null);
             }
@@ -204,12 +211,15 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             IdentityPacket justSent = getNextIdentityForDeviceAddress(remotePeripheral.getDevice().getAddress(), false);
             if (justSent == null) {
                 //No data was available for this request. Mark request complete
+                logEvent("Central had no identity for peer");
+
                 return true;
             } else {
                 if (status == BluetoothGatt.GATT_SUCCESS && mCallback != null) {
                     mCallback.sentIdentity(getNextIdentityForDeviceAddress(remotePeripheral.getDevice().getAddress(), false),
                             mAddressesToIdentity.get(remotePeripheral.getDevice().getAddress()));
                 }
+                logEvent(String.format("Central wrote identity %s..", DataUtil.bytesToHex(justSent.publicKey).substring(0,3)));
                 // If we have more messages to send, indicate request should be repeated
                 return (getNextIdentityForDeviceAddress(remotePeripheral.getDevice().getAddress(), false) == null);
             }
@@ -236,18 +246,21 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                     byte[] payload = forRecipient.rawPacket;
                     int responseGattStatus = haveAnotherMessage ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
                     boolean responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
-                    Log.i(TAG, String.format("Responded to message read request with outgoing status %b. response sent: %b data (%d bytes): %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? 0 : payload.length, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
+                    //Log.i(TAG, String.format("Responded to message read request with outgoing status %b. response sent: %b data (%d bytes): %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? 0 : payload.length, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
                     if (responseSent) {
                         if (mCallback != null)
                             mCallback.sentMessage(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                        logEvent(String.format("Peripheral sent message for peer %s", forRecipient.body));
                         return payload;
                     }
                 } else {
                     boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
-                    Log.i(TAG, "Had no messages for peer. Sent READ_NOT_PERMITTED with success " + success);
+                    logEvent("Peripheral had no message for peer");
+                    //Log.i(TAG, "Had no messages for peer. Sent READ_NOT_PERMITTED with success " + success);
                 }
             } catch(Exception e) {
-                Log.i(TAG, "Failed to respond to message read request");
+                logEvent("Peripheral failed to send message");
+
                 e.printStackTrace();
             }
             return null;
@@ -265,16 +278,18 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                 byte[] payload = forRecipient.rawPacket;
                 int responseGattStatus = haveAnotherIdentity ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
                 boolean responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
-                Log.i(TAG, String.format("Responded to identity read request with outgoing status %b. response sent: %b data: %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
+                //Log.i(TAG, String.format("Responded to identity read request with outgoing status %b. response sent: %b data: %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
                 if (responseSent && mCallback != null) mCallback.sentIdentity(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
                 if (responseSent) {
                     if (mCallback != null)
                         mCallback.sentIdentity(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                    logEvent(String.format("Peripheral sent identity %s...", DataUtil.bytesToHex(forRecipient.publicKey).substring(0,3)));
+
                     return payload;
                 }
             } else {
                 boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
-                Log.i(TAG, "Had no identities for peer. Sent READ_NOT_PERMITTED with success " + success);
+                logEvent("Peripheral had no identities for peer");
             }
             return null;
         }
@@ -293,6 +308,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                 // TODO: Response code based on message validation?
                 localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
             }
+            logEvent(String.format("Peripheral received message %s", receivedMessagePacket.body));
             return null;
         }
     };
@@ -308,10 +324,13 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             } else {
                 Log.i(TAG, "got non-empty write data! length: " + value.length);
                 IdentityPacket receivedIdentityPacket = mProtocol.deserializeIdentity(value);
+
                 if (mCallback != null) {
                     Log.i(TAG, "delivering identity to callback: ");
                     mCallback.receivedIdentity(receivedIdentityPacket);
                 }
+                logEvent(String.format("Peripheral received identity %s...", DataUtil.bytesToHex(receivedIdentityPacket.publicKey).substring(0,3)));
+
                 mAddressesToIdentity.put(remoteCentral.getAddress(), receivedIdentityPacket);
             }
 
@@ -447,6 +466,14 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
         if (publicKey != null) return DataUtil.bytesToHex(publicKey);
 
         return deviceAddress;
+    }
+
+    private void logEvent(String event) {
+        if (mLogger != null) {
+            mLogger.onLogEvent(event);
+        } else {
+            Log.i(TAG, event);
+        }
     }
 
     // </editor-fold desc="Private API">

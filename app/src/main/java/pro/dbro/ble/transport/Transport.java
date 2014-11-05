@@ -8,6 +8,7 @@ import java.util.ArrayDeque;
 import pro.dbro.ble.protocol.IdentityPacket;
 import pro.dbro.ble.protocol.MessagePacket;
 import pro.dbro.ble.protocol.Protocol;
+import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
  * Created by davidbrodsky on 10/20/14.
@@ -53,5 +54,7 @@ public abstract class Transport {
     public abstract void sendMessage(MessagePacket messagePacket);
 
     public abstract void makeUnavailable();
+
+    public abstract void setLogConsumer(LogConsumer logger);
 
 }

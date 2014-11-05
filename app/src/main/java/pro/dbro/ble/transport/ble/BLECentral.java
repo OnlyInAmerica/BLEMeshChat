@@ -14,6 +14,7 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
+import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.widget.Toast;
@@ -375,7 +376,7 @@ public class BLECentral {
 
     private static List<ScanFilter> createScanFilters() {
         ScanFilter.Builder builder = new ScanFilter.Builder();
-//        builder.setServiceUuid(new ParcelUuid(GATT.SERVICE_UUID));
+        builder.setServiceUuid(new ParcelUuid(GATT.SERVICE_UUID));
         ArrayList<ScanFilter> scanFilters = new ArrayList<>();
         scanFilters.add(builder.build());
         return scanFilters;

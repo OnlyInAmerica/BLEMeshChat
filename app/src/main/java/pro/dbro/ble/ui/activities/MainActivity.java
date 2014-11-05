@@ -16,6 +16,7 @@ import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.TextView;
 
 import pro.dbro.ble.ChatService;
@@ -26,7 +27,7 @@ import pro.dbro.ble.transport.ble.BLETransportCallback;
 import pro.dbro.ble.transport.ble.BLEUtil;
 import pro.dbro.ble.ui.fragment.MessageListFragment;
 
-public class MainActivity extends Activity implements BLETransportCallback, ServiceConnection {
+public class MainActivity extends Activity implements BLETransportCallback, ServiceConnection, LogConsumer {
 
     public static final String TAG = "MainActivity";
 
@@ -40,10 +41,21 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
 
     private AlertDialog mBluetoothEnableDialog;
 
+    private TextView mLogView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mLogView = (TextView) findViewById(R.id.log);
+        mLogView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                mLogView.setText("");
+                return false;
+            }
+        });
 
         DrawerLayout drawerLayout = (DrawerLayout) findViewById(R.id.my_drawer_layout);
         drawerLayout.setStatusBarBackground(R.color.primaryDark);
@@ -240,6 +252,8 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
         mServiceBound = true;
         Log.i(TAG, "Bound to service");
         checkChatPreconditions();
+
+        mChatServiceBinder.getChatApp().setLogConsumer(this);
     }
 
     @Override
@@ -247,5 +261,18 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
         Log.i(TAG, "Unbound from service");
         mChatServiceBinder = null;
         mServiceBound = false;
+    }
+
+    /** LogConsumer interface */
+
+    @Override
+    public void onLogEvent(final String event) {
+        mLogView.post(new Runnable() {
+            @Override
+            public void run() {
+                mLogView.append(event + "\n");
+
+            }
+        });
     }
 }

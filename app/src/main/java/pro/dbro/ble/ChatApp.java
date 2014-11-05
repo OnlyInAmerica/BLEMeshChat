@@ -21,6 +21,7 @@ import pro.dbro.ble.protocol.OwnedIdentityPacket;
 import pro.dbro.ble.protocol.Protocol;
 import pro.dbro.ble.transport.Transport;
 import pro.dbro.ble.transport.ble.BLETransport;
+import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
  * Created by davidbrodsky on 10/13/14.
@@ -33,6 +34,8 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     private Transport mTransport;
     private Protocol  mProtocol;
 
+    private LogConsumer mLogger;
+
     // <editor-fold desc="Public API">
 
     public ChatApp(Context context) {
@@ -43,6 +46,12 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     }
 
     // <editor-fold desc="Identity & Availability">
+
+    public void setLogConsumer(LogConsumer logger) {
+        mLogger = logger;
+
+        if (mTransport != null) mTransport.setLogConsumer(mLogger);
+    }
 
     public void makeAvailable() {
         if (mDataStore.getPrimaryLocalPeer() == null) {

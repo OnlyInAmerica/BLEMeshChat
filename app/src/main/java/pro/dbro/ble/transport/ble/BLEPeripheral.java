@@ -352,7 +352,6 @@ public class BLEPeripheral {
             BluetoothGattCharacteristic messagesWrite = new BluetoothGattCharacteristic(GATT.MESSAGES_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
             chatService.addCharacteristic(GATT.MESSAGES_READ);
             chatService.addCharacteristic(GATT.MESSAGES_WRITE);
-
             mGattServer.addService(chatService);
         }
     }
