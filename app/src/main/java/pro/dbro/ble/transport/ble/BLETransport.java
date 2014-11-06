@@ -49,9 +49,6 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     /** Remote identities by device address */
     private HashMap<String, IdentityPacket> mAddressesToIdentity = new HashMap<>();
 
-    private ConcurrentHashMap<IdentityPacket, BluetoothGatt> mRemotePeripherals = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<IdentityPacket, BluetoothDevice> mRemoteCentrals = new ConcurrentHashMap<>();
-
     // <editor-fold desc="Public API">
 
     public BLETransport(@NonNull Context context, @NonNull IdentityPacket identityPacket, @NonNull Protocol protocol, @NonNull TransportDataProvider dataProvider) {

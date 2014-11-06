@@ -173,21 +173,6 @@ public class BLEPeripheral {
             mGattCallback = new BluetoothGattServerCallback() {
             @Override
             public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
-                StringBuilder event = new StringBuilder();
-                event.append("local peripheral ");
-                if (newState == BluetoothProfile.STATE_DISCONNECTED)
-                    event.append(" disconnected from ");
-                else if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    event.append(" connected to ");
-                }
-
-                event.append(device.getAddress());
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    event.append(" with GATT_SUCCESS ");
-                }
-                logEvent(event.toString());
-
-
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
                     if (mConnectedDevices.contains(device.getAddress())) {
                         // We're already connected (should never happen). Cancel connection
@@ -330,7 +315,6 @@ public class BLEPeripheral {
             @Override
             public void onExecuteWrite(BluetoothDevice device, int requestId, boolean execute) {
                 logEvent("onExecuteWrite" + device.toString());
-//                Log.i("onExecuteWrite", device.toString());
                 super.onExecuteWrite(device, requestId, execute);
             }
         };
@@ -343,13 +327,9 @@ public class BLEPeripheral {
         if (mGattServer != null) {
             BluetoothGattService chatService = new BluetoothGattService(GATT.SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
-//            BluetoothGattCharacteristic identityRead = new BluetoothGattCharacteristic(GATT.IDENTITY_READ_UUID, BluetoothGattCharacteristic.PROPERTY_INDICATE | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
-//            BluetoothGattCharacteristic identityWrite = new BluetoothGattCharacteristic(GATT.IDENTITY_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
             chatService.addCharacteristic(GATT.IDENTITY_READ);
             chatService.addCharacteristic(GATT.IDENTITY_WRITE);
 
-//            BluetoothGattCharacteristic messagesRead = new BluetoothGattCharacteristic(GATT.MESSAGES_READ_UUID, BluetoothGattCharacteristic.PROPERTY_INDICATE | BluetoothGattCharacteristic.PROPERTY_READ, BluetoothGattCharacteristic.PERMISSION_READ);
-            BluetoothGattCharacteristic messagesWrite = new BluetoothGattCharacteristic(GATT.MESSAGES_WRITE_UUID, BluetoothGattCharacteristic.PROPERTY_WRITE, BluetoothGattCharacteristic.PERMISSION_WRITE);
             chatService.addCharacteristic(GATT.MESSAGES_READ);
             chatService.addCharacteristic(GATT.MESSAGES_WRITE);
             mGattServer.addService(chatService);

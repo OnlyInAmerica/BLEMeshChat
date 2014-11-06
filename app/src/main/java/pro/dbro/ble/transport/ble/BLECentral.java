@@ -21,10 +21,13 @@ import android.widget.Toast;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.DataUtil;
@@ -49,11 +52,11 @@ public class BLECentral {
     /**
      * Set of connected device addresses
      */
-    private HashSet<String> mConnectedDevices = new HashSet<>();
+    private Set<String> mConnectedDevices = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     /**
      * Set of 'connecting' device addresses. Intended to prevent multiple simultaneous connection requests
      */
-    private HashSet<String> mConnectingDevices = new HashSet<>();
+    private Set<String> mConnectingDevices = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     /**
      * Map of Characteristic UUID to BLECentralRequests registered via {@link #addDefaultBLECentralRequest(BLECentralRequest)}
      * This is required because I'm currently unable to execute a GATT operation on the remote peripheral without using the
@@ -115,7 +118,7 @@ public class BLECentral {
         return mIsScanning;
     }
 
-    public HashSet<String> getConnectedDeviceAddresses() {
+    public Set<String> getConnectedDeviceAddresses() {
         return mConnectedDevices;
     }
 
