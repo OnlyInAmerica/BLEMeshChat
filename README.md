@@ -1,10 +1,10 @@
-![BLEMeshChat!](http://i.imgur.com/d79rzMm.jpg)
+# [BLEMeshChat Android](https://github.com/OnlyInAmerica/BLEMeshChat)
 
-# BLE Mesh Chat (Android client)
+[![Screenshot](http://i.imgur.com/LnLorAj.png)](http://i.imgur.com/LnLorAj.png)
 
-An experiment in pleasant decentralized messaging that works across iOS and Android.
+An experiment in pleasant decentralized messaging that works across iOS and Android. This experiment requires Android 5.0 and a device capable of operation as both a Bluetooth LE peripheral and central.
 
-Also see the [iOS client](https://github.com/chrisballinger/BLEMeshChat) and [Protocl Spec](https://github.com/chrisballinger/BLEMeshChat/wiki).
+Also see the [iOS client](https://github.com/chrisballinger/BLEMeshChat) and [Protocol Spec](https://github.com/chrisballinger/BLEMeshChat/wiki).
 
 ## License
 

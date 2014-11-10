@@ -8,6 +8,7 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 
 import pro.dbro.ble.data.model.Peer;
 
@@ -69,12 +70,20 @@ public class ChatService extends Service {
 //            return ChatService.this;
 //        }
 
+        public void connect() {
+            mBackgroundHandler.sendMessage(mBackgroundHandler.obtainMessage(CONNECT));
+        }
+
         public void sendPublicMessageFromPrimaryIdentity(String message) {
             mBackgroundHandler.sendMessage(mBackgroundHandler.obtainMessage(SEND_MESSAGEE, message));
         }
 
         public ChatApp getChatApp() {
             return mApp;
+        }
+
+        public void shutdown() {
+            mBackgroundHandler.sendMessage(mBackgroundHandler.obtainMessage(SHUTDOWN));
         }
     }
 
@@ -88,12 +97,14 @@ public class ChatService extends Service {
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case CONNECT:
+                    Log.i(TAG, "handling connect");
                     mApp.makeAvailable();
                     break;
                 case SEND_MESSAGEE:
                     mApp.sendPublicMessageFromPrimaryIdentity((String) msg.obj);
                     break;
                 case SHUTDOWN:
+                    Log.i(TAG, "handling shutdown");
                     mApp.makeUnavailable();
 
                     // Stop the service using the startId, so that we don't stop

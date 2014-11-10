@@ -18,8 +18,8 @@
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:background="@color/primary" />
-            <!-- on API 21 background will be ?attr/colorPrimary -->
-            <!-- on API 21 minHeight will be ?attr/actionBarSize-->
+        <!-- on API 21 background will be ?attr/colorPrimary -->
+        <!-- on API 21 minHeight will be ?attr/actionBarSize-->
 
         <!-- The rest of your content view -->
 
@@ -39,17 +39,52 @@
         android:layout_width="304dp"
         android:layout_height="match_parent"
         android:layout_gravity="left|start"
-        android:fitsSystemWindows="true"
-        android:background="#91000000">
+        android:background="#ffddd8cf"
+        android:fitsSystemWindows="true">
 
         <!-- Your drawer content -->
 
-        <TextView
-            android:id="@+id/log"
-            android:textColor="#ffffff"
-            android:padding="8dp"
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:padding="16dp">
+
+            <im.delight.android.identicons.SymmetricIdenticon
+                android:id="@+id/profileIdenticon"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true" />
+
+            <TextView
+                android:id="@+id/profileName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingLeft="16dp"
+                android:layout_toRightOf="@id/profileIdenticon"
+                android:layout_alignTop="@id/profileIdenticon"
+                android:layout_alignBottom="@id/profileIdenticon"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:gravity="center_vertical"/>
+
+            <Switch
+                android:id="@+id/onlineSwitch"
+                android:layout_below="@id/profileIdenticon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:enabled="false"
+                android:text="Online"/>
+
+            <TextView
+                android:id="@+id/log"
+                android:layout_below="@id/onlineSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp"
+                android:textColor="#ffffff" />
+
+        </RelativeLayout>
 
     </ScrollView>
 

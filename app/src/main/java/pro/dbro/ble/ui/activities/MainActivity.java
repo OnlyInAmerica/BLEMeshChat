@@ -17,8 +17,11 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.CompoundButton;
+import android.widget.Switch;
 import android.widget.TextView;
 
+import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.ChatService;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Message;
@@ -57,17 +60,24 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
             }
         });
 
+        ((Switch) findViewById(R.id.onlineSwitch)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
+                if (!checked) {
+                    if (mServiceBound) {
+                        mChatServiceBinder.shutdown();
+                        mServiceBound = false;
+                    }
+                } else {
+                    if (!mServiceBound) {
+                        startAndBindToService();
+                    }
+                }
+            }
+        });
+
         DrawerLayout drawerLayout = (DrawerLayout) findViewById(R.id.my_drawer_layout);
         drawerLayout.setStatusBarBackground(R.color.primaryDark);
-
-        if (savedInstanceState == null) {
-            /*
-            mPeerListFragment = new PeerListFragment();
-            getFragmentManager().beginTransaction()
-                    .add(R.id.container, mPeerListFragment)
-                    .commit();
-            */
-        }
     }
 
     @Override
@@ -87,6 +97,7 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
     }
 
     private void startAndBindToService() {
+        Log.i(TAG, "Starting service");
         Intent intent = new Intent(this, ChatService.class);
         startService(intent);
         bindService(intent, this, 0);
@@ -114,15 +125,15 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
                 Util.showWelcomeDialog(mChatServiceBinder.getChatApp(), this, new DialogInterface.OnDismissListener() {
                     @Override
                     public void onDismiss(DialogInterface dialogInterface) {
-                        mChatServiceBinder.getChatApp().makeAvailable();
+                        mChatServiceBinder.connect();
                         mUserIdentity = mChatServiceBinder.getChatApp().getPrimaryIdentity();
-                        showMessageListFragment();
+                        revealChatViews();
                     }
                 });
             } else {
-                mChatServiceBinder.getChatApp().makeAvailable();
+                mChatServiceBinder.connect();
                 Log.i(TAG, "showing messageListFragment");
-                showMessageListFragment();
+                revealChatViews();
             }
         }
     }
@@ -161,11 +172,18 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
         mBluetoothReceiverRegistered = true;
     }
 
-    private void showMessageListFragment() {
+    /**
+     * Adds the message list fragment and populates
+     * the profile navigation drawer with the user profile
+     */
+    private void revealChatViews() {
         mMessageListFragment = new MessageListFragment();
         getFragmentManager().beginTransaction()
                 .add(R.id.container, mMessageListFragment)
                 .commit();
+
+        ((SymmetricIdenticon) findViewById(R.id.profileIdenticon)).show(new String(mUserIdentity.getPublicKey()));
+        ((TextView) findViewById(R.id.profileName)).setText(mUserIdentity.getAlias());
     }
 
     @Override
@@ -254,6 +272,9 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
         checkChatPreconditions();
 
         mChatServiceBinder.getChatApp().setLogConsumer(this);
+
+        ((Switch) findViewById(R.id.onlineSwitch)).setChecked(true);
+        findViewById(R.id.onlineSwitch).setEnabled(true);
     }
 
     @Override
@@ -261,6 +282,7 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
         Log.i(TAG, "Unbound from service");
         mChatServiceBinder = null;
         mServiceBound = false;
+        ((Switch) findViewById(R.id.onlineSwitch)).setChecked(false);
     }
 
     /** LogConsumer interface */

@@ -34,7 +34,8 @@ public class Peer extends CursorModel {
     }
 
     public String getAlias() {
-        return mCursor.getString(mCursor.getColumnIndex(PeerTable.alias));
+        String alias = mCursor.getString(mCursor.getColumnIndex(PeerTable.alias));
+        return alias;
     }
 
     @Nullable

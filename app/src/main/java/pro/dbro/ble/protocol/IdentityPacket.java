@@ -19,7 +19,7 @@ public class IdentityPacket {
                           @NonNull final byte[] rawPacket) {
         // dateSeen is allowed null because it's meaningless for OwnedIdentities
         this.publicKey  = publicKey;
-        this.alias      = alias;
+        this.alias      = alias.trim();
         this.dateSeen   = dateSeen;
         this.rawPacket  = rawPacket;
     }
