@@ -1,6 +1,8 @@
 language: android
 android:
   components:
+    - platform-tools
     - build-tools-20.0.0
     - android-L
+    - extra-android-m2repository
     - sys-img-armeabi-v7a-android-l
