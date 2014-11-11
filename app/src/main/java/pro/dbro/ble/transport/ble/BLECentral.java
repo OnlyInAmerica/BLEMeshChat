@@ -17,6 +17,7 @@ import android.content.Context;
 import android.os.ParcelUuid;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.util.Pair;
 import android.widget.Toast;
 
 import java.util.ArrayDeque;
@@ -65,7 +66,8 @@ public class BLECentral {
      *
      * TODO Figure out how to execute gatt requests without discovering services
      */
-    private HashMap<UUID, BLECentralRequest> mCharacteristicUUIDToRequest = new HashMap<>();
+
+    private HashMap<Pair<UUID, BLECentralRequest.RequestType>, BLECentralRequest> mCharacteristicUUIDToRequest = new HashMap<>();
 
     public interface BLECentralConnectionListener {
         public void connectedTo(String deviceAddress);
@@ -128,7 +130,7 @@ public class BLECentral {
      */
     public void addDefaultBLECentralRequest(BLECentralRequest request) {
         mDefaultRequests.add(request);
-        mCharacteristicUUIDToRequest.put(request.mCharacteristic.getUuid(), request);
+        mCharacteristicUUIDToRequest.put(new Pair<>(request.mCharacteristic.getUuid(), request.mRequestType), request);
     }
     // </editor-fold>
 
@@ -232,10 +234,16 @@ public class BLECentral {
                                     foundService = true;
                                     List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
                                     for (BluetoothGattCharacteristic characteristic : characteristics) {
-                                        if (mCharacteristicUUIDToRequest.containsKey(characteristic.getUuid())) {
+                                        // TODO Refactor to make this more flexible. I don't want to have to modify this logic whenever a new request type is added e.g: notify
+                                        Pair<UUID, BLECentralRequest.RequestType> readKey = new Pair<>(characteristic.getUuid(), BLECentralRequest.RequestType.READ);
+                                        Pair<UUID, BLECentralRequest.RequestType> writeKey = new Pair<>(characteristic.getUuid(), BLECentralRequest.RequestType.WRITE);
+
+                                        if (mCharacteristicUUIDToRequest.containsKey(readKey)) {
                                             // If a request is registered for this uuid, replace the BluetoothGattCharacteristic with that
                                             // discovered on the device
-                                            mCharacteristicUUIDToRequest.get(characteristic.getUuid()).mCharacteristic = characteristic;
+                                            mCharacteristicUUIDToRequest.get(readKey).mCharacteristic = characteristic;
+                                        } else if (mCharacteristicUUIDToRequest.containsKey(writeKey)) {
+                                            mCharacteristicUUIDToRequest.get(writeKey).mCharacteristic = characteristic;
                                         }
                                     }
                                 }
