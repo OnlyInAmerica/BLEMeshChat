@@ -18,21 +18,21 @@ public class MessagePacket {
 
     public MessagePacket(@NonNull final byte[] publicKey, @NonNull byte[] signature, @NonNull byte[] replySig, @NonNull Date authoredDate,
                          @NonNull String body, @NonNull byte[] rawPacket) {
-        this.body      = body;
-        this.signature = signature;
-        this.replySig  = replySig;
-        this.rawPacket = rawPacket;
+        this.body         = body;
+        this.signature    = signature;
+        this.replySig     = replySig;
+        this.rawPacket    = rawPacket;
         this.authoredDate = authoredDate;
-        sender         = new IdentityPacket(publicKey, null, null, null); // We don't have the sender's full identity response
+        sender            = new IdentityPacket(publicKey, null, null, null); // We don't have the sender's full identity response
     }
 
     public MessagePacket(@NonNull IdentityPacket sender, @NonNull byte[] signature, @NonNull byte[] replySig, @NonNull String body, @NonNull byte[] rawPacket, @NonNull Date authoredDate) {
-        this.body      = body;
-        this.signature = signature;
-        this.replySig  = replySig;
-        this.rawPacket = rawPacket;
+        this.body         = body.trim();
+        this.signature    = signature;
+        this.replySig     = replySig;
+        this.rawPacket    = rawPacket;
         this.authoredDate = authoredDate;
-        this.sender    = sender;
+        this.sender       = sender;
     }
 
     public static MessagePacket attachIdentityToMessage(@NonNull MessagePacket message, @NonNull IdentityPacket identity) {
