@@ -6,6 +6,7 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 
 import pro.dbro.ble.data.ContentProviderStore;
@@ -144,8 +145,12 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
             // We have a public key for the remote peer, fetch undelivered identities
             Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
             identities = mDataStore.getOutgoingIdentitiesForPeer(recipient, maxIdentities);
+            recipient.close();
             if (identities == null || identities.size() == 0) {
-                Log.i(TAG, "Got no identities to send for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey));
+                Log.i(TAG, "Got no identities to send for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey).substring(0, 3) + "... Sending own identity");
+                // For now, at least send our identity
+                if (identities == null) identities = new ArrayList<>(1);
+                identities.add(mDataStore.getPrimaryLocalPeer().getIdentity());
             }
             else {
                 identityPacketQueue.addAll(identities);
@@ -155,9 +160,10 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
             // NOTE: The caller of this method must know not to re-try the request
             // else it could get in an endless loop
             Peer user = mDataStore.getPrimaryLocalPeer();
-            if (user != null)
+            if (user != null) {
                 identityPacketQueue.add(user.getIdentity());
-            user.close();
+                user.close();
+            }
         }
 
         return identityPacketQueue;
