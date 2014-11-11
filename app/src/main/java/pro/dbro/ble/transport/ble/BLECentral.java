@@ -242,7 +242,8 @@ public class BLECentral {
                                             // If a request is registered for this uuid, replace the BluetoothGattCharacteristic with that
                                             // discovered on the device
                                             mCharacteristicUUIDToRequest.get(readKey).mCharacteristic = characteristic;
-                                        } else if (mCharacteristicUUIDToRequest.containsKey(writeKey)) {
+                                        }
+                                        if (mCharacteristicUUIDToRequest.containsKey(writeKey)) {
                                             mCharacteristicUUIDToRequest.get(writeKey).mCharacteristic = characteristic;
                                         }
                                     }
