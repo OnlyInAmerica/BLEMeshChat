@@ -162,7 +162,7 @@ public class BLECentral {
         }
         mScanCallback = new ScanCallback() {
             @Override
-            public void onAdvertisementUpdate(ScanResult scanResult) {
+            public void onScanResult(int callbackType, ScanResult scanResult) {
                 if (mConnectedDevices.contains(scanResult.getDevice().getAddress())) {
                     // If we're already connected, forget it
                     //logEvent("Denied connection. Already connected to  " + scanResult.getDevice().getAddress());
@@ -396,7 +396,6 @@ public class BLECentral {
 
     private static ScanSettings createScanSettings() {
         ScanSettings.Builder builder = new ScanSettings.Builder();
-        builder.setCallbackType(ScanSettings.CALLBACK_TYPE_ON_UPDATE);
         builder.setScanMode(ScanSettings.SCAN_MODE_BALANCED);
         return builder.build();
     }

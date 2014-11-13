@@ -289,6 +289,7 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
 
     @Override
     public void onLogEvent(final String event) {
+        /*
         mLogView.post(new Runnable() {
             @Override
             public void run() {
@@ -296,5 +297,6 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
 
             }
         });
+        */
     }
 }

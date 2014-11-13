@@ -51,8 +51,8 @@
 
             <im.delight.android.identicons.SymmetricIdenticon
                 android:id="@+id/profileIdenticon"
-                android:layout_width="100dp"
-                android:layout_height="100dp"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
                 android:layout_alignParentLeft="true"
                 android:layout_alignParentTop="true" />
 
