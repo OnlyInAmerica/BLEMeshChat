@@ -1,4 +1,4 @@
-# [BLEMeshChat Android](https://github.com/OnlyInAmerica/BLEMeshChat)
+# [BLEMeshChat Android](https://github.com/OnlyInAmerica/BLEMeshChat) [![Build Status](https://travis-ci.org/OnlyInAmerica/BLEMeshChat.svg?branch=master)](https://travis-ci.org/OnlyInAmerica/BLEMeshChat)
 
 [![Screenshot](http://i.imgur.com/GMtn5ol.png)](http://i.imgur.com/GMtn5ol.png)
 
