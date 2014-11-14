@@ -1,6 +1,7 @@
 package pro.dbro.ble.data.model;
 
 import java.text.SimpleDateFormat;
+import java.util.Locale;
 
 /**
  * Utilities for converting between Java and Database friendly types
@@ -9,7 +10,7 @@ import java.text.SimpleDateFormat;
  */
 public class DataUtil {
 
-    public static SimpleDateFormat storedDateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    public static SimpleDateFormat storedDateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
 
     final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
 

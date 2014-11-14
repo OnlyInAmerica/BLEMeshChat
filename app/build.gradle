@@ -26,9 +26,6 @@ android {
         targetCompatibility JavaVersion.VERSION_1_7
     }
 
-    lintOptions {
-        abortOnError false // Temporary! Disable after moving off preview SDK
-    }
 }
 
 dependencies {
