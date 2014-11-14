@@ -199,6 +199,8 @@ public class BLEPeripheral {
                     // We've disconnected
                     logEvent("Disconnected from " + device.getAddress());
                     mConnectedDevices.remove(device.getAddress());
+                    if (mConnectionListener != null)
+                        mConnectionListener.disconnectedFrom(device.getAddress());
                 }
                 super.onConnectionStateChange(device, status, newState);
             }
