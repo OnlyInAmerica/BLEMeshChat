@@ -24,7 +24,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -32,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.DataUtil;
+import pro.dbro.ble.transport.ConnectionGovernor;
+import pro.dbro.ble.transport.ConnectionListener;
 import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
@@ -69,22 +70,12 @@ public class BLECentral {
 
     private HashMap<Pair<UUID, BLECentralRequest.RequestType>, BLECentralRequest> mCharacteristicUUIDToRequest = new HashMap<>();
 
-    public interface BLECentralConnectionListener {
-        public void connectedTo(String deviceAddress);
-
-        public void disconnectedFrom(String deviceAddress);
-    }
-
-    public interface BLECentralConnectionGovernor {
-        public boolean shouldConnectToPeripheral(ScanResult potentialPeer);
-    }
-
     private Context mContext;
     private BluetoothAdapter mBTAdapter;
     private ScanCallback mScanCallback;
     private BluetoothLeScanner mScanner;
-    private BLECentralConnectionGovernor mConnectionGovernor;
-    private BLECentralConnectionListener mConnectionListener;
+    private ConnectionGovernor mConnectionGovernor;
+    private ConnectionListener mConnectionListener;
     private LogConsumer mLogger;
 
     private boolean mIsScanning = false;
@@ -100,11 +91,11 @@ public class BLECentral {
         mLogger = consumer;
     }
 
-    public void setConnectionGovernor(BLECentralConnectionGovernor governor) {
+    public void setConnectionGovernor(ConnectionGovernor governor) {
         mConnectionGovernor = governor;
     }
 
-    public void setConnectionListener(BLECentralConnectionListener listener) {
+    public void setConnectionListener(ConnectionListener listener) {
         mConnectionListener = listener;
     }
 
@@ -175,7 +166,7 @@ public class BLECentral {
                     return;
                 }
 
-                if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToPeripheral(scanResult)) {
+                if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToAddress(scanResult.getDevice().getAddress())) {
                     // If the BLEConnectionGovernor says we should not bother connecting to this peer, don't
                     //logEvent("Denied connection. ConnectionGovernor denied  " + scanResult.getDevice().getAddress());
                     return;

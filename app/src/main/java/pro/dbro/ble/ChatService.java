@@ -10,8 +10,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import pro.dbro.ble.data.model.Peer;
-
 /**
  * Created by davidbrodsky on 11/4/14.
  */

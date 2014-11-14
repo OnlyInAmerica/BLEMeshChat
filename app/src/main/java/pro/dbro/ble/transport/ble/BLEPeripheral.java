@@ -20,14 +20,14 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.UUID;
 
 import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.protocol.BLEProtocol;
+import pro.dbro.ble.transport.ConnectionGovernor;
+import pro.dbro.ble.transport.ConnectionListener;
 import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
@@ -57,7 +57,8 @@ public class BLEPeripheral {
     private BluetoothLeAdvertiser mAdvertiser;
     private BluetoothGattServer mGattServer;
     private BluetoothGattServerCallback mGattCallback;
-    private BLEPeripheralConnectionGovernor mConnectionGovernor;
+    private ConnectionGovernor mConnectionGovernor;
+    private ConnectionListener mConnectionListener;
     private LogConsumer mLogger;
 
     private boolean mIsAdvertising = false;
@@ -86,6 +87,9 @@ public class BLEPeripheral {
     public BLEPeripheral(@NonNull Context context) {
         mContext = context;
         init();
+    }
+
+    public void setConnectionListener(BLETransport bleTransport) {
     }
 
     public void setLogConsumer(LogConsumer consumer) {
@@ -122,7 +126,7 @@ public class BLEPeripheral {
         return mConnectedDevices;
     }
 
-    public void setConnectionGovernor(BLEPeripheralConnectionGovernor governor) {
+    public void setConnectionGovernor(ConnectionGovernor governor) {
         mConnectionGovernor = governor;
     }
 
@@ -181,7 +185,7 @@ public class BLEPeripheral {
                         return;
                     }
 
-                    if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToCentral(device)) {
+                    if (mConnectionGovernor != null && !mConnectionGovernor.shouldConnectToAddress(device.getAddress())) {
                         // The ConnectionGovernor denied the connection. Cancel connection
                         logEvent("Denied connection. ConnectionGovernor denied " + device.getAddress());
                         mGattServer.cancelConnection(device);

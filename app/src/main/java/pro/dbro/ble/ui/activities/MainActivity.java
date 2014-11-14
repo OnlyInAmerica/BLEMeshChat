@@ -24,13 +24,11 @@ import android.widget.TextView;
 import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.ChatService;
 import pro.dbro.ble.R;
-import pro.dbro.ble.data.model.Message;
 import pro.dbro.ble.data.model.Peer;
-import pro.dbro.ble.transport.ble.BLETransportCallback;
 import pro.dbro.ble.transport.ble.BLEUtil;
 import pro.dbro.ble.ui.fragment.MessageListFragment;
 
-public class MainActivity extends Activity implements BLETransportCallback, ServiceConnection, LogConsumer {
+public class MainActivity extends Activity implements ServiceConnection, LogConsumer {
 
     public static final String TAG = "MainActivity";
 
@@ -221,21 +219,6 @@ public class MainActivity extends Activity implements BLETransportCallback, Serv
 //    public void onFragmentInteraction(Uri uri) {
 //
 //    }
-
-    @Override
-    public void onPeerStatusChange(Peer peer, PeerStatus status) {
-//        if (mPeerListFragment != null) {
-//            mPeerListFragment.onPeerStatusChange(peer, status);
-//        }
-    }
-
-    @Override
-    public void onMessageReceived(Message incomingMsg) {
-//        if (mPeerListFragment != null) {
-//            mPeerListFragment.onMessageReceived(incomingMsg);
-//        }
-
-    }
 
     private final BroadcastReceiver mBluetoothBroadcastReceiver = new BroadcastReceiver() {
         @Override

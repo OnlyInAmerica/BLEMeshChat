@@ -16,16 +16,13 @@ import android.widget.TextView;
 
 import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
-import pro.dbro.ble.data.model.Message;
-import pro.dbro.ble.data.model.Peer;
-import pro.dbro.ble.transport.ble.BLETransportCallback;
 import pro.dbro.ble.ui.activities.MainActivity;
 import pro.dbro.ble.ui.adapter.MessageAdapter;
 
 /**
  * A simple {@link Fragment} subclass.
  */
-public class MessageListFragment extends Fragment implements BLETransportCallback {
+public class MessageListFragment extends Fragment {
     public static final String TAG = "MessageListFragment";
 
     ChatApp mApp;
@@ -67,21 +64,6 @@ public class MessageListFragment extends Fragment implements BLETransportCallbac
         mRecyclerView.setAdapter(mAdapter);
         mRecyclerView.scrollToPosition(mAdapter.getItemCount());
         return root;
-    }
-
-    @Override
-    public void onPeerStatusChange(Peer peer, PeerStatus status) {
-
-    }
-
-    @Override
-    public void onMessageReceived(Message incomingMsg) {
-        Log.i(TAG, "message received: " + incomingMsg.getBody());
-        // Cursor observer should handle this, unless
-        // no messages were available onCreateView
-        if (mRecyclerView == null) {
-
-        }
     }
 
     public void onSendMessageButtonClick(View v) {

@@ -11,7 +11,6 @@ import android.support.v4.app.NotificationCompat;
 
 import java.util.ArrayList;
 
-import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.data.model.Message;

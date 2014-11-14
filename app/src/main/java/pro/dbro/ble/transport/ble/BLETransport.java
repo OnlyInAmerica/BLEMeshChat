@@ -4,7 +4,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattServer;
-import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -18,15 +17,15 @@ import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.protocol.IdentityPacket;
 import pro.dbro.ble.protocol.MessagePacket;
 import pro.dbro.ble.protocol.Protocol;
+import pro.dbro.ble.transport.ConnectionGovernor;
+import pro.dbro.ble.transport.ConnectionListener;
 import pro.dbro.ble.transport.Transport;
 import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
  * Created by davidbrodsky on 10/20/14.
  */
-public class BLETransport extends Transport implements BLECentral.BLECentralConnectionGovernor,
-                                                       BLEPeripheral.BLEPeripheralConnectionGovernor,
-                                                       BLECentral.BLECentralConnectionListener {
+public class BLETransport extends Transport implements ConnectionGovernor, ConnectionListener {
     public static final String TAG = "BLETransport";
 
     /** How many items to send for each request for this client's items */
@@ -97,29 +96,28 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
 
         mPeripheral = new BLEPeripheral(mContext);
         mPeripheral.setConnectionGovernor(this);
+        mPeripheral.setConnectionListener(this);
         mPeripheral.addDefaultBLEPeripheralResponse(mMessageReadResponse);
         mPeripheral.addDefaultBLEPeripheralResponse(mIdentityReadResponse);
         mPeripheral.addDefaultBLEPeripheralResponse(mMessageWriteResponse);
         mPeripheral.addDefaultBLEPeripheralResponse(mIdentityWriteResponse);
     }
 
-    /** BLECentralConnectionGovernor */
+    /** ConnectionGovernor */
     @Override
-    public boolean shouldConnectToPeripheral(ScanResult potentialPeer) {
-        // If the peripheral is connected to this device, don't duplicate the connection as central
-        boolean mayConnect =  !mPeripheral.getConnectedDeviceAddresses().contains(potentialPeer.getDevice().getAddress());
-        if (!mayConnect) {
-            Log.i("CentralGovernor", String.format("peripheral connected to %d devices, including potential peer", mPeripheral.getConnectedDeviceAddresses().size()));
-        }
-        return mayConnect;
-    }
+    public boolean shouldConnectToAddress(String address) {
+        boolean centralConnectedToPeer = mCentral.getConnectedDeviceAddresses().contains(address);
+        boolean peripheralConnectedToPeer = mPeripheral.getConnectedDeviceAddresses().contains(address);
 
-    /** BLEPeripheralConnectionGovernor */
-    @Override
-    public boolean shouldConnectToCentral(BluetoothDevice potentialPeer) {
-        boolean mayConnect = !mCentral.getConnectedDeviceAddresses().contains(potentialPeer.getAddress());
+        boolean mayConnect =  !centralConnectedToPeer && !peripheralConnectedToPeer;
+
         if (!mayConnect) {
-            Log.i("PeripheralGovernor", String.format("central connected to %d devices, including potential peer", mCentral.getConnectedDeviceAddresses().size()));
+            Log.i("ConnectionGovernor", String.format("Blocking connection to %s. Central Connections: %d (includes peer: %b) Peripheral Connections: %d (includes peer: %b)",
+                    address,
+                    mCentral.getConnectedDeviceAddresses().size(),
+                    centralConnectedToPeer,
+                    mPeripheral.getConnectedDeviceAddresses().size(),
+                    peripheralConnectedToPeer));
         }
         return mayConnect;
     }
