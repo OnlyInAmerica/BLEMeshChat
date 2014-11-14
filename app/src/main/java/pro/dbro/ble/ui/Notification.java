@@ -13,6 +13,7 @@ import java.util.ArrayList;
 
 import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.R;
+import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.data.model.Message;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.ui.activities.MainActivity;
@@ -30,8 +31,22 @@ public class Notification {
 
     private static final ArrayList<String> sNotificationInboxItems = new ArrayList<>(MAX_MESSAGES_TO_SHOW + 1);
 
+    // <editor-fold desc="Public API">
+
+    /**
+     * Display a notification representing peer being available, or remove any indicating such
+     * if isAvailable is false.
+     *
+     * Does not call peer.close()
+     */
     public static void displayPeerAvailableNotification(@NonNull Context context, @NonNull Peer peer, boolean isAvailable) {
-        if (!isAvailable) return; // TODO: Dismiss any previous available notifications for this peer
+        NotificationManager mNotificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (!isAvailable) {
+            mNotificationManager.cancel(DataUtil.bytesToHex(peer.getPublicKey()), PEER_AVAILABLE_NOTIFICATION_ID);
+            return;
+        }
         if (peer.getAlias() == null) return; // TODO : Notify of peers without alias?
 
         String title = String.format("%s is nearby", peer.getAlias());
@@ -43,13 +58,16 @@ public class Notification {
         builder.setContentTitle(title);
         builder.setContentIntent(makePendingIntent(context, resultIntent));
         builder.setContentText(context.getString(R.string.notification_touch_to_chat));
-        NotificationManager mNotificationManager =
-                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-        mNotificationManager.notify(PEER_AVAILABLE_NOTIFICATION_ID, builder.build());
-        peer.close();
+        mNotificationManager.notify(DataUtil.bytesToHex(peer.getPublicKey()), PEER_AVAILABLE_NOTIFICATION_ID, builder.build());
     }
 
+    /**
+     * Display a notification representing a new received message. Multiple calls to this method are displayed as a single
+     * notification, showing a preview of the last MAX_MESSAGES_TO_SHOW messages.
+     *
+     * Does not call message.close() or sender.close()
+     */
     public static void displayMessageNotification(@NonNull Context context, @NonNull Message message, @Nullable Peer sender) {
         StringBuilder nBuilder = new StringBuilder();
         if (sender != null && sender.getAlias() != null) {
@@ -75,16 +93,17 @@ public class Notification {
         builder.setSmallIcon(R.drawable.ic_launcher);
         builder.setContentIntent(makePendingIntent(context, resultIntent));
         builder.setStyle(inboxStyle);
-
-        if (sNotificationInboxItems.size() == 1) {
-            builder.setContentText(sNotificationInboxItems.get(0));
-        }
+        builder.setContentText(sNotificationInboxItems.get(0));
 
         NotificationManager mNotificationManager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
         mNotificationManager.notify(MESSAGE_NOTIFICATION_ID, builder.build());
     }
+
+    // </editor-fold desc="Public API">
+
+    // <editor-fold desc="Private API">
 
     private static PendingIntent makePendingIntent(@NonNull Context context, @NonNull Intent resultIntent) {
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
@@ -95,4 +114,6 @@ public class Notification {
         // Gets a PendingIntent containing the entire back stack
         return stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
     }
+
+    // </editor-fold desc="Private API">
 }
