@@ -235,7 +235,15 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                     boolean haveAnotherMessage = getNextMessageForDeviceAddress(remoteCentral.getAddress(), false) != null;
                     byte[] payload = forRecipient.rawPacket;
                     int responseGattStatus = haveAnotherMessage ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
-                    boolean responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
+                    boolean responseSent = false;
+                    try {
+                        responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
+
+                        Log.w("SendResponse", "message read " +  (responseGattStatus == BluetoothGatt.GATT_SUCCESS ? "" : " READ_NOT_PERMITTED") + " success: " + responseSent);
+                    } catch (NullPointerException e) {
+                        // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
+                        Log.w("SendResponse", "NPE on message read " + (responseGattStatus == BluetoothGatt.GATT_SUCCESS ? "" : " READ_NOT_PERMITTED"));
+                    }
                     //Log.i(TAG, String.format("Responded to message read request with outgoing status %b. response sent: %b data (%d bytes): %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? 0 : payload.length, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
                     if (responseSent) {
                         if (mCallback != null)
@@ -244,13 +252,12 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                         return payload;
                     }
                 } else {
-                    // TODO Catch NPE here to debug
                     try {
                         boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
-                        Log.w("SendResponse", "Successful sendResponse " + success);
+                        Log.w("SendResponse", "message read READ_NOT_PERMITTED success: " + success);
                     } catch (NullPointerException e) {
                         // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
-                        Log.w("SendResponse", "NPE on sendResponse");
+                        Log.w("SendResponse", "NPE on message read READ_NOT_PERMITTED");
                     }
                     logEvent("Peripheral had no message for peer");
                     //Log.i(TAG, "Had no messages for peer. Sent READ_NOT_PERMITTED with success " + success);
@@ -274,7 +281,15 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                 boolean haveAnotherIdentity = mConnectedAddressesToIdentities.containsKey(remoteCentral.getAddress()) && getNextIdentityForDeviceAddress(remoteCentral.getAddress(), false) != null;
                 byte[] payload = forRecipient.rawPacket;
                 int responseGattStatus = haveAnotherIdentity ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
-                boolean responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
+                boolean responseSent = false;
+                try {
+                    responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
+
+                    Log.w("SendResponse", "identity read " +  (responseGattStatus == BluetoothGatt.GATT_SUCCESS ? "" : " READ_NOT_PERMITTED") + " success " + responseSent);
+                } catch (NullPointerException e) {
+                    // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
+                    Log.w("SendResponse", "NPE on identity read " +  (responseGattStatus == BluetoothGatt.GATT_SUCCESS ? "" : " READ_NOT_PERMITTED"));
+                }
                 //Log.i(TAG, String.format("Responded to identity read request with outgoing status %b. response sent: %b data: %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
                 if (responseSent && mCallback != null) mCallback.sentIdentity(forRecipient, mConnectedAddressesToIdentities.get(remoteCentral.getAddress()));
                 if (responseSent) {
@@ -285,8 +300,15 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                     return payload;
                 }
             } else {
-                boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
+                try {
+                    boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
+                    Log.w("SendResponse", "identity read READ_NOT_PERMITTED " + success);
+                } catch (NullPointerException e) {
+                    // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
+                    Log.w("SendResponse", "NPE on identity read READ_NOT_PERMITTED");
+                }
                 logEvent("Peripheral had no identities for peer");
+
             }
             return null;
         }
@@ -303,7 +325,13 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             if (mCallback != null) mCallback.receivedMessageFromIdentity(receivedMessagePacket, courierIdentity);
             if (responseNeeded) {
                 // TODO: Response code based on message validation?
-                localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
+                try {
+                    boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
+                    Log.w("SendResponse", "message write success:" + success);
+                } catch (NullPointerException e) {
+                    // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
+                    Log.w("SendResponse", "NPE on message write");
+                }
             }
             logEvent(String.format("Peripheral received message %s", receivedMessagePacket.body));
             return null;
@@ -328,7 +356,13 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
 
             if (responseNeeded) {
                 // TODO: Response code based on message validation?
-                localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
+                try {
+                    boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, 0, null);
+                    Log.w("SendResponse", "Successful identity write " + success);
+                } catch (NullPointerException e) {
+                    // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
+                    Log.w("SendResponse", "NPE on identity write");
+                }
             }
             return null;
         }
