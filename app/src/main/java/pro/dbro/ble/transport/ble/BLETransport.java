@@ -12,6 +12,7 @@ import android.util.Log;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 
 import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.protocol.IdentityPacket;
@@ -44,7 +45,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
     /** Outgoing identity queues by device key */
     private HashMap<String, ArrayDeque<IdentityPacket>> mIdentitiesOutboxes = new HashMap<>();
     /** Remote identities by device address */
-    private HashMap<String, IdentityPacket> mAddressesToIdentity = new HashMap<>();
+    private HashMap<String, IdentityPacket> mConnectedAddressesToIdentities = new HashMap<>();
 
     // <editor-fold desc="Public API">
 
@@ -135,7 +136,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             }
             MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(characteristic.getValue());
             // Note this isn't the author of the message, but the courier who delivered it to us
-            IdentityPacket courierIdentity = mAddressesToIdentity.get(remotePeripheral.getDevice().getAddress());
+            IdentityPacket courierIdentity = mConnectedAddressesToIdentities.get(remotePeripheral.getDevice().getAddress());
             if (mCallback != null) mCallback.receivedMessageFromIdentity(receivedMessagePacket, courierIdentity);
             logEvent("Central read message " + receivedMessagePacket.body);
 
@@ -177,7 +178,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                 return true;
             } else {
                 if (status == BluetoothGatt.GATT_SUCCESS && mCallback != null) {
-                    mCallback.sentMessage(getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), false), mAddressesToIdentity.get(remotePeripheral.getDevice().getAddress()));
+                    mCallback.sentMessage(getNextMessageForDeviceAddress(remotePeripheral.getDevice().getAddress(), false), mConnectedAddressesToIdentities.get(remotePeripheral.getDevice().getAddress()));
                 }
                 logEvent(String.format("Central wrote message %s..", justSent.body));
 
@@ -206,7 +207,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             } else {
                 if (status == BluetoothGatt.GATT_SUCCESS && mCallback != null) {
                     mCallback.sentIdentity(getNextIdentityForDeviceAddress(remotePeripheral.getDevice().getAddress(), false),
-                            mAddressesToIdentity.get(remotePeripheral.getDevice().getAddress()));
+                            mConnectedAddressesToIdentities.get(remotePeripheral.getDevice().getAddress()));
                 }
                 logEvent(String.format("Central wrote identity %s..", DataUtil.bytesToHex(justSent.publicKey).substring(0,3)));
                 // If we have more messages to send, indicate request should be repeated
@@ -238,11 +239,12 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                     //Log.i(TAG, String.format("Responded to message read request with outgoing status %b. response sent: %b data (%d bytes): %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? 0 : payload.length, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
                     if (responseSent) {
                         if (mCallback != null)
-                            mCallback.sentMessage(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                            mCallback.sentMessage(forRecipient, mConnectedAddressesToIdentities.get(remoteCentral.getAddress()));
                         logEvent(String.format("Peripheral sent message for peer %s", forRecipient.body));
                         return payload;
                     }
                 } else {
+                    // TODO Catch NPE here to debug
                     boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
                     logEvent("Peripheral had no message for peer");
                     //Log.i(TAG, "Had no messages for peer. Sent READ_NOT_PERMITTED with success " + success);
@@ -263,15 +265,15 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             IdentityPacket forRecipient = getNextIdentityForDeviceAddress(remoteCentral.getAddress(), true);
             if (forRecipient != null) {
                 // If we don't have a public key for this address, we'll only send one identity (the user's)
-                boolean haveAnotherIdentity = mAddressesToIdentity.containsKey(remoteCentral.getAddress()) && getNextIdentityForDeviceAddress(remoteCentral.getAddress(), false) != null;
+                boolean haveAnotherIdentity = mConnectedAddressesToIdentities.containsKey(remoteCentral.getAddress()) && getNextIdentityForDeviceAddress(remoteCentral.getAddress(), false) != null;
                 byte[] payload = forRecipient.rawPacket;
                 int responseGattStatus = haveAnotherIdentity ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
                 boolean responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
                 //Log.i(TAG, String.format("Responded to identity read request with outgoing status %b. response sent: %b data: %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
-                if (responseSent && mCallback != null) mCallback.sentIdentity(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                if (responseSent && mCallback != null) mCallback.sentIdentity(forRecipient, mConnectedAddressesToIdentities.get(remoteCentral.getAddress()));
                 if (responseSent) {
                     if (mCallback != null)
-                        mCallback.sentIdentity(forRecipient, mAddressesToIdentity.get(remoteCentral.getAddress()));
+                        mCallback.sentIdentity(forRecipient, mConnectedAddressesToIdentities.get(remoteCentral.getAddress()));
                     logEvent(String.format("Peripheral sent identity %s...", DataUtil.bytesToHex(forRecipient.publicKey).substring(0,3)));
 
                     return payload;
@@ -291,7 +293,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             testValueVsCharacteristicValue(value, characteristic);
 
             MessagePacket receivedMessagePacket = mProtocol.deserializeMessage(value);
-            IdentityPacket courierIdentity = mAddressesToIdentity.get(remoteCentral.getAddress());
+            IdentityPacket courierIdentity = mConnectedAddressesToIdentities.get(remoteCentral.getAddress());
             if (mCallback != null) mCallback.receivedMessageFromIdentity(receivedMessagePacket, courierIdentity);
             if (responseNeeded) {
                 // TODO: Response code based on message validation?
@@ -326,7 +328,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
         }
     };
 
-    /** BLECentralConnectionListener */
+    /** ConnectionListener */
 
     @Override
     public void connectedTo(String deviceAddress) {
@@ -335,9 +337,19 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
 
     @Override
     public void disconnectedFrom(String deviceAddress) {
-        IdentityPacket disconnectedIdentityPacket = mAddressesToIdentity.remove(deviceAddress);
+        IdentityPacket disconnectedIdentityPacket = mConnectedAddressesToIdentities.remove(deviceAddress);
         if (disconnectedIdentityPacket != null && mCallback != null) {
+            Log.i(TAG, "Report disconnect to " + deviceAddress);
             mCallback.identityBecameUnavailable(disconnectedIdentityPacket);
+        } else {
+            // The reported device address changed since connection. With iOS devices this is common
+            if (mConnectedAddressesToIdentities.size() == 1) {
+                // It's safe to assume this is the client that has disconnected
+                String disconnectedAddress = ((Map.Entry <String, IdentityPacket>) mConnectedAddressesToIdentities.entrySet().toArray()[0]).getKey();
+                disconnectedFrom(disconnectedAddress);
+            } else {
+                Log.i(TAG, "Could not report disconnect to " + deviceAddress);
+            }
         }
     }
 
@@ -410,7 +422,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
 
     private byte[] getPublicKeyForDeviceAddress(String address) {
         byte[] publicKey = null;
-        if (mAddressesToIdentity.containsKey(address)) publicKey = mAddressesToIdentity.get(address).publicKey;
+        if (mConnectedAddressesToIdentities.containsKey(address)) publicKey = mConnectedAddressesToIdentities.get(address).publicKey;
 
         if (publicKey == null) {
             // No public key on file, perform naive message send for now
@@ -461,8 +473,9 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
     }
 
     private void handleIdentityBecameAvailable(String fromAddress, IdentityPacket receivedIdentityPacket) {
-        if (!mAddressesToIdentity.containsKey(fromAddress)) {
-            mAddressesToIdentity.put(fromAddress, receivedIdentityPacket);
+        if (!mConnectedAddressesToIdentities.containsKey(fromAddress)) {
+            mConnectedAddressesToIdentities.put(fromAddress, receivedIdentityPacket);
+            Log.i(TAG, "Got identity for " + fromAddress);
 
             if (mCallback != null)  mCallback.identityBecameAvailable(receivedIdentityPacket);
         }
