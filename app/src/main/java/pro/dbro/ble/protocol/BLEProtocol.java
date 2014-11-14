@@ -94,7 +94,6 @@ public class BLEProtocol implements Protocol {
 
     @Nullable
     public IdentityPacket deserializeIdentity(@NonNull byte[] identity) {
-        Log.i("deserializeIdentity", DataUtil.bytesToHex(identity));
         if (identity.length != IDENTITY_RESPONSE_LENGTH)
             throw new IllegalArgumentException(String.format("Identity response is %d bytes. Expect %d", identity.length, IDENTITY_RESPONSE_LENGTH));
 

@@ -153,7 +153,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
             identities = mDataStore.getOutgoingIdentitiesForPeer(recipient, maxIdentities);
             recipient.close();
             if (identities == null || identities.size() == 0) {
-                Log.i(TAG, "Got no identities to send for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey).substring(0, 3) + "... Sending own identity");
+                Log.i(TAG, "Got no identities to send for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey).substring(2, 6) + "... Sending own identity");
                 // For now, at least send our identity
                 if (identities == null) identities = new ArrayList<>(1);
                 identities.add(mDataStore.getPrimaryLocalPeer().getIdentity());

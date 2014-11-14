@@ -323,7 +323,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                 IdentityPacket receivedIdentityPacket = mProtocol.deserializeIdentity(value);
 
                 handleIdentityBecameAvailable(remoteCentral.getAddress(), receivedIdentityPacket);
-                logEvent(String.format("Peripheral received identity %s...", DataUtil.bytesToHex(receivedIdentityPacket.publicKey).substring(0,3)));
+                logEvent(String.format("Peripheral received identity for %s with key: %s...", receivedIdentityPacket.alias, DataUtil.bytesToHex(receivedIdentityPacket.publicKey).substring(2,6)));
             }
 
             if (responseNeeded) {
