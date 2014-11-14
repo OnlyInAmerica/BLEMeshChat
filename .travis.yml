@@ -3,7 +3,7 @@ android:
   update-sdk: true
   components:
     - platform-tools
-    - build-tools-20.0.0
-    - android-L
+    - build-tools-21.1.1
+    - android-21
     - extra-android-m2repository
-    - sys-img-armeabi-v7a-android-l
+    - sys-img-armeabi-v7a-android-21
