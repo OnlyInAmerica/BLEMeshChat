@@ -13,10 +13,11 @@ import android.util.Log;
 /**
  * Created by davidbrodsky on 11/4/14.
  */
-public class ChatService extends Service {
+public class ChatService extends Service implements ActivityRecevingMessagesIndicator {
     public static final String TAG = "ChatService";
 
     private ChatApp mApp;
+    private boolean mActivityRecevingMessages;
 
     private ChatServiceBinder mBinder;
 
@@ -31,8 +32,9 @@ public class ChatService extends Service {
 
     @Override
     public void onCreate() {
-
+        Log.i(TAG, "onCreate");
         mApp = new ChatApp(getApplicationContext());
+        mApp.setActivityBoundIndicator(this);
         // Immediately make us available if an identity is available
         if (mApp.getPrimaryIdentity() != null) mApp.makeAvailable();
 
@@ -52,12 +54,19 @@ public class ChatService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         if (mBinder == null) mBinder = new ChatServiceBinder();
+        Log.i(TAG, "Bind service");
         return mBinder;
     }
 
     @Override
     public int onStartCommand (Intent intent, int flags, int startId) {
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    /** ActivityRecevingMessagesIndicator */
+    @Override
+    public boolean isActivityReceivingMessages() {
+        return mActivityRecevingMessages;
     }
 
     /** Binder through which Activities can interact with this Service */
@@ -82,6 +91,15 @@ public class ChatService extends Service {
 
         public void shutdown() {
             mBackgroundHandler.sendMessage(mBackgroundHandler.obtainMessage(SHUTDOWN));
+        }
+
+        /**
+         * Set by Activity bound to this Service. If isActive is false, this Service
+         * should post incoming messages as Notifications.
+         */
+        public void setActivityReceivingMessages(boolean receivingMessages) {
+            mActivityRecevingMessages = receivingMessages;
+            Log.i(TAG, "setActivityRecevingMessages " + receivingMessages);
         }
     }
 

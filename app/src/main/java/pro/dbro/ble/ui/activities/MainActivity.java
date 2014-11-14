@@ -87,6 +87,22 @@ public class MainActivity extends Activity implements ServiceConnection, LogCons
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        if (mChatServiceBinder != null) {
+            mChatServiceBinder.setActivityReceivingMessages(true);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (mChatServiceBinder != null) {
+            mChatServiceBinder.setActivityReceivingMessages(false);
+        }
+    }
+
+    @Override
     public void onStop() {
         super.onStop();
         if (!mServiceBound) {
@@ -255,6 +271,7 @@ public class MainActivity extends Activity implements ServiceConnection, LogCons
         checkChatPreconditions();
 
         mChatServiceBinder.getChatApp().setLogConsumer(this);
+        mChatServiceBinder.setActivityReceivingMessages(true);
 
         ((Switch) findViewById(R.id.onlineSwitch)).setChecked(true);
         findViewById(R.id.onlineSwitch).setEnabled(true);

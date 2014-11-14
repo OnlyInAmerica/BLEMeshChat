@@ -36,6 +36,7 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     private Transport mTransport;
     private Protocol  mProtocol;
 
+    private ActivityRecevingMessagesIndicator mActivityRecevingMessagesIndicator;
     private LogConsumer mLogger;
 
     // <editor-fold desc="Public API">
@@ -45,6 +46,10 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
 
         mProtocol  = new BLEProtocol();
         mDataStore = new ContentProviderStore(context);
+    }
+
+    public void setActivityBoundIndicator(ActivityRecevingMessagesIndicator indicator) {
+        mActivityRecevingMessagesIndicator = indicator;
     }
 
     // <editor-fold desc="Identity & Availability">
@@ -219,7 +224,8 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
         // TODO Allow updating message already received?
         Message message = mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket);
 
-        if (message != null && isNewMessage) {
+        // Send message notification if it's a new message and no Activity is reported active
+        if (message != null && isNewMessage && (mActivityRecevingMessagesIndicator == null || !mActivityRecevingMessagesIndicator.isActivityReceivingMessages())) {
             Peer sender = (identityPacket == null) ? null : mDataStore.getPeerByPubKey(identityPacket.publicKey);
             Notification.displayMessageNotification(mContext, message, sender);
             message.close();
