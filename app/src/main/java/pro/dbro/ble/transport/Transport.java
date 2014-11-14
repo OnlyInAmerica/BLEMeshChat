@@ -22,13 +22,12 @@ public abstract class Transport {
 
     public static interface TransportEventCallback {
 
-        public void becameAvailable(IdentityPacket identityPacket);
-        public void becameUnavailable(IdentityPacket identityPacket);
+        public void identityBecameAvailable(IdentityPacket identityPacket);
+        public void identityBecameUnavailable(IdentityPacket identityPacket);
 
         public void sentIdentity(IdentityPacket payloadIdentity, IdentityPacket recipientIdentity);
         public void sentMessage(MessagePacket messagePacket, IdentityPacket recipientIdentity);
 
-        public void receivedIdentity(IdentityPacket identityPacket);
         public void receivedMessageFromIdentity(@NonNull MessagePacket messagePacket, @Nullable IdentityPacket identityPacket);
 
     }

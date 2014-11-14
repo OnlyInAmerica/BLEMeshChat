@@ -22,6 +22,7 @@ import pro.dbro.ble.protocol.OwnedIdentityPacket;
 import pro.dbro.ble.protocol.Protocol;
 import pro.dbro.ble.transport.Transport;
 import pro.dbro.ble.transport.ble.BLETransport;
+import pro.dbro.ble.ui.Notification;
 import pro.dbro.ble.ui.activities.LogConsumer;
 
 /**
@@ -172,13 +173,24 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     /** TransportEventCallback */
 
     @Override
-    public void becameAvailable(IdentityPacket identityPacket) {
-        Log.i(TAG, String.format("%s available", identityPacket.alias));
+    public void identityBecameAvailable(IdentityPacket identityPacket) {
+        Peer availablePeer = mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identityPacket);
+
+        if (availablePeer != null) {
+            Log.i(TAG, String.format("%s available", availablePeer.getAlias()));
+            Notification.displayPeerAvailableNotification(mContext, availablePeer, true);
+            availablePeer.close();
+        }
     }
 
     @Override
-    public void becameUnavailable(IdentityPacket identityPacket) {
-        Log.i(TAG, String.format("%s unavailable", identityPacket.alias));
+    public void identityBecameUnavailable(IdentityPacket identityPacket) {
+        Peer availablePeer = mDataStore.getPeerByPubKey(identityPacket.publicKey);
+        if (availablePeer != null) {
+            Log.i(TAG, String.format("%s unavailable", availablePeer.getAlias()));
+            Notification.displayPeerAvailableNotification(mContext, availablePeer, false);
+            availablePeer.close();
+        }
     }
 
     @Override
@@ -196,15 +208,24 @@ public class ChatApp implements Transport.TransportDataProvider, Transport.Trans
     }
 
     @Override
-    public void receivedIdentity(IdentityPacket identityPacket) {
-        Log.i(TAG, String.format("Received identity for '%s' with pubkey %s", identityPacket.alias, DataUtil.bytesToHex(identityPacket.publicKey)));
-        mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(identityPacket).close();
-    }
-
-    @Override
     public void receivedMessageFromIdentity(MessagePacket messagePacket, IdentityPacket identityPacket) {
         Log.i(TAG, String.format("Received message: '%s' with sig '%s' ", messagePacket.body, DataUtil.bytesToHex(messagePacket.signature).substring(0, 3)));
-        mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket).close();
+        boolean isNewMessage = true;
+        Message existingMessage = mDataStore.getMessageBySignature(messagePacket.signature);
+        if (existingMessage != null) {
+            isNewMessage = false;
+            existingMessage.close();
+        }
+        // TODO Allow updating message already received?
+        Message message = mDataStore.createOrUpdateMessageWithProtocolMessage(messagePacket);
+
+        if (message != null && isNewMessage) {
+            Peer sender = (identityPacket == null) ? null : mDataStore.getPeerByPubKey(identityPacket.publicKey);
+            Notification.displayMessageNotification(mContext, message, sender);
+            message.close();
+            if (sender != null) sender.close();
+        }
+
         if (identityPacket != null) {
             mDataStore.markMessageDeliveredToPeer(messagePacket, identityPacket); // Never deliver this message back to peer it came from
         } else {

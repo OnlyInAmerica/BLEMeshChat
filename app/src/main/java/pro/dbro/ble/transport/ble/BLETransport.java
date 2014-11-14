@@ -6,7 +6,6 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
-import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -14,7 +13,6 @@ import android.util.Log;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.protocol.IdentityPacket;
@@ -163,11 +161,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                 Log.w(TAG, String.format("Received malformed Identity from %s, ignoring", remotePeripheral.getDevice().getAddress()));
                 return true; // Don't try again. TODO Add some retry limit
             }
-            mAddressesToIdentity.put(remotePeripheral.getDevice().getAddress(), receivedIdentityPacket);
-            if (mCallback != null) {
-                mCallback.receivedIdentity(receivedIdentityPacket);
-                mCallback.becameAvailable(receivedIdentityPacket);
-            }
+            handleIdentityBecameAvailable(remotePeripheral.getDevice().getAddress(), receivedIdentityPacket);
             logEvent(String.format("Central read identity %s..", DataUtil.bytesToHex(receivedIdentityPacket.publicKey).substring(0,3)));
 
             return isCentralRequestComplete(status);
@@ -322,13 +316,8 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
                 Log.i(TAG, "got non-empty write data! length: " + value.length);
                 IdentityPacket receivedIdentityPacket = mProtocol.deserializeIdentity(value);
 
-                if (mCallback != null) {
-                    Log.i(TAG, "delivering identity to callback: ");
-                    mCallback.receivedIdentity(receivedIdentityPacket);
-                }
+                handleIdentityBecameAvailable(remoteCentral.getAddress(), receivedIdentityPacket);
                 logEvent(String.format("Peripheral received identity %s...", DataUtil.bytesToHex(receivedIdentityPacket.publicKey).substring(0,3)));
-
-                mAddressesToIdentity.put(remoteCentral.getAddress(), receivedIdentityPacket);
             }
 
             if (responseNeeded) {
@@ -350,7 +339,7 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
     public void disconnectedFrom(String deviceAddress) {
         IdentityPacket disconnectedIdentityPacket = mAddressesToIdentity.remove(deviceAddress);
         if (disconnectedIdentityPacket != null && mCallback != null) {
-            mCallback.becameUnavailable(disconnectedIdentityPacket);
+            mCallback.identityBecameUnavailable(disconnectedIdentityPacket);
         }
     }
 
@@ -470,6 +459,14 @@ public class BLETransport extends Transport implements BLECentral.BLECentralConn
             mLogger.onLogEvent(event);
         } else {
             Log.i(TAG, event);
+        }
+    }
+
+    private void handleIdentityBecameAvailable(String fromAddress, IdentityPacket receivedIdentityPacket) {
+        if (!mAddressesToIdentity.containsKey(fromAddress)) {
+            mAddressesToIdentity.put(fromAddress, receivedIdentityPacket);
+
+            if (mCallback != null)  mCallback.identityBecameAvailable(receivedIdentityPacket);
         }
     }
 

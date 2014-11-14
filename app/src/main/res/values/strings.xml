@@ -21,6 +21,8 @@
     <string name="title_activity_main">Nearby</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="send">SEND</string>
-    <string name="message_entry_hint">Public Message</string>
+    <string name="message_entry_hint">New Public Message</string>
+    <string name="notification_new_messages">New Messages</string>
+    <string name="notification_touch_to_chat">Touch to chat</string>
 
 </resources>
