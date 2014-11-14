@@ -221,7 +221,7 @@ public class ContentProviderStore extends DataStore {
     @Override
     public Message createOrUpdateMessageWithProtocolMessage(@NonNull MessagePacket protocolMessagePacket) {
         // Query if peer exists
-        Peer peer = createOrUpdateRemotePeerWithProtocolIdentity(protocolMessagePacket.sender);
+        Peer peer = getPeerByPubKey(protocolMessagePacket.sender.publicKey);
 
         if (peer == null)
             throw new IllegalStateException("Failed to get peer for message");
