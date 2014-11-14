@@ -245,7 +245,13 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                     }
                 } else {
                     // TODO Catch NPE here to debug
-                    boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
+                    try {
+                        boolean success = localPeripheral.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, 0, null);
+                        Log.w("SendResponse", "Successful sendResponse " + success);
+                    } catch (NullPointerException e) {
+                        // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
+                        Log.w("SendResponse", "NPE on sendResponse");
+                    }
                     logEvent("Peripheral had no message for peer");
                     //Log.i(TAG, "Had no messages for peer. Sent READ_NOT_PERMITTED with success " + success);
                 }
