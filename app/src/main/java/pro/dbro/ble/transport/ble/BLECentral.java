@@ -335,7 +335,7 @@ public class BLECentral {
         String remotePeripheralAddress = remotePeripheral.getDevice().getAddress();
         ArrayDeque<BLECentralRequest> requestsForPeripheral = mRequestsForDevice.get(remotePeripheralAddress);
 
-        if (requestsForPeripheral != null) {
+        if (requestsForPeripheral != null && requestsForPeripheral.size() > 0) {
             // Check that this response is for the expected characteristic, and is expected type (READ, WRITE etc)
             if (!requestsForPeripheral.peek().mCharacteristic.getUuid().equals(characteristic.getUuid()) ||
                     requestsForPeripheral.peek().mRequestType != type) {

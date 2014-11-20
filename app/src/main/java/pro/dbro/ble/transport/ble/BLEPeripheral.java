@@ -272,14 +272,7 @@ public class BLEPeripheral {
                         // This is a fresh write request so start recording data. This will work in a bit of an opposite way from the readrequest batching
                         mCachedResponsePayloads.put(requestKey, value); // Cache the payload data in case more is coming
                         logEvent(String.format("onCharacteristicWriteRequest had %d bytes, offset : %d", value == null ? 0 : value.length, offset));
-                        if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID)) {
-                            // We know this is a one-packet response
-                            if (mResponses.containsKey(requestKey)) {
-                                // This is a fresh request
-                                mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, value);
-                                logEvent("Sent identity write to response handler");
-                            }
-                        }
+
                         if (responseNeeded) {
                             // Signal we received the write
                             try {
@@ -307,7 +300,16 @@ public class BLEPeripheral {
                             mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, updatedData);
                             logEvent("Sent message write to response handler");
                             mCachedResponsePayloads.remove(requestKey); // Clear cached data
-                        } else if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID) && responseNeeded) {
+                        }
+                        else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID) && updatedData.length == BLEProtocol.IDENTITY_RESPONSE_LENGTH) {
+                            // We've reconstructed a complete identity
+                            if (mResponses.containsKey(requestKey)) {
+                                // This is a fresh request
+                                mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, updatedData);
+                                logEvent("Sent identity write to response handler");
+                            }
+                        }
+                        else if (responseNeeded) {
                             // Signal we received the write and are ready for more data
                             try {
                                 boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
