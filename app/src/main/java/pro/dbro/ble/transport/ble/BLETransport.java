@@ -278,17 +278,16 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             IdentityPacket forRecipient = getNextIdentityForDeviceAddress(remoteCentral.getAddress(), true);
             if (forRecipient != null) {
                 // If we don't have a public key for this address, we'll only send one identity (the user's)
-                boolean haveAnotherIdentity = mConnectedAddressesToIdentities.containsKey(remoteCentral.getAddress()) && getNextIdentityForDeviceAddress(remoteCentral.getAddress(), false) != null;
                 byte[] payload = forRecipient.rawPacket;
-                int responseGattStatus = haveAnotherIdentity ? BluetoothGatt.GATT_SUCCESS : BluetoothGatt.GATT_READ_NOT_PERMITTED;
+                int responseGattStatus = BluetoothGatt.GATT_SUCCESS;
                 boolean responseSent = false;
                 try {
                     responseSent = localPeripheral.sendResponse(remoteCentral, requestId, responseGattStatus, 0, payload);
 
-                    Log.w("SendResponse", "identity read " +  (responseGattStatus == BluetoothGatt.GATT_SUCCESS ? "" : " READ_NOT_PERMITTED") + " success " + responseSent);
+                    Log.w("SendResponse", "identity read success " + responseSent);
                 } catch (NullPointerException e) {
                     // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
-                    Log.w("SendResponse", "NPE on identity read " +  (responseGattStatus == BluetoothGatt.GATT_SUCCESS ? "" : " READ_NOT_PERMITTED"));
+                    Log.w("SendResponse", "NPE on identity read");
                 }
                 //Log.i(TAG, String.format("Responded to identity read request with outgoing status %b. response sent: %b data: %s", responseGattStatus, responseSent, (payload == null || payload.length == 0) ? "null" : DataUtil.bytesToHex(payload)));
                 if (responseSent && mCallback != null) mCallback.sentIdentity(forRecipient, mConnectedAddressesToIdentities.get(remoteCentral.getAddress()));
