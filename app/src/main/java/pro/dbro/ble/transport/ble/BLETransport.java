@@ -415,7 +415,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             // Therefore we can't rely on mDataProvider.getMessagesForIdentity to not return items that were already sent
             // So we'll ensure that we only perform that request once per device address
             if (!mMessageOutboxes.containsKey(deviceKey)) {
-                ArrayDeque<MessagePacket> messagesForRecipient = mDataProvider.getMessagesForIdentity(null, IDENTITIES_PER_RESPONSE);
+                ArrayDeque<MessagePacket> messagesForRecipient = mDataProvider.getMessagesForIdentity(null, MESSAGES_PER_RESPONSE);
                 mMessageOutboxes.put(deviceKey, messagesForRecipient);
             } else {
                 // We've already sent our own Identity for this identity-less peer
