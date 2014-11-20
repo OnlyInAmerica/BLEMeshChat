@@ -390,6 +390,13 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
                 Log.i(TAG, "Could not report disconnect to " + deviceAddress);
             }
         }
+
+        // Remove this device address from our outboxes map
+        // This will enable the device to receive a single identity and message response
+        // on next connection before it has provided its identity
+        mIdentitiesOutboxes.remove(deviceAddress);
+        mMessageOutboxes.remove(deviceAddress);
+
     }
 
     /** Utility */
