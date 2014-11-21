@@ -38,7 +38,7 @@ public abstract class BLECentralRequest {
                     mCharacteristic.setValue(dataToWrite);
                     success = remotePeripheral.writeCharacteristic(mCharacteristic);
                 } else {
-                    Log.i(TAG, "getDataToWrite returned null, no request made for this peripheral");
+                    Log.i(TAG, GATT.getNameForCharacteristic(mCharacteristic) + ". no data to send to this peripheral");
                 }
                 break;
         }
