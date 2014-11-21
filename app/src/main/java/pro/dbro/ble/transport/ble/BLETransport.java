@@ -394,6 +394,7 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
         // Remove this device address from our outboxes map
         // This will enable the device to receive a single identity and message response
         // on next connection before it has provided its identity
+        Log.i(TAG, String.format("Removing %s from outboxes", deviceAddress));
         mIdentitiesOutboxes.remove(deviceAddress);
         mMessageOutboxes.remove(deviceAddress);
 
@@ -424,9 +425,9 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             if (!mMessageOutboxes.containsKey(deviceKey)) {
                 ArrayDeque<MessagePacket> messagesForRecipient = mDataProvider.getMessagesForIdentity(null, MESSAGES_PER_RESPONSE);
                 mMessageOutboxes.put(deviceKey, messagesForRecipient);
-            } else {
+            } else if (mMessageOutboxes.get(deviceKey).size() == 0) {
                 // We've already sent our own Identity for this identity-less peer
-                Log.i(TAG, "Returning null for nextMessage to " + address);
+                Log.i(TAG, "Already sent single message response to " + address + ". Returning null");
                 return null;
             }
         }
@@ -451,9 +452,9 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             if (!mIdentitiesOutboxes.containsKey(deviceKey)) {
                 ArrayDeque<IdentityPacket> identitiesForRecipient = mDataProvider.getIdentitiesForIdentity(null, IDENTITIES_PER_RESPONSE);
                 mIdentitiesOutboxes.put(deviceKey, identitiesForRecipient);
-            } else {
+            } else if (mIdentitiesOutboxes.get(deviceKey).size() == 0) {
                 // We've already sent our own Identity for this identity-less peer
-                Log.i(TAG, "Returning null for nextIdentity to " + address);
+                Log.i(TAG, "Already sent single identity response to " + address + ". Returning null");
                 return null;
             }
         }
