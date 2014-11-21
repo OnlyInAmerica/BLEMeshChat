@@ -48,6 +48,12 @@ public class BLEPeripheral {
      */
     private HashMap<Pair<UUID, BLEPeripheralResponse.RequestType>, byte[]> mCachedResponsePayloads = new HashMap<>();
 
+    /** Set this value on each call to onCharacteristicWrite. If onExecuteWrite() is called before
+     * all data is collected via calls to onCharacteristicWriteRequest,
+     * use this key to resume the write request at the appropriate offset.
+     */
+    private Pair<UUID, BLEPeripheralResponse.RequestType> mLastRequestKey;
+
     public interface BLEPeripheralConnectionGovernor {
         public boolean shouldConnectToCentral(BluetoothDevice potentialPeer);
     }
@@ -217,36 +223,44 @@ public class BLEPeripheral {
                 logEvent(String.format("onCharacteristicReadRequest for request %d on characteristic %s with offset %d", requestId, characteristic.getUuid().toString().substring(0,3), offset));
 
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
-                if (localCharacteristic != null) {
-                    Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.READ);
+                Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.READ);
+
+                if (localCharacteristic != null || !mResponses.containsKey(requestKey)) {
+                    byte[] cachedResponse = null;
                     if (offset > 0) {
                         // This is a framework-generated follow-up request for another section of data
-                        byte[] cachedResponse = mCachedResponsePayloads.get(requestKey);
-                        byte[] toSend = new byte[cachedResponse.length - offset];
-                        System.arraycopy(cachedResponse, offset, toSend, 0, toSend.length);
-                        logEvent(String.format("Sending extended response chunk for offset %d : %s", offset, DataUtil.bytesToHex(toSend)));
-                        try {
-                            boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, toSend);
-                            Log.w("SendResponse", "oncharacteristicread follow-up success: " + success);
-                        } catch (NullPointerException e) {
-                            // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
-                            Log.w("SendResponse", "NPE on oncharacteristicread follow-up");
-                        }
+                        cachedResponse = mCachedResponsePayloads.get(requestKey);
                     } else if (mResponses.containsKey(requestKey)) {
                         // This is a fresh request with a registered response
-                        byte[] cachedResponse = mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, false, true, null);
-                        if (cachedResponse != null) mCachedResponsePayloads.put(requestKey, cachedResponse);
-                    } else {
-                        logEvent(String.format("No %s response registered for characteristic %s", requestKey.second, characteristic.getUuid().toString()));
-                        // No response registered for this request. Send GATT_FAILURE
-                        try {
-                            boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 }); // Got NPE if sending null value
-                            Log.w("SendResponse", "oncharacteristicread failure. success: " + success);
-                        } catch (NullPointerException e) {
-                            // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
-                            Log.w("SendResponse", "NPE oncharacteristicread failure");
+                        cachedResponse = mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, false, true, null);
+                        if (cachedResponse != null) {
+                            // If a request was necessary, cache the result here
+                            mCachedResponsePayloads.put(requestKey, cachedResponse);
+                        } else {
+                            // No data was available for peer.
+                            mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, offset, null);
+                            return;
                         }
                     }
+
+                    if (cachedResponse == null) {
+                        // A request with nonzero offset came through before the initial zero offset request
+                        Log.w(TAG, "Invalid request order! Did a nonzero offset request come first?");
+                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_READ_NOT_PERMITTED, offset, null);
+                        return;
+                    }
+
+                    byte[] toSend = new byte[cachedResponse.length - offset];
+                    System.arraycopy(cachedResponse, offset, toSend, 0, toSend.length);
+                    logEvent(String.format("Sending extended response chunk for offset %d : %s", offset, DataUtil.bytesToHex(toSend)));
+                    try {
+                        boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, toSend);
+                        Log.w("SendResponse", "oncharacteristicread follow-up success: " + success);
+                    } catch (NullPointerException e) {
+                        // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
+                        Log.w("SendResponse", "NPE on oncharacteristicread follow-up");
+                    }
+
                 } else {
                     logEvent("CharacteristicReadRequest. Unrecognized characteristic " + characteristic.getUuid().toString());
                     // Request for unrecognized characteristic. Send GATT_FAILURE
@@ -267,16 +281,22 @@ public class BLEPeripheral {
 
                 BluetoothGattCharacteristic localCharacteristic = mGattServer.getService(GATT.SERVICE_UUID).getCharacteristic(characteristic.getUuid());
                 if (localCharacteristic != null) {
+                    byte[] updatedData;
                     Pair<UUID, BLEPeripheralResponse.RequestType> requestKey = new Pair<>(characteristic.getUuid(), BLEPeripheralResponse.RequestType.WRITE);
+                    if (!mResponses.containsKey(requestKey)) {
+                        Log.e(TAG, "onCharacteristicWrite for request (" + GATT.getNameForCharacteristic(characteristic) + " without registered response! Ignoring");
+                        return;
+                    }
                     if (offset == 0) {
-                        // This is a fresh write request so start recording data. This will work in a bit of an opposite way from the readrequest batching
-                        mCachedResponsePayloads.put(requestKey, value); // Cache the payload data in case more is coming
-                        logEvent(String.format("onCharacteristicWriteRequest had %d bytes, offset : %d", value == null ? 0 : value.length, offset));
+                        // This is a fresh write request so start recording data.
+                        updatedData = value;
+                        mCachedResponsePayloads.put(requestKey, updatedData); // Cache the payload data in case more is coming
+                        logEvent(String.format("onCharacteristicWriteRequest had %d bytes, offset : %d", updatedData == null ? 0 : updatedData.length, offset));
 
                         if (responseNeeded) {
                             // Signal we received the write
                             try {
-                                boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
+                                boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, updatedData);
                                 Log.w("SendResponse", "oncharwrite success: " + success);
                             } catch (NullPointerException e) {
                                 // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
@@ -285,58 +305,45 @@ public class BLEPeripheral {
                             logEvent("Notifying central we received data");
                         }
                     } else {
-                        // this is a subsequent request with more data
+                        // this is a subsequent request with more data. Append to what we've received so far
                         byte[] cachedResponse = mCachedResponsePayloads.get(requestKey);
                         int cachedResponseLength = (cachedResponse == null ? 0 : cachedResponse.length);
                         //if (cachedResponse.length != offset) logEvent(String.format("Got more data. Original payload len %d. offset %d (should be equal)", cachedResponse.length, offset));
-                        byte[] updatedData = new byte[cachedResponseLength + value.length];
+                        updatedData = new byte[cachedResponseLength + value.length];
                         if (cachedResponseLength > 0)
                             System.arraycopy(cachedResponse, 0, updatedData, 0, cachedResponseLength);
 
                         System.arraycopy(value, 0, updatedData, cachedResponseLength, value.length);
-                        logEvent(String.format("Got %d bytes for write request", updatedData.length));
-                        if (characteristic.getUuid().equals(GATT.MESSAGES_WRITE_UUID) && updatedData.length == BLEProtocol.MESSAGE_RESPONSE_LENGTH) {
-                            // We've reconstructed a complete message
-                            mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, updatedData);
-                            logEvent("Sent message write to response handler");
-                            mCachedResponsePayloads.remove(requestKey); // Clear cached data
-                        }
-                        else if (characteristic.getUuid().equals(GATT.IDENTITY_WRITE_UUID) && updatedData.length == BLEProtocol.IDENTITY_RESPONSE_LENGTH) {
-                            // We've reconstructed a complete identity
-                            if (mResponses.containsKey(requestKey)) {
-                                // This is a fresh request
-                                mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, updatedData);
-                                logEvent("Sent identity write to response handler");
-                            }
-                        }
-                        else if (responseNeeded) {
-                            // Signal we received the write and are ready for more data
-                            try {
-                                boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
-
-                                Log.w("SendResponse", "oncharwrite follow-up success: " + success);
-                            } catch (NullPointerException e) {
-                                // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
-                                Log.w("SendResponse", "NPE oncharwrite follow-up");
-                            }
-                            logEvent("Notifying central we received data");
-                            mCachedResponsePayloads.put(requestKey, updatedData);
-                        }
+                        logEvent(String.format("Got %d bytes for write request. New bytes: %s", updatedData.length, DataUtil.bytesToHex(value)));
+                        logEvent(String.format("Accumulated bytes: %s", DataUtil.bytesToHex(updatedData)));
                     }
-//                    else if (mResponses.containsKey(requestKey)) {
-//                        // This is a fresh request
-//                        mResponses.get(requestKey).respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, value);
-//                    }
-//                    else {
-//                        // No response registered for this request. Send GATT_FAILURE
-//                        logEvent(String.format("No %s response registered for characteristic %s", requestKey.second, characteristic.getUuid().toString()));
-//                        mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 });
-//                    }
+
+                    BLEPeripheralResponse response = mResponses.get(requestKey);
+                    if (response.getExpectedPayloadLength() == updatedData.length) {
+                        // We've accumulated all the data we need!
+                        logEvent(String.format("Accumulated all data for %s request ", GATT.getNameForCharacteristic(response.mCharacteristic)));
+                        response.respondToRequest(mGattServer, remoteCentral, requestId, characteristic, preparedWrite, responseNeeded, updatedData);
+                        mCachedResponsePayloads.remove(requestKey);
+                    } else if (responseNeeded) {
+                        // Signal we received the partial write and are ready for more data
+                        try {
+                            boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
+
+                            Log.w("SendResponse", "oncharwrite follow-up success: " + success);
+                        } catch (NullPointerException e) {
+                            // On Nexus 5 possibly an issue in the Broadcom IBluetoothGatt implementation
+                            Log.w("SendResponse", "NPE oncharwrite follow-up");
+                        }
+                        logEvent("Notifying central we received data");
+                        mCachedResponsePayloads.put(requestKey, updatedData);
+                        mLastRequestKey = requestKey;
+                    }
+
                 } else {
                     logEvent("CharacteristicWriteRequest. Unrecognized characteristic " + characteristic.getUuid().toString());
                     // Request for unrecognized characteristic. Send GATT_FAILURE
                     try {
-                        boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, new byte[] { 0x00 });
+                        boolean success = mGattServer.sendResponse(remoteCentral, requestId, BluetoothGatt.GATT_FAILURE, 0, null);
 
                         Log.w("SendResponse", "write request gatt failure success " + success);
                     } catch (NullPointerException e) {
@@ -361,7 +368,12 @@ public class BLEPeripheral {
 
             @Override
             public void onExecuteWrite(BluetoothDevice device, int requestId, boolean execute) {
-                logEvent("onExecuteWrite" + device.toString());
+                logEvent("onExecuteWrite " + device.toString() + " requestId " + requestId + " Last request key " + mLastRequestKey);
+                if (mCachedResponsePayloads.containsKey(mLastRequestKey)) {
+                    logEvent("onExecuteWrite called before request finished for " + mLastRequestKey.first);
+                    // TODO : What is the purpose of this method? I can't call sendRespone without BluetoothGattCharacteristic
+                    // and other parameters from onCharacteristicWrite
+                }
                 super.onExecuteWrite(device, requestId, execute);
             }
         };

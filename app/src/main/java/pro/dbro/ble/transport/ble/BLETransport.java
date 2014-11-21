@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import pro.dbro.ble.data.model.DataUtil;
+import pro.dbro.ble.protocol.BLEProtocol;
 import pro.dbro.ble.protocol.IdentityPacket;
 import pro.dbro.ble.protocol.MessagePacket;
 import pro.dbro.ble.protocol.Protocol;
@@ -335,6 +336,8 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             logEvent(String.format("Peripheral received message %s", receivedMessagePacket.body));
             return null;
         }
+
+        public int getExpectedPayloadLength() { return BLEProtocol.MESSAGE_RESPONSE_LENGTH; }
     };
 
     BLEPeripheralResponse mIdentityWriteResponse = new BLEPeripheralResponse(GATT.IDENTITY_WRITE, BLEPeripheralResponse.RequestType.WRITE) {
@@ -365,6 +368,9 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
             }
             return null;
         }
+
+        public int getExpectedPayloadLength() { return BLEProtocol.IDENTITY_RESPONSE_LENGTH; }
+
     };
 
     /** ConnectionListener */

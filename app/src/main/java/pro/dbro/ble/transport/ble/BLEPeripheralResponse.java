@@ -26,4 +26,12 @@ public abstract class BLEPeripheralResponse {
     public abstract byte[] respondToRequest(BluetoothGattServer localPeripheral, BluetoothDevice remoteCentral,
                                           int requestId, BluetoothGattCharacteristic characteristic,
                                           boolean preparedWrite, boolean responseNeeded, byte[] value);
+
+    /**
+     * Required for WRITE requests.
+     *
+     * @return the expected payload length in bytes. respondToRequest will be called when
+     * the received data from the Central matches the value returned here.
+     */
+    public int getExpectedPayloadLength() { return 0; }
 }
