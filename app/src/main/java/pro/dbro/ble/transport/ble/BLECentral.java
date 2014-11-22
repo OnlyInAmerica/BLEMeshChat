@@ -60,7 +60,7 @@ public class BLECentral {
      */
     private Set<String> mConnectingDevices = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     /**
-     * Map of Characteristic UUID to BLECentralRequests registered via {@link #addDefaultBLECentralRequest(BLECentralRequest)}
+     * Map of Characteristic UUID to BLECentralRequests registered via {@link #addRequest(BLECentralRequest)}
      * This is required because I'm currently unable to execute a GATT operation on the remote peripheral without using the
      * characteristic instance returned to onServicesDiscovered. Therefore I have to swap out the characteristic
      * in each request with the instance received onServicesDiscovered. This map helps this process.
@@ -117,9 +117,9 @@ public class BLECentral {
 
     /**
      * Add a {@link pro.dbro.ble.transport.ble.BLECentralRequest} to be performed
-     * on each peripheral discovered
+     * on each peripheral discovered. Requests are performed sequentially in the order they are added.
      */
-    public void addDefaultBLECentralRequest(BLECentralRequest request) {
+    public void addRequest(BLECentralRequest request) {
         mDefaultRequests.add(request);
         mCharacteristicUUIDToRequest.put(new Pair<>(request.mCharacteristic.getUuid(), request.mRequestType), request);
     }

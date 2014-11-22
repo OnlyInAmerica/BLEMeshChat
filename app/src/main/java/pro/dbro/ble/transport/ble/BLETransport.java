@@ -86,23 +86,24 @@ public class BLETransport extends Transport implements ConnectionGovernor, Conne
 
     private void init() {
         mCentral = new BLECentral(mContext);
+
         mCentral.setConnectionGovernor(this);
         mCentral.setConnectionListener(this);
-        // These Central requests are executed in order
-        // Note the local Identity must be first presented to the remote peer
-        // so that it can calculate which identities to present back
-        mCentral.addDefaultBLECentralRequest(mIdentityWriteRequest);
-        mCentral.addDefaultBLECentralRequest(mIdentityReadRequest);
-        mCentral.addDefaultBLECentralRequest(mMessageReadRequest);
-        mCentral.addDefaultBLECentralRequest(mMessageWriteRequest);
+
+        mCentral.addRequest(mIdentityWriteRequest);
+        mCentral.addRequest(mIdentityReadRequest);
+        mCentral.addRequest(mMessageReadRequest);
+        mCentral.addRequest(mMessageWriteRequest);
 
         mPeripheral = new BLEPeripheral(mContext);
+
         mPeripheral.setConnectionGovernor(this);
         mPeripheral.setConnectionListener(this);
-        mPeripheral.addDefaultBLEPeripheralResponse(mMessageReadResponse);
-        mPeripheral.addDefaultBLEPeripheralResponse(mIdentityReadResponse);
-        mPeripheral.addDefaultBLEPeripheralResponse(mMessageWriteResponse);
-        mPeripheral.addDefaultBLEPeripheralResponse(mIdentityWriteResponse);
+
+        mPeripheral.addResponse(mMessageReadResponse);
+        mPeripheral.addResponse(mIdentityReadResponse);
+        mPeripheral.addResponse(mMessageWriteResponse);
+        mPeripheral.addResponse(mIdentityWriteResponse);
     }
 
     /** ConnectionGovernor */

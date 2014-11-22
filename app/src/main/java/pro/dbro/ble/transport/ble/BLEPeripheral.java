@@ -123,7 +123,7 @@ public class BLEPeripheral {
         return mGattServer;
     }
 
-    public void addDefaultBLEPeripheralResponse(BLEPeripheralResponse response) {
+    public void addResponse(BLEPeripheralResponse response) {
         Pair<UUID, BLEPeripheralResponse.RequestType> requestFilter = new Pair<>(response.mCharacteristic.getUuid(), response.mRequestType);
         mResponses.put(requestFilter, response);
         logEvent(String.format("Registered %s response for %s", requestFilter.second, requestFilter.first));
