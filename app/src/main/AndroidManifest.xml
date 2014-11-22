@@ -12,8 +12,7 @@
         android:theme="@style/AppTheme" >
         <provider
             android:name=".schematic.ChatContentProvider"
-            android:authorities="pro.dbro.ble.chatprovider"
-            android:exported="true">
+            android:authorities="pro.dbro.ble.chatprovider">
         </provider>
 
         <service android:name=".ChatService" />
