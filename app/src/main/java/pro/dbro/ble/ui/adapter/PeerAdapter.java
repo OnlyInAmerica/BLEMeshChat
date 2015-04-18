@@ -9,6 +9,7 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 
+import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.DataStore;
 import pro.dbro.ble.data.model.Message;
@@ -25,9 +26,12 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
     // (custom viewholder)
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public TextView mTextView;
+        SymmetricIdenticon mIdenticon;
+
         public ViewHolder(View v) {
             super(v);
-            mTextView = (TextView) v.findViewById(R.id.text);
+            mTextView = (TextView) v.findViewById(R.id.username);
+            mIdenticon = (SymmetricIdenticon) v.findViewById(R.id.identicon);
         }
     }
 
@@ -46,12 +50,6 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
                 .inflate(R.layout.peer_item, parent, false);
         // set the view's size, margins, paddings and layout parameters
         ViewHolder vh = new ViewHolder(v);
-//        vh.mSenderView.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                // TODO
-//            }
-//        });
         return vh;
     }
 
@@ -60,8 +58,9 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
     public void onBindViewHolder(ViewHolder holder, int position) {
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
-        holder.mTextView.setText(mPeers.get(position).getAlias());
-
+        Peer peer = mPeers.get(position);
+        holder.mTextView.setText(peer.getAlias());
+        holder.mIdenticon.show(new String(peer.getPublicKey()));
     }
 
     // Return the size of your dataset (invoked by the layout manager)

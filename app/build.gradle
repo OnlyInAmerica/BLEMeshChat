@@ -36,9 +36,10 @@ dependencies {
     compile 'net.simonvt.schematic:schematic:0.5.3'
     compile 'com.android.support:support-annotations:20.0.0'
     compile 'com.jakewharton:butterknife:5.1.2'
-    compile 'com.android.support:recyclerview-v7:21.0.0'
+    compile 'com.android.support:recyclerview-v7:21.0.3'
     compile 'com.android.support:cardview-v7:21.0.0'
     compile 'com.android.support:palette-v7:21.0.0'
+    compile 'com.nispok:snackbar:2.10.6'
 }
 
 apt {

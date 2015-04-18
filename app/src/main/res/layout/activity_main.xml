@@ -16,8 +16,16 @@
         <Toolbar
             android:id="@+id/my_awesome_toolbar"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:background="@color/primary" />
+            android:layout_height="50dp"
+            android:background="@color/primary">
+
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/peer_recyclerview"
+                android:layout_marginTop="8dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"/>
+
+        </Toolbar>
         <!-- on API 21 background will be ?attr/colorPrimary -->
         <!-- on API 21 minHeight will be ?attr/actionBarSize-->
 
@@ -60,12 +68,12 @@
                 android:id="@+id/onlineSwitch"
                 android:layout_width="40dp"
                 android:layout_height="wrap_content"
+                android:layout_alignBottom="@id/profileIdenticon"
                 android:layout_alignParentEnd="true"
                 android:layout_alignParentTop="true"
-                android:layout_alignBottom="@id/profileIdenticon"
                 android:layout_below="@id/profileIdenticon"
-                android:gravity="center_vertical"
-                android:enabled="false"/>
+                android:enabled="false"
+                android:gravity="center_vertical" />
 
             <TextView
                 android:id="@+id/profileName"

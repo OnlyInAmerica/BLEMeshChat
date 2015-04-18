@@ -5,7 +5,10 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -16,40 +19,46 @@ import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import com.nispok.snackbar.Snackbar;
+
+import java.util.ArrayList;
+
 import butterknife.ButterKnife;
 import butterknife.InjectView;
 import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.airshare.app.AirShareService;
 import pro.dbro.airshare.app.ui.AirShareFragment;
 import pro.dbro.ble.ChatClient;
+import pro.dbro.ble.ChatPeerFlow;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.OwnedIdentityPacket;
+import pro.dbro.ble.ui.adapter.PeerAdapter;
 import pro.dbro.ble.ui.fragment.MessageListFragment;
 import timber.log.Timber;
 
 public class MainActivity extends Activity implements LogConsumer,
                                                       AirShareFragment.AirShareCallback,
-                                                      MessageListFragment.ChatFragmentCallback {
+                                                      MessageListFragment.ChatFragmentCallback, ChatClient.Callback {
 
     public static final String TAG = "MainActivity";
 
-//    public ChatService.ChatServiceBinder mChatServiceBinder;
-
-    //private PeerListFragment mPeerListFragment;
     private MessageListFragment mMessageListFragment;
     private OwnedIdentityPacket mUserIdentity;
 
-    private AlertDialog mBluetoothEnableDialog;
-
     private ChatClient mClient;
     private AirShareFragment mAirShareFragment;
+
+    private PeerAdapter mPeerAdapter;
 
     @InjectView(R.id.onlineSwitch)
     Switch mOnlineSwitch;
 
     @InjectView(R.id.log)
     TextView mLogView;
+
+    @InjectView(R.id.peer_recyclerview)
+    RecyclerView mPeerRecyclerView;
 
     private String mNewUsername;
 
@@ -90,6 +99,10 @@ public class MainActivity extends Activity implements LogConsumer,
                                 .add(mAirShareFragment, "airshare")
                                 .commit();
         }
+
+        mPeerAdapter = new PeerAdapter(this, new ArrayList<Peer>());
+        mPeerRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        mPeerRecyclerView.setAdapter(mPeerAdapter);
     }
 
     /**
@@ -222,6 +235,7 @@ public class MainActivity extends Activity implements LogConsumer,
 
         mClient.setAirShareServiceBinder(serviceBinder);
         mClient.makeAvailable();
+        mClient.setCallback(this);
         mOnlineSwitch.setChecked(true);
         mOnlineSwitch.setEnabled(true);
         revealChatViews();
@@ -235,5 +249,28 @@ public class MainActivity extends Activity implements LogConsumer,
     @Override
     public void onMessageSendRequested(String message) {
         mClient.sendPublicMessageFromPrimaryIdentity(message);
+    }
+
+    @Override
+    public void onAppPeerStatusUpdated(@NonNull Peer remotePeer, @NonNull ChatPeerFlow.Callback.ConnectionStatus status) {
+        // TODO : Should abandon the CursorModel idea and have immutable
+        // model **views**
+        Snackbar.with(getApplicationContext())
+                .text(String.format("%s %s",
+                                    remotePeer.getAlias(),
+                                    status == ChatPeerFlow.Callback.ConnectionStatus.CONNECTED ? "connected" : "disconnected"))
+        .show(this);
+
+        /*
+        switch (status) {
+            case CONNECTED:
+                mPeerAdapter.notifyPeerAdded(remotePeer);
+                break;
+
+            case DISCONNECTED:
+                mPeerAdapter.notifyPeerRemoved(remotePeer);
+                break;
+        }
+        */
     }
 }

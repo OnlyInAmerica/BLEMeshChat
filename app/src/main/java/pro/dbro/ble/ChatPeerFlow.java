@@ -49,11 +49,17 @@ public class ChatPeerFlow {
 
         public static enum ConnectionStatus { CONNECTED, DISCONNECTED }
 
-        public void onAppPeerStatusUpdated(@NonNull pro.dbro.ble.data.model.Peer peer, @NonNull ConnectionStatus status);
+        public void onAppPeerStatusUpdated(@NonNull ChatPeerFlow flow,
+                                           @NonNull pro.dbro.ble.data.model.Peer peer,
+                                           @NonNull ConnectionStatus status);
 
-        public void onMessageSent(@NonNull Message message, @NonNull pro.dbro.ble.data.model.Peer recipient);
+        public void onMessageSent(@NonNull ChatPeerFlow flow,
+                                  @NonNull Message message,
+                                  @NonNull pro.dbro.ble.data.model.Peer recipient);
 
-        public void onMessageReceived(@NonNull Message message, @Nullable pro.dbro.ble.data.model.Peer sender);
+        public void onMessageReceived(@NonNull ChatPeerFlow flow,
+                                      @NonNull Message message,
+                                      @Nullable pro.dbro.ble.data.model.Peer sender);
 
     }
 
@@ -99,6 +105,10 @@ public class ChatPeerFlow {
 
     public boolean isComplete() {
         return mIsComplete;
+    }
+
+    public Peer getRemoteAirSharePeer() {
+        return mRemoteAirSharePeer;
     }
 
     public void queueMessage(MessagePacket message) {
@@ -166,7 +176,7 @@ public class ChatPeerFlow {
                         Message msg = mDataStore.createOrUpdateMessageWithProtocolMessage(msgPkt);
                         // Mark incoming messages as delivered to sender
                         mDataStore.markMessageDeliveredToPeer(msgPkt, mRemoteIdentity);
-                        mCallback.onMessageSent(msg, mDataStore.getPeerByPubKey(mRemoteIdentity.publicKey));
+                        mCallback.onMessageSent(this, msg, mDataStore.getPeerByPubKey(mRemoteIdentity.publicKey));
 
                         mMessageOutbox.poll();
 
@@ -219,7 +229,7 @@ public class ChatPeerFlow {
                         Timber.d("Got remote identity for %s", mRemoteIdentity.alias);
                         pro.dbro.ble.data.model.Peer remotePeer = mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(mRemoteIdentity);
                         // TODO: If we send multiple identities, establish standard that first identity belongs to connected peer
-                        mCallback.onAppPeerStatusUpdated(remotePeer, Callback.ConnectionStatus.CONNECTED);
+                        mCallback.onAppPeerStatusUpdated(this, remotePeer, Callback.ConnectionStatus.CONNECTED);
                         break;
 
                     case NoDataPacket.TYPE:
@@ -258,7 +268,7 @@ public class ChatPeerFlow {
                         mDataStore.markMessageDeliveredToPeer(msgPkt, mRemoteIdentity);
 
                         if (isNewMessage)
-                            mCallback.onMessageReceived(msg, mDataStore.getPeerByPubKey(mRemoteIdentity.publicKey));
+                            mCallback.onMessageReceived(this, msg, mDataStore.getPeerByPubKey(mRemoteIdentity.publicKey));
 
                         break;
 

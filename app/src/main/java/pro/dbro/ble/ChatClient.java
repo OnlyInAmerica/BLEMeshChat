@@ -33,6 +33,12 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
                                 AirShareService.AirShareSenderCallback,
                                 ChatPeerFlow.DataOutlet, ChatPeerFlow.Callback {
 
+    public static interface Callback {
+        /** Client should not invoke remotePeer#close() */
+        public void onAppPeerStatusUpdated(@NonNull Peer remotePeer,
+                                           @NonNull ConnectionStatus status);
+    }
+
     public static final String TAG = "ChatApp";
     public static final String AIRSHARE_SERVICE_NAME = "BLEMeshChat";
 
@@ -40,6 +46,7 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
     private DataStore mDataStore;
     private Protocol  mProtocol;
     private AirShareService.ServiceBinder mAirShareServiceBinder;
+    private Callback mCallback;
 
     private HashMap<pro.dbro.airshare.session.Peer, ChatPeerFlow> mFlows = new HashMap<>();
 
@@ -63,6 +70,10 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
         mAirShareServiceBinder.setPeerCallback(this);
         mAirShareServiceBinder.setReceiverCallback(this);
         mAirShareServiceBinder.setSenderCallback(this);
+    }
+
+    public void setCallback(Callback callback) {
+        mCallback = callback;
     }
 
     // <editor-fold desc="Identity & Availability">
@@ -140,28 +151,24 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
     // <editor-fold desc="Private API">
 
     @Override
-    public void onAppPeerStatusUpdated(@NonNull Peer remotePeer,
+    public void onAppPeerStatusUpdated(@NonNull ChatPeerFlow flow,
+                                       @NonNull Peer remotePeer,
                                        @NonNull ConnectionStatus status) {
 
         Timber.d("%s %s", remotePeer.getAlias(), status == ConnectionStatus.CONNECTED ? "connected" : "disconnected");
+        if (mCallback != null)
+            mCallback.onAppPeerStatusUpdated(remotePeer, status);
 
         if (!mAirShareServiceBinder.isActivityReceivingMessages())
             Notification.displayPeerAvailableNotification(mContext, remotePeer, status == ConnectionStatus.CONNECTED);
 
-        pro.dbro.airshare.session.Peer airSharePeer = mConnectedPeers.inverse().get(remotePeer.getId());
-
-        if (airSharePeer == null) {
-            Timber.w("Could not find AirShare peer record for application peer on %s", status == ConnectionStatus.CONNECTED ? "connection" : "disconnection");
-            return;
-        }
-
         switch (status) {
             case CONNECTED:
-                mConnectedPeers.put(airSharePeer, remotePeer.getId());
+                mConnectedPeers.put(flow.getRemoteAirSharePeer(), remotePeer.getId());
                 break;
 
             case DISCONNECTED:
-                mConnectedPeers.remove(airSharePeer);
+                mConnectedPeers.remove(flow.getRemoteAirSharePeer());
                 break;
         }
 
@@ -169,7 +176,7 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
     }
 
     @Override
-    public void onMessageSent(@NonNull Message message, @NonNull Peer recipient) {
+    public void onMessageSent(@NonNull ChatPeerFlow flow, @NonNull Message message, @NonNull Peer recipient) {
         Timber.d("Sent message: '%s'", message.getBody());
         // TODO : Might be unnecessary
         message.close();
@@ -177,7 +184,7 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
     }
 
     @Override
-    public void onMessageReceived(@NonNull Message message, Peer sender) {
+    public void onMessageReceived(@NonNull ChatPeerFlow flow, @NonNull Message message, Peer sender) {
         Timber.d("Received message: '%s' with sig '%s' ", message.getBody(), DataUtil.bytesToHex(message.getSignature()).substring(0, 3));
 
         // We don't check that mAirShareServiceBinder is not null because this callback is provoked
@@ -208,7 +215,7 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
 
             int blePeerId = mConnectedPeers.get(peer);
             Peer remotePeer = mDataStore.getPeerById(blePeerId);
-            onAppPeerStatusUpdated(remotePeer, ConnectionStatus.DISCONNECTED);
+            onAppPeerStatusUpdated(mFlows.get(peer), remotePeer, ConnectionStatus.DISCONNECTED);
         }
     }
 
