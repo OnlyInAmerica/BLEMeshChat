@@ -23,8 +23,9 @@ public class BLEProtocol implements Protocol {
     public static final byte VERSION = 0x01;
 
     /** Identity */
-    public static final int MESSAGE_RESPONSE_LENGTH    = 309;  // bytes
-    public static final int IDENTITY_RESPONSE_LENGTH   = 140;  // bytes
+    public static final int NODATA_RESPONSE_LENGTH     = 106;  // bytes
+    public static final int MESSAGE_RESPONSE_LENGTH    = 310;  // bytes
+    public static final int IDENTITY_RESPONSE_LENGTH   = 141;  // bytes
     public static final int MESSAGE_BODY_LENGTH        = 140;  // bytes
     public static final int ALIAS_LENGTH               = 35;   // bytes
 
@@ -39,6 +40,10 @@ public class BLEProtocol implements Protocol {
      * Create raw transmission data from protocol Objects
     */
 
+    // TODO : Make this API consistent. Either all byte[] or all Packet structures
+    // The below method would be unnecessary if we ensured the rawPacket attribute
+    // was created on OwnedIdentityPacket's construction. We should only ever have
+    // to serialize our own identity. Every other identity is received serialized.
     @Nullable
     public byte[] serializeIdentity(@NonNull OwnedIdentityPacket ownedIdentity) {
         // Protocol version 1
@@ -47,6 +52,7 @@ public class BLEProtocol implements Protocol {
             byte[] identity = new byte[IDENTITY_RESPONSE_LENGTH];
             int writeIndex = 0;
             writeIndex += addVersionToBuffer(identity, writeIndex);
+            writeIndex += addTypeToBuffer(identity, IdentityPacket.TYPE, writeIndex);
             writeIndex += addTimestampToBuffer(identity, writeIndex);
             writeIndex += addPublicKeyToBuffer(ownedIdentity.publicKey, identity, writeIndex);
             writeIndex += addAliasToBuffer(ownedIdentity.alias, identity, writeIndex);
@@ -63,6 +69,7 @@ public class BLEProtocol implements Protocol {
         return null;
     }
 
+    @Nullable
     public MessagePacket serializeMessage(@NonNull OwnedIdentityPacket ownedIdentity, String body) {
         // Protocol version 1
         //[[version=1][timestamp=8][sender_public_key=32][message=140][reply_signature=64]][signature=64]
@@ -70,6 +77,7 @@ public class BLEProtocol implements Protocol {
             byte[] message = new byte[MESSAGE_RESPONSE_LENGTH];
             int writeIndex = 0;
             writeIndex += addVersionToBuffer(message, writeIndex);
+            writeIndex += addTypeToBuffer(message, MessagePacket.TYPE, writeIndex);
             writeIndex += addTimestampToBuffer(message, writeIndex);
             writeIndex += addPublicKeyToBuffer(ownedIdentity.publicKey, message, writeIndex);
             writeIndex += addMessageBodyToBuffer(body, message, writeIndex);
@@ -87,6 +95,22 @@ public class BLEProtocol implements Protocol {
         return null;
     }
 
+    @NonNull
+    public NoDataPacket serializeNoDataPacket(@NonNull OwnedIdentityPacket ownedIdentity) {
+        byte[] noDataPkt = new byte[NODATA_RESPONSE_LENGTH];
+        int writeIndex = 0;
+        writeIndex += addVersionToBuffer(noDataPkt, writeIndex);
+        writeIndex += addTypeToBuffer(noDataPkt, NoDataPacket.TYPE, writeIndex);
+        writeIndex += addTimestampToBuffer(noDataPkt, writeIndex);
+        writeIndex += addPublicKeyToBuffer(ownedIdentity.publicKey, noDataPkt, writeIndex);
+        writeIndex += addSignatureToBuffer(ownedIdentity.secretKey, noDataPkt, writeIndex);
+
+        if (writeIndex != NODATA_RESPONSE_LENGTH)
+            throw new IllegalStateException("Generated Message does not match expected length");
+
+        return deserializeNoDataPacket(noDataPkt);
+    }
+
     /** Incoming
      *
      * Produce protocol Objects from raw transmission data
@@ -98,7 +122,7 @@ public class BLEProtocol implements Protocol {
             throw new IllegalArgumentException(String.format("Identity response is %d bytes. Expect %d", identity.length, IDENTITY_RESPONSE_LENGTH));
 
         // Protocol version 1
-        //[[version=1][timestamp=8][sender_public_key=32][display_name=35]][signature=64]
+        //[[version=1][type=1][timestamp=8][sender_public_key=32][display_name=35]][signature=64]
         try {
             int readIndex     = 0;
             byte[] timestamp  = new byte[Long.SIZE / 8];
@@ -108,6 +132,7 @@ public class BLEProtocol implements Protocol {
             byte[] signedData = new byte[IDENTITY_RESPONSE_LENGTH - SodiumShaker.crypto_sign_BYTES];
 
             readIndex += assertBufferVersion(identity, readIndex);
+            readIndex += assertBufferType(identity, IdentityPacket.TYPE, readIndex);
             readIndex += getBytesFromBuffer(identity, timestamp, readIndex);
             readIndex += getBytesFromBuffer(identity, public_key, readIndex);
             readIndex += getBytesFromBuffer(identity, alias, readIndex);
@@ -147,7 +172,7 @@ public class BLEProtocol implements Protocol {
             throw new IllegalArgumentException(String.format("Message response is illegal length. Got %d expected %d", message.length, MESSAGE_RESPONSE_LENGTH));
 
         // Protocol version 1
-        //[[version=1][timestamp=8][sender_public_key=32][message=140][reply_signature=64]][signature=64]
+        //[[version=1][type=1][timestamp=8][sender_public_key=32][message=140][reply_signature=64]][signature=64]
         try {
             int readIndex          = 0;
             byte[] timestamp       = new byte[Long.SIZE / 8];
@@ -158,6 +183,7 @@ public class BLEProtocol implements Protocol {
             byte[] signedData      = new byte[MESSAGE_RESPONSE_LENGTH - SodiumShaker.crypto_sign_BYTES];
 
             readIndex += assertBufferVersion(message, readIndex);
+            readIndex += assertBufferType(message, MessagePacket.TYPE, readIndex);
             readIndex += getBytesFromBuffer(message, timestamp, readIndex);
             readIndex += getBytesFromBuffer(message, public_key, readIndex);
             readIndex += getBytesFromBuffer(message, body, readIndex);
@@ -177,6 +203,39 @@ public class BLEProtocol implements Protocol {
         return null;
     }
 
+    @NonNull
+    public NoDataPacket deserializeNoDataPacket(@NonNull byte[] noDataPkt) {
+        if (noDataPkt.length != NODATA_RESPONSE_LENGTH)
+            throw new IllegalArgumentException(String.format("NoData response is %d bytes. Expect %d", noDataPkt.length, IDENTITY_RESPONSE_LENGTH));
+
+        // Protocol version 1
+        // [[version=1][type=1][timestamp=8][sender_public_key=32]][signature=64]
+        int readIndex     = 0;
+        byte[] timestamp  = new byte[Long.SIZE / 8];
+        byte[] public_key = new byte[SodiumShaker.crypto_sign_PUBLICKEYBYTES];
+        byte[] signature  = new byte[SodiumShaker.crypto_sign_BYTES];
+        byte[] signedData = new byte[NODATA_RESPONSE_LENGTH - SodiumShaker.crypto_sign_BYTES];
+
+        readIndex += assertBufferVersion(noDataPkt, readIndex);
+        readIndex += assertBufferType(noDataPkt, NoDataPacket.TYPE, readIndex);
+        readIndex += getBytesFromBuffer(noDataPkt, timestamp, readIndex);
+        readIndex += getBytesFromBuffer(noDataPkt, public_key, readIndex);
+        readIndex += getBytesFromBuffer(noDataPkt, signature, readIndex);
+
+        System.arraycopy(noDataPkt, 0, signedData, 0, signedData.length);
+        boolean validSignature = SodiumShaker.verifySignature(public_key, signature, signedData);
+        if (!validSignature)
+            throw new IllegalStateException("NoData signature does not match content!");
+
+        return new NoDataPacket(public_key, getDateFromTimestampBuffer(timestamp), signature, noDataPkt);
+    }
+
+
+    public byte getPacketType(@NonNull byte[] message) {
+        byte[] type = new byte[1];
+        getTypeFromBuffer(message, type, 1);
+        return type[0];
+    }
 
     // </editor-fold desc="Public API">
 
@@ -194,6 +253,21 @@ public class BLEProtocol implements Protocol {
         int bytesToRead = 1;
         assertBufferLength(input, offset + bytesToRead);
         version[0] = input[offset];
+        return bytesToRead;
+    }
+
+    private static int addTypeToBuffer(@NonNull byte[] input, byte type, int offset) {
+        int bytesToWrite = 1;
+        assertBufferLength(input, offset + bytesToWrite);
+
+        input[offset] = type;
+        return bytesToWrite;
+    }
+
+    private static int getTypeFromBuffer(@NonNull byte[] input, @NonNull byte[] type, int offset) {
+        int bytesToRead = 1;
+        assertBufferLength(input, offset + bytesToRead);
+        type[0] = input[offset];
         return bytesToRead;
     }
 
@@ -291,6 +365,15 @@ public class BLEProtocol implements Protocol {
 
         if (version[0] != VERSION)
             throw new IllegalStateException(String.format("Response is for an unknown protocol version. Got %d. Expected %d", version[0], VERSION));
+        return 1;
+    }
+
+    private static int assertBufferType(byte[] input, byte expectedType, int offset) {
+        byte[] type = new byte[1];
+        getTypeFromBuffer(input, type, offset);
+
+        if (type[0] != expectedType)
+            throw new IllegalStateException(String.format("Response is for an unexpected message type. Got %d. Expected %d", type[0], expectedType));
         return 1;
     }
 

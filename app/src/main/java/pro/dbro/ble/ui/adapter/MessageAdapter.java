@@ -14,8 +14,8 @@ import java.text.ParseException;
 import java.util.UUID;
 
 import im.delight.android.identicons.SymmetricIdenticon;
-import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
+import pro.dbro.ble.data.DataStore;
 import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.data.model.MessageTable;
 import pro.dbro.ble.data.model.Peer;
@@ -26,7 +26,8 @@ import pro.dbro.ble.data.model.Peer;
 public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.ViewHolder> {
     public static final String TAG = "MessageAdapter";
 
-    private ChatApp mApp;
+    private DataStore mDataStore;
+    private RecyclerView mHost;
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public TextView senderView;
@@ -49,20 +50,25 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
      * Recommended constructor.
      *
      * @param context       The context
-     * @param app
+     * @param dataStore     The data backend
      * @param flags         Flags used to determine the behavior of the adapter;
      *                Currently it accept {@link #FLAG_REGISTER_CONTENT_OBSERVER}.
      */
-    public MessageAdapter(Context context, ChatApp app, int flags) {
-        super(context, app.getRecentMessagesFeed().getCursor(), flags);
-        mApp = app;
+    public MessageAdapter(Context context, DataStore dataStore, int flags) {
+        super(context, dataStore.getRecentMessages().getCursor(), flags);
+        mDataStore = dataStore;
+    }
+
+    @Override
+    public void onAttachedToRecyclerView(RecyclerView recyclerView) {
+        mHost = recyclerView;
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, Cursor cursor) {
         // TODO: cache message sender alias to avoid additional query
 
-        Peer peer = mApp.getDataStore().getPeerById(cursor.getInt(cursor.getColumnIndex(MessageTable.peerId)));
+        Peer peer = mDataStore.getPeerById(cursor.getInt(cursor.getColumnIndex(MessageTable.peerId)));
         if (peer != null) {
             holder.senderView.setText(peer.getAlias());
             holder.mIdenticon.show(new String(peer.getPublicKey()));
@@ -83,7 +89,8 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
     @Override
     protected void onContentChanged() {
         Log.i(TAG, "onContentChanged");
-        changeCursor(mApp.getRecentMessagesFeed().getCursor());
+        changeCursor(mDataStore.getRecentMessages().getCursor());
+        mHost.smoothScrollToPosition(getItemCount());
     }
 
     @Override

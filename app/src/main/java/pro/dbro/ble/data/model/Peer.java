@@ -22,7 +22,6 @@ public class Peer extends CursorModel {
 
     public Peer(@NonNull Cursor cursor) {
         super(cursor);
-
     }
 
     public int getId() {

@@ -31,7 +31,7 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
         super(Application.class);
     }
 
-    ChatApp mApp;
+    ChatClient mApp;
     OwnedIdentityPacket mSenderIdentity;
     boolean mCreatedNewPrimaryIdentity;
     BLEProtocol bleProtocol = new BLEProtocol();
@@ -40,7 +40,7 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
     protected void setUp() throws Exception {
         super.setUp();
 
-        mApp = new ChatApp(getContext());
+        mApp = new ChatClient(getContext());
         dataStore = new ContentProviderStore(getContext());
         String username = new RandomString(BLEProtocol.ALIAS_LENGTH).nextString();
         KeyPair keyPair =  SodiumShaker.generateKeyPair();
@@ -185,11 +185,11 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
     /** Utility **/
 
     private Peer getOrCreatePrimaryPeerIdentity() throws IOException {
-        Peer user = mApp.getPrimaryIdentity();
+        Peer user = mApp.getPrimaryLocalPeer();
         if (user == null) {
             mCreatedNewPrimaryIdentity = true;
             user =  mApp.createPrimaryIdentity(new RandomString(BLEProtocol.ALIAS_LENGTH).nextString());
-            Peer testUser = mApp.getPrimaryIdentity();
+            Peer testUser = mApp.getPrimaryLocalPeer();
             assertEquals(testUser.getId(), user.getId());
             testUser.close();
         }

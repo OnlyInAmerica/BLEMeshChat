@@ -2,54 +2,65 @@ package pro.dbro.ble.ui.activities;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.bluetooth.BluetoothAdapter;
-import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.support.v4.widget.DrawerLayout;
-import android.util.Log;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import butterknife.ButterKnife;
+import butterknife.InjectView;
 import im.delight.android.identicons.SymmetricIdenticon;
-import pro.dbro.ble.ChatService;
+import pro.dbro.airshare.app.AirShareService;
+import pro.dbro.airshare.app.ui.AirShareFragment;
+import pro.dbro.ble.ChatClient;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Peer;
-import pro.dbro.ble.transport.ble.BLEUtil;
+import pro.dbro.ble.protocol.OwnedIdentityPacket;
 import pro.dbro.ble.ui.fragment.MessageListFragment;
+import timber.log.Timber;
 
-public class MainActivity extends Activity implements ServiceConnection, LogConsumer {
+public class MainActivity extends Activity implements LogConsumer,
+                                                      AirShareFragment.AirShareCallback,
+                                                      MessageListFragment.ChatFragmentCallback {
 
     public static final String TAG = "MainActivity";
 
-    public ChatService.ChatServiceBinder mChatServiceBinder;
-    private boolean mServiceBound = false;  // Are we bound to the ChatService?
-    private boolean mBluetoothReceiverRegistered = false; // Are we registered for Bluetooth status broadcasts?
+//    public ChatService.ChatServiceBinder mChatServiceBinder;
 
     //private PeerListFragment mPeerListFragment;
     private MessageListFragment mMessageListFragment;
-    private Peer mUserIdentity;
+    private OwnedIdentityPacket mUserIdentity;
 
     private AlertDialog mBluetoothEnableDialog;
 
-    private TextView mLogView;
+    private ChatClient mClient;
+    private AirShareFragment mAirShareFragment;
+
+    @InjectView(R.id.onlineSwitch)
+    Switch mOnlineSwitch;
+
+    @InjectView(R.id.log)
+    TextView mLogView;
+
+    private String mNewUsername;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ButterKnife.inject(this);
 
-        mLogView = (TextView) findViewById(R.id.log);
+        mClient = new ChatClient(this);
+
         mLogView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
@@ -58,132 +69,27 @@ public class MainActivity extends Activity implements ServiceConnection, LogCons
             }
         });
 
-        ((Switch) findViewById(R.id.onlineSwitch)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        mOnlineSwitch.setEnabled(false);
+        mOnlineSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
-                if (!checked) {
-                    if (mServiceBound) {
-                        mChatServiceBinder.shutdown();
-                        mServiceBound = false;
-                    }
-                } else {
-                    if (!mServiceBound) {
-                        startAndBindToService();
-                    }
-                }
+                if (!checked)
+                    mClient.makeUnavailable();
+                else
+                    mClient.makeAvailable();
             }
         });
 
         DrawerLayout drawerLayout = (DrawerLayout) findViewById(R.id.my_drawer_layout);
         drawerLayout.setStatusBarBackground(R.color.primaryDark);
-    }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        if (!mServiceBound) {
-            startAndBindToService();
+        if (mAirShareFragment == null) {
+            mAirShareFragment = AirShareFragment.newInstance(this);
+            Timber.d("Adding airshare frag");
+            getFragmentManager().beginTransaction()
+                                .add(mAirShareFragment, "airshare")
+                                .commit();
         }
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (mChatServiceBinder != null) {
-            mChatServiceBinder.setActivityReceivingMessages(true);
-        }
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        if (mChatServiceBinder != null) {
-            mChatServiceBinder.setActivityReceivingMessages(false);
-        }
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        if (!mServiceBound) {
-            unBindService();
-        }
-    }
-
-    private void startAndBindToService() {
-        Log.i(TAG, "Starting service");
-        Intent intent = new Intent(this, ChatService.class);
-        startService(intent);
-        bindService(intent, this, 0);
-    }
-
-    private void unBindService() {
-        unbindService(this);
-    }
-
-    /**
-     * Evaluate preconditions to showing MessageListFragment.
-     * e.g: Is Bluetooth enabled? Is a primary identity created
-     */
-    private void checkChatPreconditions() {
-        if (!BLEUtil.isBluetoothEnabled(this)) {
-            // Bluetooth is not Enabled.
-            // await result in OnActivityResult
-            registerBroadcastReceiver();
-            showEnableBluetoothDialog();
-        } else {
-            // Bluetooth Enabled, Check if primary identity is created
-
-            mUserIdentity = mChatServiceBinder.getChatApp().getPrimaryIdentity();
-            if (mUserIdentity == null) {
-                Util.showWelcomeDialog(mChatServiceBinder.getChatApp(), this, new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface dialogInterface) {
-                        mChatServiceBinder.connect();
-                        mUserIdentity = mChatServiceBinder.getChatApp().getPrimaryIdentity();
-                        revealChatViews();
-                    }
-                });
-            } else {
-                mChatServiceBinder.connect();
-                Log.i(TAG, "showing messageListFragment");
-                revealChatViews();
-            }
-        }
-    }
-
-    /**
-     * Prompt the user to enable Bluetooth
-     */
-    private void showEnableBluetoothDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Enable Bluetooth")
-                .setMessage("This app requires Bluetooth on to function. May we enable Bluetooth?")
-                .setPositiveButton("Enable Bluetooth", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        mBluetoothEnableDialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-                        mBluetoothEnableDialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);
-                        ((TextView) mBluetoothEnableDialog.findViewById(android.R.id.message)).setText("Enabling...");
-                        BLEUtil.getManager(MainActivity.this).getAdapter().enable();
-                    }
-                })
-                .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        MainActivity.this.finish();
-                    }
-                });
-        builder.setCancelable(false);
-        mBluetoothEnableDialog = builder.create();
-
-        mBluetoothEnableDialog.show();
-    }
-
-    private void registerBroadcastReceiver() {
-        IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-        this.registerReceiver(mBluetoothBroadcastReceiver, filter);
-        mBluetoothReceiverRegistered = true;
     }
 
     /**
@@ -192,22 +98,14 @@ public class MainActivity extends Activity implements ServiceConnection, LogCons
      */
     private void revealChatViews() {
         mMessageListFragment = new MessageListFragment();
+        mMessageListFragment.setDataStore(mClient.getDataStore());
         getFragmentManager().beginTransaction()
                 .add(R.id.container, mMessageListFragment)
                 .commit();
 
-        ((SymmetricIdenticon) findViewById(R.id.profileIdenticon)).show(new String(mUserIdentity.getPublicKey()));
-        ((TextView) findViewById(R.id.profileName)).setText(mUserIdentity.getAlias());
+        ((SymmetricIdenticon) findViewById(R.id.profileIdenticon)).show(new String(mUserIdentity.publicKey));
+        ((TextView) findViewById(R.id.profileName)).setText(mUserIdentity.alias);
     }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-
-        if (mBluetoothReceiverRegistered)
-            this.unregisterReceiver(mBluetoothBroadcastReceiver);
-    }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -231,59 +129,28 @@ public class MainActivity extends Activity implements ServiceConnection, LogCons
         return super.onOptionsItemSelected(item);
     }
 
+//    /** ServiceConnection interface */
 //    @Override
-//    public void onFragmentInteraction(Uri uri) {
+//    public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+//        mChatServiceBinder = (ChatService.ChatServiceBinder) iBinder;
+//        mServiceBound = true;
+//        Log.i(TAG, "Bound to service");
+//        checkChatPreconditions();
 //
+//        mChatServiceBinder.getChatApp().setLogConsumer(this);
+//        mChatServiceBinder.setActivityReceivingMessages(true);
+//
+//        ((Switch) findViewById(R.id.onlineSwitch)).setChecked(true);
+//        findViewById(R.id.onlineSwitch).setEnabled(true);
 //    }
-
-    private final BroadcastReceiver mBluetoothBroadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-
-            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
-                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
-                        BluetoothAdapter.ERROR);
-                switch (state) {
-                    case BluetoothAdapter.STATE_OFF:
-                        break;
-                    case BluetoothAdapter.STATE_TURNING_OFF:
-                        break;
-                    case BluetoothAdapter.STATE_ON:
-                        if (mBluetoothEnableDialog != null && mBluetoothEnableDialog.isShowing()) {
-                            mBluetoothEnableDialog.dismiss();
-                        }
-                        checkChatPreconditions();
-                        break;
-                    case BluetoothAdapter.STATE_TURNING_ON:
-                        break;
-                }
-            }
-        }
-    };
-
-    /** ServiceConnection interface */
-    @Override
-    public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-        mChatServiceBinder = (ChatService.ChatServiceBinder) iBinder;
-        mServiceBound = true;
-        Log.i(TAG, "Bound to service");
-        checkChatPreconditions();
-
-        mChatServiceBinder.getChatApp().setLogConsumer(this);
-        mChatServiceBinder.setActivityReceivingMessages(true);
-
-        ((Switch) findViewById(R.id.onlineSwitch)).setChecked(true);
-        findViewById(R.id.onlineSwitch).setEnabled(true);
-    }
-
-    @Override
-    public void onServiceDisconnected(ComponentName componentName) {
-        Log.i(TAG, "Unbound from service");
-        mChatServiceBinder = null;
-        mServiceBound = false;
-        ((Switch) findViewById(R.id.onlineSwitch)).setChecked(false);
-    }
+//
+//    @Override
+//    public void onServiceDisconnected(ComponentName componentName) {
+//        Log.i(TAG, "Unbound from service");
+//        mChatServiceBinder = null;
+//        mServiceBound = false;
+//        ((Switch) findViewById(R.id.onlineSwitch)).setChecked(false);
+//    }
 
     /** LogConsumer interface */
 
@@ -298,5 +165,75 @@ public class MainActivity extends Activity implements ServiceConnection, LogCons
             }
         });
         */
+    }
+
+    @Override
+    public void registrationRequired() {
+        Peer localPeer = mClient.getPrimaryLocalPeer();
+        if (localPeer != null) {
+
+            // TODO : No reason (besides debugging) to expose application username to AirShare in this case. Add API endpoint excluding alias
+            mAirShareFragment.registerUserForService(localPeer.getAlias(), ChatClient.AIRSHARE_SERVICE_NAME);
+
+        } else {
+
+            View dialogView = ((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE))
+                    .inflate(R.layout.dialog_welcome, null);
+            final EditText aliasEntry = ((EditText) dialogView.findViewById(R.id.aliasEntry));
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            final AlertDialog dialog = builder.setTitle(getString(R.string.dialog_welcome_greeting))
+                    .setView(dialogView)
+                    .setPositiveButton(getString(R.string.dialog_ok), new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            mNewUsername = aliasEntry.getText().toString();
+                        }
+                    })
+                    .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                        @Override
+                        public void onDismiss(DialogInterface dialog) {
+                            if (mNewUsername != null) {
+                                Peer peer = mClient.createPrimaryIdentity(mNewUsername);
+                                peer.close();
+                                mAirShareFragment.registerUserForService(aliasEntry.getText().toString(), ChatClient.AIRSHARE_SERVICE_NAME);
+                                mNewUsername = null;
+                            }
+
+                            // TODO If user didn't select a username we should respond appropriately
+                        }
+                    })
+                    .show();
+
+            aliasEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+                @Override
+                public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
+                    mNewUsername = textView.getText().toString();
+                    dialog.dismiss();
+                    return false;
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onServiceReady(AirShareService.ServiceBinder serviceBinder) {
+        mUserIdentity = (OwnedIdentityPacket) mClient.getPrimaryLocalPeer().getIdentity();
+
+        mClient.setAirShareServiceBinder(serviceBinder);
+        mClient.makeAvailable();
+        mOnlineSwitch.setChecked(true);
+        mOnlineSwitch.setEnabled(true);
+        revealChatViews();
+    }
+
+    @Override
+    public void onFinished(Exception exception) {
+
+    }
+
+    @Override
+    public void onMessageSendRequested(String message) {
+        mClient.sendPublicMessageFromPrimaryIdentity(message);
     }
 }

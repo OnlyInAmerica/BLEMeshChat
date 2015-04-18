@@ -10,6 +10,7 @@ import java.util.Date;
  * Created by davidbrodsky on 10/13/14.
  */
 public class IdentityPacket {
+    public static final byte TYPE = 0x01;
 
     public final byte[] publicKey;
     public final Date   dateSeen;

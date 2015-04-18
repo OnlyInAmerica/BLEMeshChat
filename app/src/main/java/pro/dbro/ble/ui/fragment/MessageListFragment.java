@@ -1,6 +1,7 @@
 package pro.dbro.ble.ui.fragment;
 
 
+import android.app.Activity;
 import android.app.Fragment;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -14,18 +15,23 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import pro.dbro.ble.ChatApp;
 import pro.dbro.ble.R;
-import pro.dbro.ble.ui.activities.MainActivity;
+import pro.dbro.ble.data.DataStore;
 import pro.dbro.ble.ui.adapter.MessageAdapter;
 
 /**
- * A simple {@link Fragment} subclass.
+ * A Fragment that currently allows chatting only in the public broadcast mode
+ * ala Twitter.
  */
 public class MessageListFragment extends Fragment {
     public static final String TAG = "MessageListFragment";
 
-    ChatApp mApp;
+    public static interface ChatFragmentCallback {
+        public void onMessageSendRequested(String message);
+    }
+
+    private ChatFragmentCallback mCallback;
+    DataStore mDataStore;
     RecyclerView mRecyclerView;
     MessageAdapter mAdapter;
     EditText mMessageEntry;
@@ -34,10 +40,17 @@ public class MessageListFragment extends Fragment {
         // Required empty public constructor
     }
 
+    public void setDataStore(DataStore dataStore) {
+        mDataStore = dataStore;
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        mApp = ((MainActivity) getActivity()).mChatServiceBinder.getChatApp(); // TODO Remove
+
+        if (mDataStore == null)
+            throw new IllegalStateException("MessageListFragment must be equipped with a DataStore. Did you call #setDataStore");
+
         // Inflate the layout for this fragment
         View root = inflater.inflate(R.layout.fragment_message, container, false);
         mMessageEntry = (EditText) root.findViewById(R.id.messageEntry);
@@ -60,10 +73,20 @@ public class MessageListFragment extends Fragment {
         });
         mRecyclerView = (RecyclerView) root.findViewById(R.id.recyclerView);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
-        mAdapter = new MessageAdapter(getActivity(), mApp, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
+        mAdapter = new MessageAdapter(getActivity(), mDataStore, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
         mRecyclerView.setAdapter(mAdapter);
-        mRecyclerView.scrollToPosition(mAdapter.getItemCount());
         return root;
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        try {
+            mCallback = (ChatFragmentCallback) activity;
+        } catch (ClassCastException e) {
+            throw new ClassCastException(activity.toString()
+                    + " must implement ChatFragmentCallback");
+        }
     }
 
     public void onSendMessageButtonClick(View v) {
@@ -75,7 +98,7 @@ public class MessageListFragment extends Fragment {
         if (message.length() == 0) return;
         Log.i(TAG, "Sending message " + message);
         // For now treat all messsages as public broadcast
-        mApp.sendPublicMessageFromPrimaryIdentity(message);
-        mRecyclerView.smoothScrollToPosition(mAdapter.getItemCount());
+        mCallback.onMessageSendRequested(message);
+
     }
 }

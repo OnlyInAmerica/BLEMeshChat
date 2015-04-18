@@ -10,7 +10,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import pro.dbro.ble.ChatApp;
+import pro.dbro.ble.ChatClient;
 import pro.dbro.ble.R;
 
 /**
@@ -18,7 +18,7 @@ import pro.dbro.ble.R;
  */
 public class Util {
 
-    public static void showWelcomeDialog(@NonNull final ChatApp app, @NonNull final Context context, DialogInterface.OnDismissListener dismissListener) {
+    public static void showWelcomeDialog(@NonNull final ChatClient app, @NonNull final Context context, DialogInterface.OnDismissListener dismissListener) {
         View dialogView = ((LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE))
                             .inflate(R.layout.dialog_welcome, null);
         final EditText aliasEntry = ((EditText) dialogView.findViewById(R.id.aliasEntry));

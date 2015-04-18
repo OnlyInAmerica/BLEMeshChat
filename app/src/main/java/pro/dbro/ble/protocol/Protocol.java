@@ -18,6 +18,8 @@ public interface Protocol {
 
     public MessagePacket serializeMessage(@NonNull OwnedIdentityPacket ownedIdentity, String body);
 
+    public NoDataPacket serializeNoDataPacket(@NonNull OwnedIdentityPacket ownedIdentity);
+
     /** Incoming
      *
      * Deserialize raw transmission data into Protocol Objects
@@ -30,5 +32,7 @@ public interface Protocol {
 
     /** Deserialize a message where the author identity is not known */
     public MessagePacket deserializeMessage(@NonNull byte[] message);
+
+    public byte getPacketType(@NonNull byte[] message);
 
 }

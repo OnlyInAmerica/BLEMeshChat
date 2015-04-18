@@ -2,21 +2,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="pro.dbro.ble" >
 
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:theme="@style/AppTheme"
+        android:name=".ChatApp">
+
         <provider
             android:name=".schematic.ChatContentProvider"
             android:authorities="pro.dbro.ble.chatprovider"
             android:exported="true">
         </provider>
 
-        <service android:name=".ChatService" />
+        <service android:name="pro.dbro.airshare.app.AirShareService" />
+
         <activity
             android:name=".ui.activities.MainActivity"
             android:screenOrientation="portrait"
