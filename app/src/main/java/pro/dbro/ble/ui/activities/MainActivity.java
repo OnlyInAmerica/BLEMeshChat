@@ -11,15 +11,12 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
+import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
-
-import com.nispok.snackbar.Snackbar;
 
 import java.util.ArrayList;
 
@@ -51,7 +48,7 @@ public class MainActivity extends Activity implements LogConsumer,
 
     private PeerAdapter mPeerAdapter;
 
-    @InjectView(R.id.onlineSwitch)
+    @InjectView(R.id.online_switch)
     Switch mOnlineSwitch;
 
     @InjectView(R.id.log)
@@ -59,6 +56,9 @@ public class MainActivity extends Activity implements LogConsumer,
 
     @InjectView(R.id.peer_recyclerview)
     RecyclerView mPeerRecyclerView;
+
+    @InjectView(R.id.bg_mode_switch)
+    CheckBox mBgModeCheckbox;
 
     private String mNewUsername;
 
@@ -77,6 +77,13 @@ public class MainActivity extends Activity implements LogConsumer,
 //                return false;
 //            }
 //        });
+
+        mBgModeCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                mAirShareFragment.setShouldServiceContinueInBackground(isChecked);
+            }
+        });
 
         mOnlineSwitch.setEnabled(false);
         mOnlineSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -117,8 +124,8 @@ public class MainActivity extends Activity implements LogConsumer,
                 .add(R.id.container, mMessageListFragment)
                 .commit();
 
-        ((SymmetricIdenticon) findViewById(R.id.profileIdenticon)).show(new String(mUserIdentity.publicKey));
-        ((TextView) findViewById(R.id.profileName)).setText(mUserIdentity.alias);
+        ((SymmetricIdenticon) findViewById(R.id.profile_identicon)).show(new String(mUserIdentity.publicKey));
+        ((TextView) findViewById(R.id.profile_name)).setText(mUserIdentity.alias);
     }
 
     /** LogConsumer interface */

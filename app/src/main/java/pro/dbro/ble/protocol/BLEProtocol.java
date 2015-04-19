@@ -10,7 +10,6 @@ import java.nio.ByteOrder;
 import java.util.Date;
 
 import pro.dbro.ble.crypto.SodiumShaker;
-import pro.dbro.ble.data.model.DataUtil;
 
 /**
  * Created by davidbrodsky on 10/14/14.

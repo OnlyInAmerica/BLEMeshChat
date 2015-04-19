@@ -9,8 +9,6 @@ import com.google.common.collect.HashBiMap;
 import java.util.HashMap;
 
 import pro.dbro.airshare.app.AirShareService;
-import pro.dbro.airshare.app.IncomingTransfer;
-import pro.dbro.airshare.app.OutgoingTransfer;
 import pro.dbro.airshare.transport.Transport;
 import pro.dbro.ble.data.ContentProviderStore;
 import pro.dbro.ble.data.DataStore;
@@ -28,10 +26,8 @@ import timber.log.Timber;
 /**
  * Created by davidbrodsky on 10/13/14.
  */
-public class ChatClient implements AirShareService.AirSharePeerCallback,
-                                AirShareService.AirShareReceiverCallback,
-                                AirShareService.AirShareSenderCallback,
-                                ChatPeerFlow.DataOutlet, ChatPeerFlow.Callback {
+public class ChatClient implements AirShareService.Callback,
+                                   ChatPeerFlow.DataOutlet, ChatPeerFlow.Callback {
 
     public static interface Callback {
         /** Client should not invoke remotePeer#close() */
@@ -66,10 +62,7 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
 
     public void setAirShareServiceBinder(AirShareService.ServiceBinder binder) {
         mAirShareServiceBinder = binder;
-
-        mAirShareServiceBinder.setPeerCallback(this);
-        mAirShareServiceBinder.setReceiverCallback(this);
-        mAirShareServiceBinder.setSenderCallback(this);
+        mAirShareServiceBinder.setCallback(this);
     }
 
     public void setCallback(Callback callback) {
@@ -134,7 +127,7 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
                 if (flow != null && !flow.isComplete())
                     flow.queueMessage(messagePacket);
                 else
-                    mAirShareServiceBinder.offer(null, messagePacket.rawPacket, peer);
+                    mAirShareServiceBinder.send(messagePacket.rawPacket, peer);
             }
 
         }
@@ -195,7 +188,39 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
     }
 
     @Override
-    public void peerStatusUpdated(pro.dbro.airshare.session.Peer peer, pro.dbro.airshare.transport.Transport.ConnectionStatus newStatus, boolean peerIsHost) {
+    public void onDataRecevied(byte[] data, pro.dbro.airshare.session.Peer sender, Exception exception) {
+        ChatPeerFlow flow = mFlows.get(sender);
+
+        if (flow == null) {
+            Timber.w("No flow for %s", sender.getAlias());
+            return;
+        }
+
+        try {
+            flow.onDataReceived(data);
+        } catch (ChatPeerFlow.UnexpectedDataException e) {
+            Timber.e(e, "Error processing received data");
+        }
+    }
+
+    @Override
+    public void onDataSent(byte[] data, pro.dbro.airshare.session.Peer recipient, Exception exception) {
+        ChatPeerFlow flow = mFlows.get(recipient);
+
+        if (flow == null) {
+            Timber.w("No flow for %s", recipient.getAlias());
+            return;
+        }
+
+        try {
+            flow.onDataSent(data);
+        } catch (ChatPeerFlow.UnexpectedDataException e) {
+            Timber.e(e, "Error processing sent data");
+        }
+    }
+
+    @Override
+    public void onPeerStatusUpdated(pro.dbro.airshare.session.Peer peer, Transport.ConnectionStatus newStatus, boolean peerIsHost) {
         if (newStatus == Transport.ConnectionStatus.CONNECTED) {
             mConnectedPeers.put(peer, null); // We will add the BLEMeshChat peer id after identity is received
             Timber.d("Beginning flow with %s as %s", peer.getAlias(), peerIsHost ? "host" : "client");
@@ -216,64 +241,12 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
     }
 
     @Override
-    public void onTransferOffered(IncomingTransfer transfer, pro.dbro.airshare.session.Peer sender) {
-
-    }
-
-    @Override
-    public void onTransferProgress(IncomingTransfer transfer, pro.dbro.airshare.session.Peer sender, float progress) {
-
-    }
-
-    @Override
-    public void onTransferComplete(IncomingTransfer transfer, pro.dbro.airshare.session.Peer sender, Exception exception) {
-        ChatPeerFlow flow = mFlows.get(sender);
-
-        if (flow == null) {
-            Timber.w("No flow for %s", sender.getAlias());
-            return;
-        }
-
-        try {
-            flow.onDataReceived(transfer.getBodyBytes());
-        } catch (ChatPeerFlow.UnexpectedDataException e) {
-            Timber.e(e, "Error processing received data");
-        }
-    }
-
-    @Override
-    public void onTransferOfferResponse(OutgoingTransfer transfer, pro.dbro.airshare.session.Peer recipient, boolean recipientDidAccept) {
-
-    }
-
-    @Override
-    public void onTransferProgress(OutgoingTransfer transfer, pro.dbro.airshare.session.Peer recipient, float progress) {
-
-    }
-
-    @Override
-    public void onTransferComplete(OutgoingTransfer transfer, pro.dbro.airshare.session.Peer recipient, Exception exception) {
-        ChatPeerFlow flow = mFlows.get(recipient);
-
-        if (flow == null) {
-            Timber.w("No flow for %s", recipient.getAlias());
-            return;
-        }
-
-        try {
-            flow.onDataSent(transfer.getBodyBytes());
-        } catch (ChatPeerFlow.UnexpectedDataException e) {
-            Timber.e(e, "Error processing sent data");
-        }
-    }
-
-    @Override
     public void sendData(pro.dbro.airshare.session.Peer peer, byte[] data) {
         if(mAirShareServiceBinder == null) {
             Timber.e("AirShare Service binder is null! Cannot send data");
             return;
         }
-        mAirShareServiceBinder.offer(null, data, peer);
+        mAirShareServiceBinder.send(data, peer);
     }
 
     // </editor-fold desc="Private API">

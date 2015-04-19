@@ -21,9 +21,9 @@
 
             <android.support.v7.widget.RecyclerView
                 android:id="@+id/peer_recyclerview"
-                android:layout_marginTop="8dp"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
 
         </Toolbar>
         <!-- on API 21 background will be ?attr/colorPrimary -->
@@ -54,45 +54,87 @@
 
         <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp">
+            android:layout_height="wrap_content">
 
-            <im.delight.android.identicons.SymmetricIdenticon
-                android:id="@+id/profileIdenticon"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_alignParentStart="true"
-                android:layout_alignParentTop="true" />
+            <LinearLayout
+                android:id="@+id/profile_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#ffd4cfc6"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <im.delight.android.identicons.SymmetricIdenticon
+                    android:id="@+id/profile_identicon"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_alignParentTop="true" />
+
+                <TextView
+                    android:id="@+id/profile_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignBottom="@id/profile_identicon"
+                    android:layout_alignTop="@id/profile_identicon"
+                    android:layout_toEndOf="@id/profile_identicon"
+                    android:gravity="center_vertical"
+                    android:paddingLeft="16dp"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
 
             <Switch
-                android:id="@+id/onlineSwitch"
-                android:layout_width="40dp"
+                android:id="@+id/online_switch"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignBottom="@id/profileIdenticon"
                 android:layout_alignParentEnd="true"
-                android:layout_alignParentTop="true"
-                android:layout_below="@id/profileIdenticon"
+                android:layout_below="@id/profile_header"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="16dp"
                 android:enabled="false"
                 android:gravity="center_vertical" />
 
             <TextView
-                android:id="@+id/profileName"
+                android:id="@+id/online_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignBottom="@id/profileIdenticon"
-                android:layout_alignTop="@id/profileIdenticon"
-                android:layout_toEndOf="@id/profileIdenticon"
-                android:layout_toStartOf="@id/onlineSwitch"
-                android:gravity="center_vertical"
-                android:paddingLeft="16dp"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:layout_alignBaseline="@id/online_switch"
+                android:layout_alignParentStart="true"
+                android:layout_below="@id/profile_header"
+                android:layout_marginStart="16dp"
+                android:gravity="bottom"
+                android:text="Online"
+                android:textAppearance="@android:style/TextAppearance.Medium" />
+
+            <CheckBox
+                android:id="@+id/bg_mode_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_below="@id/online_switch"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="16dp" />
+
+            <TextView
+                android:id="@+id/bg_mode_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignBaseline="@id/bg_mode_switch"
+                android:layout_alignParentStart="true"
+                android:layout_below="@id/online_label"
+                android:layout_marginStart="16dp"
+                android:layout_toStartOf="@id/bg_mode_switch"
+                android:gravity="bottom"
+                android:text="Remain online in background"
+                android:textAppearance="@android:style/TextAppearance.Medium" />
 
             <TextView
                 android:id="@+id/log"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_below="@id/profileIdenticon"
+                android:layout_below="@id/bg_mode_switch"
                 android:padding="8dp"
                 android:textColor="#ffffff" />
 

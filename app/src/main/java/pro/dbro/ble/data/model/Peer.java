@@ -6,7 +6,6 @@ import android.support.annotation.Nullable;
 
 import java.text.ParseException;
 import java.util.Date;
-import java.util.Objects;
 
 import pro.dbro.ble.protocol.IdentityPacket;
 import pro.dbro.ble.protocol.OwnedIdentityPacket;
