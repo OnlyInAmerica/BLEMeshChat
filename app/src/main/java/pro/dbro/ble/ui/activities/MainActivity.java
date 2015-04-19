@@ -70,21 +70,22 @@ public class MainActivity extends Activity implements LogConsumer,
 
         mClient = new ChatClient(this);
 
-        mLogView.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View view) {
-                mLogView.setText("");
-                return false;
-            }
-        });
+//        mLogView.setOnLongClickListener(new View.OnLongClickListener() {
+//            @Override
+//            public boolean onLongClick(View view) {
+//                mLogView.setText("");
+//                return false;
+//            }
+//        });
 
         mOnlineSwitch.setEnabled(false);
         mOnlineSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
-                if (!checked)
+                if (!checked) {
                     mClient.makeUnavailable();
-                else
+                    mPeerAdapter.clearPeers();
+                } else
                     mClient.makeAvailable();
             }
         });
@@ -119,51 +120,6 @@ public class MainActivity extends Activity implements LogConsumer,
         ((SymmetricIdenticon) findViewById(R.id.profileIdenticon)).show(new String(mUserIdentity.publicKey));
         ((TextView) findViewById(R.id.profileName)).setText(mUserIdentity.alias);
     }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-//    /** ServiceConnection interface */
-//    @Override
-//    public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-//        mChatServiceBinder = (ChatService.ChatServiceBinder) iBinder;
-//        mServiceBound = true;
-//        Log.i(TAG, "Bound to service");
-//        checkChatPreconditions();
-//
-//        mChatServiceBinder.getChatApp().setLogConsumer(this);
-//        mChatServiceBinder.setActivityReceivingMessages(true);
-//
-//        ((Switch) findViewById(R.id.onlineSwitch)).setChecked(true);
-//        findViewById(R.id.onlineSwitch).setEnabled(true);
-//    }
-//
-//    @Override
-//    public void onServiceDisconnected(ComponentName componentName) {
-//        Log.i(TAG, "Unbound from service");
-//        mChatServiceBinder = null;
-//        mServiceBound = false;
-//        ((Switch) findViewById(R.id.onlineSwitch)).setChecked(false);
-//    }
 
     /** LogConsumer interface */
 
@@ -207,8 +163,7 @@ public class MainActivity extends Activity implements LogConsumer,
                         @Override
                         public void onDismiss(DialogInterface dialog) {
                             if (mNewUsername != null) {
-                                Peer peer = mClient.createPrimaryIdentity(mNewUsername);
-                                peer.close();
+                                mClient.createPrimaryIdentity(mNewUsername);
                                 mAirShareFragment.registerUserForService(aliasEntry.getText().toString(), ChatClient.AIRSHARE_SERVICE_NAME);
                                 mNewUsername = null;
                             }
@@ -253,15 +208,12 @@ public class MainActivity extends Activity implements LogConsumer,
 
     @Override
     public void onAppPeerStatusUpdated(@NonNull Peer remotePeer, @NonNull ChatPeerFlow.Callback.ConnectionStatus status) {
-        // TODO : Should abandon the CursorModel idea and have immutable
-        // model **views**
-        Snackbar.with(getApplicationContext())
-                .text(String.format("%s %s",
-                                    remotePeer.getAlias(),
-                                    status == ChatPeerFlow.Callback.ConnectionStatus.CONNECTED ? "connected" : "disconnected"))
-        .show(this);
+//        Snackbar.with(getApplicationContext())
+//                .text(String.format("%s %s",
+//                                    remotePeer.getAlias(),
+//                                    status == ChatPeerFlow.Callback.ConnectionStatus.CONNECTED ? "connected" : "disconnected"))
+//        .show(this);
 
-        /*
         switch (status) {
             case CONNECTED:
                 mPeerAdapter.notifyPeerAdded(remotePeer);
@@ -271,6 +223,5 @@ public class MainActivity extends Activity implements LogConsumer,
                 mPeerAdapter.notifyPeerRemoved(remotePeer);
                 break;
         }
-        */
     }
 }

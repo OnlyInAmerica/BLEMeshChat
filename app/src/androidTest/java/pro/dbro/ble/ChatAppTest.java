@@ -189,9 +189,6 @@ public class ChatAppTest extends ApplicationTestCase<Application> {
         if (user == null) {
             mCreatedNewPrimaryIdentity = true;
             user =  mApp.createPrimaryIdentity(new RandomString(BLEProtocol.ALIAS_LENGTH).nextString());
-            Peer testUser = mApp.getPrimaryLocalPeer();
-            assertEquals(testUser.getId(), user.getId());
-            testUser.close();
         }
         return user;
     }

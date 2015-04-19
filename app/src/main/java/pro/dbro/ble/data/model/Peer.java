@@ -6,53 +6,61 @@ import android.support.annotation.Nullable;
 
 import java.text.ParseException;
 import java.util.Date;
+import java.util.Objects;
 
 import pro.dbro.ble.protocol.IdentityPacket;
 import pro.dbro.ble.protocol.OwnedIdentityPacket;
 
 /**
- * A thin model around a {@link android.database.Cursor}
- * that lazy-loads attributes as needed. As such, do
- * not to close the cursor fed to this class's constructor.
- * Instead call {@link #close}
- * <p/>
  * Created by davidbrodsky on 10/12/14.
  */
-public class Peer extends CursorModel {
+public class Peer {
+
+    private int mId;
+    private byte[] mPublicKey;
+    private byte[] mSecretKey;
+    private String mAlias;
+    private Date mLastSeen;
+
+    private byte[] mRawPkt;
+
 
     public Peer(@NonNull Cursor cursor) {
-        super(cursor);
+        mId = cursor.getInt(cursor.getColumnIndex(PeerTable.id));
+        mPublicKey = cursor.getBlob(cursor.getColumnIndex(PeerTable.pubKey));
+        mSecretKey = cursor.getBlob(cursor.getColumnIndex(PeerTable.secKey));
+        mAlias = cursor.getString(cursor.getColumnIndex(PeerTable.alias));
+        mRawPkt = cursor.getBlob(cursor.getColumnIndex(PeerTable.rawPkt));
+
+        try {
+            mLastSeen = DataUtil.storedDateFormatter.parse(cursor.getString(cursor.getColumnIndex(PeerTable.lastSeenDate)));
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
     }
 
     public int getId() {
-        return mCursor.getInt(mCursor.getColumnIndex(PeerTable.id));
+       return mId;
     }
 
     public byte[] getPublicKey() {
-        return mCursor.getBlob(mCursor.getColumnIndex(PeerTable.pubKey));
+        return mPublicKey;
     }
 
     public String getAlias() {
-        String alias = mCursor.getString(mCursor.getColumnIndex(PeerTable.alias));
-        return alias;
+        return mAlias;
     }
 
     @Nullable
     public Date getLastDateSeen() {
-        try {
-            return DataUtil.storedDateFormatter.parse(mCursor.getString(mCursor.getColumnIndex(PeerTable.lastSeenDate)));
-        } catch (ParseException e) {
-            e.printStackTrace();
-            return null;
-        }
+        return mLastSeen;
     }
     /**
      * @return whether this peer represents the application user.
      * e.g: Do we have a secret key
      */
     public boolean isLocalPeer() {
-        byte[] secretKey = mCursor.getBlob(mCursor.getColumnIndex(PeerTable.secKey));
-        return secretKey != null && secretKey.length > 0;
+        return mSecretKey != null && mSecretKey.length > 0;
     }
 
     /**
@@ -63,27 +71,25 @@ public class Peer extends CursorModel {
      */
     public IdentityPacket getIdentity() {
         if (!isLocalPeer()) {
-            try {
-                return new IdentityPacket(
-                        mCursor.getBlob(mCursor.getColumnIndex(PeerTable.pubKey)),
-                        mCursor.getString(mCursor.getColumnIndex(PeerTable.alias)),
-                        DataUtil.storedDateFormatter.parse(mCursor.getString(mCursor.getColumnIndex(PeerTable.lastSeenDate))),
-                        mCursor.getBlob(mCursor.getColumnIndex(PeerTable.rawPkt)));
-            } catch (ParseException e) {
-                throw new IllegalStateException("Unable to create Identity from data");
-            }
+            return new IdentityPacket(mPublicKey, mAlias, mLastSeen, mRawPkt);
         } else {
-            return new OwnedIdentityPacket(
-                    mCursor.getBlob(mCursor.getColumnIndex(PeerTable.secKey)),
-                    mCursor.getBlob(mCursor.getColumnIndex(PeerTable.pubKey)),
-                    mCursor.getString(mCursor.getColumnIndex(PeerTable.alias)),
-                    mCursor.getBlob(mCursor.getColumnIndex(PeerTable.rawPkt)));
+            return new OwnedIdentityPacket(mSecretKey, mPublicKey, mAlias, mRawPkt);
         }
     }
 
     @Override
-    public void close() {
-        mCursor.close();
-    }
+    public boolean equals(Object obj) {
 
+        if(obj == this) return true;
+        if(obj == null) return false;
+
+        if (getClass().equals(obj.getClass()))
+        {
+            final Peer other = (Peer) obj;
+
+            return mId == other.mId;
+        }
+
+        return false;
+    }
 }

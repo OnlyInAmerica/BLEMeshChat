@@ -82,6 +82,11 @@ public class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
         }
     }
 
+    public void clearPeers() {
+        mPeers.clear();
+        notifyDataSetChanged();
+    }
+
     public void notifyMessageReceived(DataStore manager, Message message) {
         Peer peer = message.getSender(manager);
         if (peer != null) {

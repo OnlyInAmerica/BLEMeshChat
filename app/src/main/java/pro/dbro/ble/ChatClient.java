@@ -171,8 +171,6 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
                 mConnectedPeers.remove(flow.getRemoteAirSharePeer());
                 break;
         }
-
-        remotePeer.close();
     }
 
     @Override
@@ -180,7 +178,6 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
         Timber.d("Sent message: '%s'", message.getBody());
         // TODO : Might be unnecessary
         message.close();
-        recipient.close();
     }
 
     @Override
@@ -194,7 +191,6 @@ public class ChatClient implements AirShareService.AirSharePeerCallback,
         if (!mAirShareServiceBinder.isActivityReceivingMessages()) {
             Notification.displayMessageNotification(mContext, message, sender);
             message.close();
-            if (sender != null) sender.close();
         }
     }
 

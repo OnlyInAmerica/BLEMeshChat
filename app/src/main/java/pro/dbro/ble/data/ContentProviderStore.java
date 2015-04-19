@@ -60,7 +60,6 @@ public class ContentProviderStore extends DataStore {
         mContext.getContentResolver().insert(ChatContentProvider.MessageDeliveries.MESSAGE_DELIVERIES, delivery);
         Log.i(TAG, "Recorded message delivery");
         message.close();
-        recipient.close();
     }
 
     @Override
@@ -79,8 +78,6 @@ public class ContentProviderStore extends DataStore {
 
         mContext.getContentResolver().insert(ChatContentProvider.IdentityDeliveries.IDENTITY_DELIVERIES, delivery);
         Log.i(TAG, "Recorded identity delivery");
-        payloadPeer.close();
-        recipientPeer.close();
     }
 
     @Nullable
@@ -115,7 +112,9 @@ public class ContentProviderStore extends DataStore {
                 null,
                 null);
         if (result != null && result.moveToFirst()) {
-            return new Peer(result);
+            Peer peer = new Peer(result);
+            result.close();
+            return peer;
         }
         return null;
     }
@@ -252,7 +251,6 @@ public class ContentProviderStore extends DataStore {
             Log.i(TAG, "Received stored message. Ignoring");
         }
 
-        peer.close();
         return message;
     }
 
@@ -294,7 +292,9 @@ public class ContentProviderStore extends DataStore {
                 new String[] {DataUtil.bytesToHex(publicKey)},
                 null);
         if (peerCursor != null && peerCursor.moveToFirst()) {
-            return new Peer(peerCursor);
+            Peer peer = new Peer(peerCursor);
+            peerCursor.close();
+            return peer;
         }
         return null;
     }
@@ -309,7 +309,9 @@ public class ContentProviderStore extends DataStore {
                 new String[] {String.valueOf(id)},
                 null);
         if (peerCursor != null && peerCursor.moveToFirst()) {
-            return new Peer(peerCursor);
+            Peer peer = new Peer(peerCursor);
+            peerCursor.close();
+            return peer;
         }
         return null;
     }

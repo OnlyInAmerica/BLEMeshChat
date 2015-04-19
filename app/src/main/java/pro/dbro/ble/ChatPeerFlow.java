@@ -142,7 +142,7 @@ public class ChatPeerFlow {
                     case IdentityPacket.TYPE:
 
                         IdentityPacket sentIdPkt = mProtocol.deserializeIdentity(data);
-                        mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(sentIdPkt).close();
+                        mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(sentIdPkt);
                         // We can only report the identity sent once we know the peer's identity
                         // We also always want to send our own identity first
                         if (mRemoteIdentity != null) {
@@ -365,7 +365,6 @@ public class ChatPeerFlow {
             // Get messages not delievered to peer
             pro.dbro.ble.data.model.Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
             List<MessagePacket> messages = mDataStore.getOutgoingMessagesForPeer(recipient, maxMessages);
-            recipient.close();
 
             if (messages == null || messages.size() == 0) {
                 Timber.d("Got no messages for peer with pub key " + DataUtil.bytesToHex(recipientPublicKey));
@@ -401,7 +400,6 @@ public class ChatPeerFlow {
             // We have a public key for the remote peer, fetch undelivered identities
             pro.dbro.ble.data.model.Peer recipient = mDataStore.getPeerByPubKey(recipientPublicKey);
             identities = mDataStore.getOutgoingIdentitiesForPeer(recipient, maxIdentities);
-            recipient.close();
         }
 
         if (identities == null || identities.size() == 0) {
