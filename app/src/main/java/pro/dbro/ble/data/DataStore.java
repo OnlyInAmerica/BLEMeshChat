@@ -53,4 +53,8 @@ public abstract class DataStore {
 
     public abstract Peer getPeerById(int id);
 
+    public abstract int countPeers();
+
+    public abstract int countMessagesPassed();
+
 }

@@ -9,16 +9,22 @@ import android.support.annotation.NonNull;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toolbar;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
@@ -27,10 +33,12 @@ import pro.dbro.airshare.app.AirShareService;
 import pro.dbro.airshare.app.ui.AirShareFragment;
 import pro.dbro.ble.ChatClient;
 import pro.dbro.ble.ChatPeerFlow;
+import pro.dbro.ble.PrefsManager;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.OwnedIdentityPacket;
 import pro.dbro.ble.ui.adapter.PeerAdapter;
+import pro.dbro.ble.ui.adapter.StatusArrayAdapter;
 import pro.dbro.ble.ui.fragment.MessageListFragment;
 import timber.log.Timber;
 
@@ -48,8 +56,8 @@ public class MainActivity extends Activity implements LogConsumer,
 
     private PeerAdapter mPeerAdapter;
 
-    @InjectView(R.id.online_switch)
-    Switch mOnlineSwitch;
+    @InjectView(R.id.status_spinner)
+    Spinner mStatusSpinner;
 
     @InjectView(R.id.log)
     TextView mLogView;
@@ -57,8 +65,20 @@ public class MainActivity extends Activity implements LogConsumer,
     @InjectView(R.id.peer_recyclerview)
     RecyclerView mPeerRecyclerView;
 
-    @InjectView(R.id.bg_mode_switch)
-    CheckBox mBgModeCheckbox;
+    @InjectView(R.id.toolbar)
+    Toolbar mToolbar;
+
+    @InjectView(R.id.my_drawer_layout)
+    DrawerLayout mDrawer;
+
+    @InjectView(R.id.msg_pass_count)
+    TextView mMessagesPassedCount;
+
+    @InjectView(R.id.peers_met_count)
+    TextView mPeersMetCount;
+
+    @InjectView(R.id.profile_identicon)
+    SymmetricIdenticon mProfileIdenticon;
 
     private String mNewUsername;
 
@@ -78,27 +98,66 @@ public class MainActivity extends Activity implements LogConsumer,
 //            }
 //        });
 
-        mBgModeCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        mStatusSpinner.setAdapter(new StatusArrayAdapter(this, new ArrayList<>(Arrays.asList(getResources().getStringArray(R.array.status_options)))));
+        mStatusSpinner.setEnabled(false);
+        mStatusSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                mAirShareFragment.setShouldServiceContinueInBackground(isChecked);
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                switch(position) {
+
+                    case 0: // Always online
+                        mClient.makeAvailable();
+                        mAirShareFragment.setShouldServiceContinueInBackground(true);
+                        break;
+
+                    case 1: // Online when using app
+                        mClient.makeAvailable();
+                        mAirShareFragment.setShouldServiceContinueInBackground(false);
+                        break;
+
+                    case 2: // Offline
+                        mClient.makeUnavailable();
+                        mPeerAdapter.clearPeers();
+                        break;
+                }
+                PrefsManager.setStatus(MainActivity.this, position);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // do nothing
             }
         });
 
-        mOnlineSwitch.setEnabled(false);
-        mOnlineSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        mToolbar.setNavigationIcon(R.drawable.ic_drawer);
+        mToolbar.setNavigationOnClickListener(new View.OnClickListener() {
             @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
-                if (!checked) {
-                    mClient.makeUnavailable();
-                    mPeerAdapter.clearPeers();
-                } else
-                    mClient.makeAvailable();
+            public void onClick(View view) {
+                mDrawer.openDrawer(Gravity.START);
             }
         });
 
-        DrawerLayout drawerLayout = (DrawerLayout) findViewById(R.id.my_drawer_layout);
-        drawerLayout.setStatusBarBackground(R.color.primaryDark);
+        mDrawer.setDrawerListener(new DrawerLayout.DrawerListener() {
+            @Override
+            public void onDrawerSlide(View drawerView, float slideOffset) {
+                // do nothing
+            }
+
+            @Override
+            public void onDrawerOpened(View drawerView) {
+                refreshProfileStats();
+            }
+
+            @Override
+            public void onDrawerClosed(View drawerView) {
+                // do nothing
+            }
+
+            @Override
+            public void onDrawerStateChanged(int newState) {
+                // do nothing
+            }
+        });
 
         if (mAirShareFragment == null) {
             mAirShareFragment = AirShareFragment.newInstance(this);
@@ -124,8 +183,13 @@ public class MainActivity extends Activity implements LogConsumer,
                 .add(R.id.container, mMessageListFragment)
                 .commit();
 
-        ((SymmetricIdenticon) findViewById(R.id.profile_identicon)).show(new String(mUserIdentity.publicKey));
+        mProfileIdenticon.show(new String(mUserIdentity.publicKey));
         ((TextView) findViewById(R.id.profile_name)).setText(mUserIdentity.alias);
+    }
+
+    private void refreshProfileStats() {
+        mPeersMetCount.setText(String.valueOf(Math.max(0, mClient.getDataStore().countPeers() - 1))); //ignore self
+        mMessagesPassedCount.setText(String.valueOf(mClient.getDataStore().countMessagesPassed()));
     }
 
     /** LogConsumer interface */
@@ -196,11 +260,11 @@ public class MainActivity extends Activity implements LogConsumer,
         mUserIdentity = (OwnedIdentityPacket) mClient.getPrimaryLocalPeer().getIdentity();
 
         mClient.setAirShareServiceBinder(serviceBinder);
-        mClient.makeAvailable();
         mClient.setCallback(this);
-        mOnlineSwitch.setChecked(true);
-        mOnlineSwitch.setEnabled(true);
+        mStatusSpinner.setEnabled(true);
+        mStatusSpinner.setSelection(PrefsManager.getStatus(this));
         revealChatViews();
+        refreshProfileStats();
     }
 
     @Override

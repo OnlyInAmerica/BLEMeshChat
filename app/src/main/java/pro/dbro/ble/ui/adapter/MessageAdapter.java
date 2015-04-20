@@ -90,7 +90,7 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
     protected void onContentChanged() {
         Log.i(TAG, "onContentChanged");
         changeCursor(mDataStore.getRecentMessages().getCursor());
-        mHost.smoothScrollToPosition(getItemCount());
+        mHost.smoothScrollToPosition(0);
     }
 
     @Override

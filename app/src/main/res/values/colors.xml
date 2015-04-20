@@ -11,4 +11,8 @@
     -->
 
     <color name="messageEntryBackground">#ffffff</color>
+
+    <color name="status_always_online">#4CAF50</color>
+    <color name="status_online_in_foreground">#81C784</color>
+    <color name="status_offline">#BDBDBD</color>
 </resources>

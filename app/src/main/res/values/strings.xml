@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="blank"></string>
     <string name="app_name">Sneakernet</string>
-    <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     <string name="bt_unavailable">Bluetooth unavailable</string>
     <string name="ble_not_supported">Bluetooth not supported</string>
@@ -24,5 +22,15 @@
     <string name="message_entry_hint">New Public Message</string>
     <string name="notification_new_messages">New Messages</string>
     <string name="notification_touch_to_chat">Touch to chat</string>
+    <string name="remain_online_in_background">Remain online in background</string>
+    <string name="online">Online</string>
+    <string name="peers_known">Peers known</string>
+    <string name="messages_passed">Messages passed</string>
+
+    <string-array name="status_options">
+        <item>Always Online</item>
+        <item>Online when using App</item>
+        <item>Offline</item>
+    </string-array>
 
 </resources>

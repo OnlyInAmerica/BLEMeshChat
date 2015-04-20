@@ -5,12 +5,16 @@ import android.app.PendingIntent;
 import android.app.TaskStackBuilder;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
+import android.view.View;
 
 import java.util.ArrayList;
 
+import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.DataUtil;
 import pro.dbro.ble.data.model.Message;
@@ -73,7 +77,9 @@ public class Notification {
             nBuilder.append(sender.getAlias());
             nBuilder.append(": ");
         }
-        nBuilder.append(message.getBody().substring(0, 80) + (message.getBody().length() > 80 ? "..." : ""));
+        nBuilder.append(message.getBody().length() > 80 ?
+                            message.getBody().substring(0, 80) + "..." :
+                            message.getBody());
         sNotificationInboxItems.add(nBuilder.toString());
         if (sNotificationInboxItems.size() > MAX_MESSAGES_TO_SHOW) sNotificationInboxItems.remove(sNotificationInboxItems.size()-1);
 
@@ -87,12 +93,19 @@ public class Notification {
             inboxStyle.addLine(inboxItem);
         }
 
+        SymmetricIdenticon identicon = new SymmetricIdenticon(context);
+        identicon.show(new String(sender.getPublicKey()));
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
         builder.setContentTitle(context.getString(R.string.notification_new_messages));
+        builder.setLargeIcon(loadBitmapFromView(identicon, 640, 480));
         builder.setSmallIcon(R.drawable.ic_launcher);
         builder.setContentIntent(makePendingIntent(context, resultIntent));
         builder.setStyle(inboxStyle);
         builder.setContentText(sNotificationInboxItems.get(0));
+        builder.setAutoCancel(true);
+        builder.setCategory(NotificationCompat.CATEGORY_MESSAGE);
+        builder.setVibrate(new long[] { 500, 500, 500, 500});
 
         NotificationManager mNotificationManager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -112,6 +125,21 @@ public class Notification {
         stackBuilder.addNextIntent(resultIntent);
         // Gets a PendingIntent containing the entire back stack
         return stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    public static Bitmap loadBitmapFromView(View v, int width, int height) {
+
+        int measuredWidth = View.MeasureSpec.makeMeasureSpec(width,
+                View.MeasureSpec.EXACTLY);
+        int measuredHeight = View.MeasureSpec.makeMeasureSpec(height,
+                View.MeasureSpec.EXACTLY);
+        v.measure(measuredWidth, measuredHeight);
+        v.layout(0, 0, v.getMeasuredWidth(),v.getMeasuredHeight());
+
+        Bitmap b = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        v.draw(c);
+        return b;
     }
 
     // </editor-fold desc="Private API">

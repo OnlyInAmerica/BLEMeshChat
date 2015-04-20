@@ -167,7 +167,7 @@ public class ContentProviderStore extends DataStore {
                 null,
                 null,
                 null,
-                MessageTable.receivedDate + " ASC");
+                MessageTable.receivedDate + " DESC");
 
         if (messagesCursor != null /*&& messagesCursor.moveToFirst()*/) {
             return new MessageCollection(messagesCursor);
@@ -314,6 +314,38 @@ public class ContentProviderStore extends DataStore {
             return peer;
         }
         return null;
+    }
+
+    @Override
+    public int countPeers() {
+        Cursor peerCursor = mContext.getContentResolver().query(
+                ChatContentProvider.Peers.PEERS,
+                new String[] {PeerTable.id},
+                null,
+                null,
+                null);
+        if (peerCursor != null) {
+            int result = peerCursor.getCount();
+            peerCursor.close();
+            return result;
+        }
+        return 0;
+    }
+
+    @Override
+    public int countMessagesPassed() {
+        Cursor deliveryCursor = mContext.getContentResolver().query(
+                ChatContentProvider.MessageDeliveries.MESSAGE_DELIVERIES,
+                new String[] {MessageDeliveryTable.id},
+                null,
+                null,
+                null);
+        if (deliveryCursor != null) {
+            int result = deliveryCursor.getCount();
+            deliveryCursor.close();
+            return result;
+        }
+        return 0;
     }
 
     /** Utility */

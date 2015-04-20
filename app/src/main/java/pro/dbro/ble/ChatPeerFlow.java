@@ -82,6 +82,7 @@ public class ChatPeerFlow {
     private boolean mIsComplete = false;
     private boolean mFetchedMessages = false;
     private boolean mFetchedIdentities = false;
+    private boolean mGotRemotePeerIdentity = false;
 
     public ChatPeerFlow(DataStore dataStore,
                         Protocol protocol,
@@ -228,8 +229,11 @@ public class ChatPeerFlow {
                         mRemoteIdentity = mProtocol.deserializeIdentity(data);
                         Timber.d("Got remote identity for %s", mRemoteIdentity.alias);
                         pro.dbro.ble.data.model.Peer remotePeer = mDataStore.createOrUpdateRemotePeerWithProtocolIdentity(mRemoteIdentity);
-                        // TODO: If we send multiple identities, establish standard that first identity belongs to connected peer
-                        mCallback.onAppPeerStatusUpdated(this, remotePeer, Callback.ConnectionStatus.CONNECTED);
+                        // Only treat first identity as that of connected peer
+                        if (!mGotRemotePeerIdentity) {
+                            mCallback.onAppPeerStatusUpdated(this, remotePeer, Callback.ConnectionStatus.CONNECTED);
+                            mGotRemotePeerIdentity = true;
+                        }
                         break;
 
                     case NoDataPacket.TYPE:
