@@ -57,7 +57,7 @@ public class Notification {
         Intent resultIntent = new Intent(context, MainActivity.class);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
-        builder.setSmallIcon(R.drawable.ic_launcher);
+        builder.setSmallIcon(R.mipmap.ic_launcher);
         builder.setContentTitle(title);
         builder.setContentIntent(makePendingIntent(context, resultIntent));
         builder.setContentText(context.getString(R.string.notification_touch_to_chat));
@@ -99,7 +99,7 @@ public class Notification {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
         builder.setContentTitle(context.getString(R.string.notification_new_messages));
         builder.setLargeIcon(loadBitmapFromView(identicon, 640, 480));
-        builder.setSmallIcon(R.drawable.ic_launcher);
+        builder.setSmallIcon(R.mipmap.ic_launcher);
         builder.setContentIntent(makePendingIntent(context, resultIntent));
         builder.setStyle(inboxStyle);
         builder.setContentText(sNotificationInboxItems.get(0));

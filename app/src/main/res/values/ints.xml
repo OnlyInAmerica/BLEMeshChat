@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <integer name="max_alias_length">35</integer>
+    <integer name="max_msg_length">140</integer>
 </resources>

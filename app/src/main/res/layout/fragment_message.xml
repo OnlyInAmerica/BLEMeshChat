@@ -26,6 +26,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:singleLine="true"
+            android:maxLength="@integer/max_msg_length"
             android:imeOptions="actionSend"
             android:paddingLeft="16dp"
             android:layout_alignTop="@id/sendMessageButton"

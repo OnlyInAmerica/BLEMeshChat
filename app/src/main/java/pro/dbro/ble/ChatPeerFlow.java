@@ -63,7 +63,7 @@ public class ChatPeerFlow {
 
     }
 
-    private static final int MESSAGES_PER_RESPONSE = 10;
+    private static final int MESSAGES_PER_RESPONSE = 50;
     private static final int IDENTITIES_PER_RESPONSE = 10;
     public static enum State { CLIENT_WRITE_ID, HOST_WRITE_ID, CLIENT_WRITE_MSGS, HOST_WRITE_MSGS }
 
