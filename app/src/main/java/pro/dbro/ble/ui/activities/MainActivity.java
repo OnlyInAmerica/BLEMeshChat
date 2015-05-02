@@ -69,8 +69,8 @@ public class MainActivity extends Activity implements LogConsumer,
     @InjectView(R.id.log)
     TextView mLogView;
 
-    @InjectView(R.id.peer_recyclerview)
-    RecyclerView mPeerRecyclerView;
+//    @InjectView(R.id.peer_recyclerview)
+//    RecyclerView mPeerRecyclerView;
 
     @InjectView(R.id.toolbar)
     Toolbar mToolbar;
