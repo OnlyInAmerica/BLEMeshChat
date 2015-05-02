@@ -23,11 +23,12 @@ import pro.dbro.ble.ui.adapter.MessageAdapter;
  * A Fragment that currently allows chatting only in the public broadcast mode
  * ala Twitter.
  */
-public class MessageListFragment extends Fragment {
+public class MessagingFragment extends Fragment implements MessageAdapter.MessageSelectedListener {
     public static final String TAG = "MessageListFragment";
 
     public static interface ChatFragmentCallback {
         public void onMessageSendRequested(String message);
+        public void onMessageSelected(View identiconView, View usernameView, int messageId, int peerId);
     }
 
     private ChatFragmentCallback mCallback;
@@ -36,7 +37,7 @@ public class MessageListFragment extends Fragment {
     MessageAdapter mAdapter;
     EditText mMessageEntry;
 
-    public MessageListFragment() {
+    public MessagingFragment() {
         // Required empty public constructor
     }
 
@@ -73,7 +74,7 @@ public class MessageListFragment extends Fragment {
         });
         mRecyclerView = (RecyclerView) root.findViewById(R.id.recyclerView);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
-        mAdapter = new MessageAdapter(getActivity(), mDataStore, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
+        mAdapter = new MessageAdapter(getActivity(), null, mDataStore, this, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
         mRecyclerView.setAdapter(mAdapter);
         return root;
     }
@@ -100,5 +101,10 @@ public class MessageListFragment extends Fragment {
         // For now treat all messsages as public broadcast
         mCallback.onMessageSendRequested(message);
 
+    }
+
+    @Override
+    public void onMessageSelected(View identiconView, View usernameView, int messageId, int peerId) {
+        mCallback.onMessageSelected(identiconView, usernameView, messageId, peerId);
     }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="identicon_transition_name">identicon</string>
+    <string name="username_transition_name">username</string>
+
+</resources>

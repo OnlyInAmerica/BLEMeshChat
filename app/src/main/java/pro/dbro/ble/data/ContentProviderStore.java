@@ -172,7 +172,21 @@ public class ContentProviderStore extends DataStore {
         if (messagesCursor != null /*&& messagesCursor.moveToFirst()*/) {
             return new MessageCollection(messagesCursor);
         }
-        return null; //
+        return null;
+    }
+
+    @Override
+    public MessageCollection getRecentMessagesByPeer(@NonNull Peer author) {
+        Cursor messagesCursor = mContext.getContentResolver().query(ChatContentProvider.Messages.MESSAGES,
+                null,
+                MessageTable.peerId + "=?",
+                new String[] { String.valueOf(author.getId()) },
+                MessageTable.receivedDate + " DESC");
+
+        if (messagesCursor != null /*&& messagesCursor.moveToFirst()*/) {
+            return new MessageCollection(messagesCursor);
+        }
+        return null;
     }
 
     @Nullable

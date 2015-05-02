@@ -41,6 +41,8 @@ public abstract class DataStore {
 
     public abstract MessageCollection getRecentMessages();
 
+    public abstract MessageCollection getRecentMessagesByPeer(@NonNull Peer author);
+
     public abstract Peer createOrUpdateRemotePeerWithProtocolIdentity(@NonNull IdentityPacket identityPacket);
 
     public abstract Message createOrUpdateMessageWithProtocolMessage(@NonNull MessagePacket protocolMessagePacket);

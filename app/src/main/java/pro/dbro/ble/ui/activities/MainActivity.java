@@ -2,6 +2,7 @@ package pro.dbro.ble.ui.activities;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
@@ -9,17 +10,23 @@ import android.support.annotation.NonNull;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.transition.ArcMotion;
+import android.transition.ChangeBounds;
+import android.transition.ChangeImageTransform;
+import android.transition.ChangeTransform;
+import android.transition.Explode;
+import android.transition.Fade;
+import android.transition.Slide;
+import android.transition.TransitionSet;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toolbar;
 
@@ -39,16 +46,17 @@ import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.OwnedIdentityPacket;
 import pro.dbro.ble.ui.adapter.PeerAdapter;
 import pro.dbro.ble.ui.adapter.StatusArrayAdapter;
-import pro.dbro.ble.ui.fragment.MessageListFragment;
+import pro.dbro.ble.ui.fragment.MessagingFragment;
+import pro.dbro.ble.ui.fragment.ProfileFragment;
 import timber.log.Timber;
 
 public class MainActivity extends Activity implements LogConsumer,
                                                       AirShareFragment.AirShareCallback,
-                                                      MessageListFragment.ChatFragmentCallback, ChatClient.Callback {
+                                                      MessagingFragment.ChatFragmentCallback, ChatClient.Callback {
 
     public static final String TAG = "MainActivity";
 
-    private MessageListFragment mMessageListFragment;
+    private MessagingFragment mMessagingFragment;
     private OwnedIdentityPacket mUserIdentity;
 
     private ChatClient mClient;
@@ -177,10 +185,10 @@ public class MainActivity extends Activity implements LogConsumer,
      * the profile navigation drawer with the user profile
      */
     private void revealChatViews() {
-        mMessageListFragment = new MessageListFragment();
-        mMessageListFragment.setDataStore(mClient.getDataStore());
+        mMessagingFragment = new MessagingFragment();
+        mMessagingFragment.setDataStore(mClient.getDataStore());
         getFragmentManager().beginTransaction()
-                .add(R.id.container, mMessageListFragment)
+                .add(R.id.container, mMessagingFragment, "messaging")
                 .commit();
 
         mProfileIdenticon.show(new String(mUserIdentity.publicKey));
@@ -275,6 +283,50 @@ public class MainActivity extends Activity implements LogConsumer,
     @Override
     public void onMessageSendRequested(String message) {
         mClient.sendPublicMessageFromPrimaryIdentity(message);
+    }
+
+    @Override
+    public void onMessageSelected(View identictionView, View usernameView, int messageId, int peerId) {
+        // Create new fragment to add (Fragment B)
+        Peer peer = mClient.getDataStore().getPeerById(peerId);
+        if (peer == null) {
+            Log.w(TAG, "Could not lookup peer. Cannot show profile");
+            return;
+        }
+
+        identictionView.setTransitionName(getString(R.string.identicon_transition_name));
+        usernameView.setTransitionName(getString(R.string.username_transition_name));
+
+        Fragment profileFragment = ProfileFragment.createForPeer(mClient.getDataStore(), peer);
+
+        final TransitionSet sharedElementTransition = new TransitionSet();
+        sharedElementTransition.addTransition(new ChangeBounds());
+        sharedElementTransition.addTransition(new ChangeTransform());
+        sharedElementTransition.setInterpolator(new AccelerateDecelerateInterpolator());
+        sharedElementTransition.setDuration(300);
+
+        final TransitionSet slideTransition = new TransitionSet();
+        slideTransition.addTransition(new Slide());
+        slideTransition.setInterpolator(new AccelerateDecelerateInterpolator());
+        slideTransition.setDuration(300);
+
+        profileFragment.setEnterTransition(slideTransition);
+        profileFragment.setReturnTransition(slideTransition);
+        profileFragment.setSharedElementEnterTransition(sharedElementTransition);
+        profileFragment.setAllowEnterTransitionOverlap(false);
+        profileFragment.setAllowReturnTransitionOverlap(false);
+
+        // Message fragment performs an exit when Profile is added, and an enter when profile is popped
+//        getFragmentManager().findFragmentByTag("messaging").setReenterTransition(slideTransition);
+//        getFragmentManager().findFragmentByTag("messaging").setExitTransition(slideTransition);
+        getFragmentManager().findFragmentByTag("messaging").setSharedElementEnterTransition(sharedElementTransition);
+
+        getFragmentManager().beginTransaction()
+                .replace(R.id.container, profileFragment)
+                .addToBackStack("profile")
+                .addSharedElement(identictionView, getString(R.string.identicon_transition_name))
+                .addSharedElement(usernameView, getString(R.string.username_transition_name))
+                .commit();
     }
 
     @Override
