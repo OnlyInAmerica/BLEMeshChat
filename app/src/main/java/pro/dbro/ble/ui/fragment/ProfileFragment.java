@@ -1,25 +1,18 @@
 package pro.dbro.ble.ui.fragment;
 
 
-import android.app.Activity;
-import android.app.Fragment;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v7.graphics.Palette;
+import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.transition.Transition;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 
-import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.DataStore;
 import pro.dbro.ble.data.model.Peer;
-import pro.dbro.ble.ui.Notification;
 import pro.dbro.ble.ui.adapter.MessageAdapter;
 
 /**
@@ -32,7 +25,7 @@ public class ProfileFragment extends Fragment {
     MessageAdapter mAdapter;
     Peer mFromPeer;
 
-    TextView mUsernameView;
+//    TextView mUsernameView;
 
     public static ProfileFragment createForPeer(@NonNull DataStore dataStore,
                                                 @NonNull Peer peer) {
@@ -69,18 +62,11 @@ public class ProfileFragment extends Fragment {
         mAdapter = new MessageAdapter(getActivity(), mFromPeer, mDataStore, null, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
         mRecyclerView.setAdapter(mAdapter);
 
-        SymmetricIdenticon identicon = (SymmetricIdenticon) root.findViewById(R.id.profile_identicon);
-        ((SymmetricIdenticon) root.findViewById(R.id.profile_identicon)).show(new String(mFromPeer.getPublicKey()));
-        mUsernameView = ((TextView) root.findViewById(R.id.profile_name));
-        mUsernameView.setText(mFromPeer.getAlias());
+//        SymmetricIdenticon identicon = (SymmetricIdenticon) root.findViewById(R.id.profile_identicon);
+//        ((SymmetricIdenticon) root.findViewById(R.id.profile_identicon)).show(new String(mFromPeer.getPublicKey()));
+//        mUsernameView = ((TextView) root.findViewById(R.id.profile_name));
+//        mUsernameView.setText(mFromPeer.getAlias());
 
-        // TODO : Bg
-        Bitmap bitmap = Notification.loadBitmapFromView(identicon, 100, 100);
-        Palette.generateAsync(bitmap, new Palette.PaletteAsyncListener() {
-            public void onGenerated(Palette p) {
-                root.setBackgroundColor(p.getDarkVibrantColor(R.color.primary_subdued));
-            }
-        });
         return root;
     }
 }

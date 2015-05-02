@@ -26,6 +26,9 @@
     <string name="online">Online</string>
     <string name="peers_known">Peers known</string>
     <string name="messages_passed">Messages passed</string>
+    <string name="drawer_open">Open Drawer</string>
+    <string name="drawer_close">Close Drawer</string>
+    <string name="public_feed">Public Feed</string>
 
     <string-array name="status_options">
         <item>Always Online</item>

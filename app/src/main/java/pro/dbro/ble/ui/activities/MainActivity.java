@@ -1,18 +1,21 @@
 package pro.dbro.ble.ui.activities;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Bitmap;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v4.app.Fragment;
 import android.support.v4.widget.DrawerLayout;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.transition.ChangeBounds;
-import android.transition.ChangeTransform;
+import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.graphics.Palette;
+import android.support.v7.widget.Toolbar;
 import android.transition.Slide;
 import android.transition.TransitionSet;
 import android.util.Log;
@@ -25,7 +28,6 @@ import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toolbar;
 
 import com.nispok.snackbar.Snackbar;
 
@@ -34,6 +36,7 @@ import java.util.Arrays;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
+import hugo.weaving.DebugLog;
 import im.delight.android.identicons.SymmetricIdenticon;
 import pro.dbro.airshare.app.AirShareService;
 import pro.dbro.airshare.app.ui.AirShareFragment;
@@ -43,23 +46,26 @@ import pro.dbro.ble.PrefsManager;
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.model.Peer;
 import pro.dbro.ble.protocol.OwnedIdentityPacket;
-import pro.dbro.ble.ui.adapter.PeerAdapter;
+import pro.dbro.ble.ui.Notification;
 import pro.dbro.ble.ui.adapter.StatusArrayAdapter;
 import pro.dbro.ble.ui.fragment.MessagingFragment;
 import pro.dbro.ble.ui.fragment.ProfileFragment;
 import timber.log.Timber;
 
-public class MainActivity extends Activity implements LogConsumer,
+public class MainActivity extends AppCompatActivity implements LogConsumer,
                                                       AirShareFragment.AirShareCallback,
                                                       MessagingFragment.ChatFragmentCallback, ChatClient.Callback {
 
     public static final String TAG = "MainActivity";
 
+    private ActionBarDrawerToggle mDrawerToggle;
     private MessagingFragment mMessagingFragment;
     private OwnedIdentityPacket mUserIdentity;
 
     private ChatClient mClient;
     private AirShareFragment mAirShareFragment;
+
+    private Palette mPalette;
 
 //    private PeerAdapter mPeerAdapter;
 
@@ -110,7 +116,7 @@ public class MainActivity extends Activity implements LogConsumer,
         mStatusSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                switch(position) {
+                switch (position) {
 
                     case 0: // Always online
                         mClient.makeAvailable();
@@ -136,40 +142,48 @@ public class MainActivity extends Activity implements LogConsumer,
             }
         });
 
-        mToolbar.setNavigationIcon(R.drawable.ic_drawer);
+        setSupportActionBar(mToolbar);
+        setTitle(getString(R.string.public_feed));
+        mToolbar.setTitleTextColor(getResources().getColor(android.R.color.white));
+//        mToolbar.setNavigationIcon(R.drawable.ic_drawer);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setHomeButtonEnabled(true);
+
+        mDrawerToggle = new ActionBarDrawerToggle(this, mDrawer,
+                mToolbar, R.string.drawer_open, R.string.drawer_close) {
+
+            /** Called when a drawer has settled in a completely closed state. */
+            public void onDrawerClosed(View view) {
+                super.onDrawerClosed(view);
+                invalidateOptionsMenu(); // creates call to onPrepareOptionsMenu()
+            }
+
+            /** Called when a drawer has settled in a completely open state. */
+            public void onDrawerOpened(View drawerView) {
+                super.onDrawerOpened(drawerView);
+                refreshProfileStats();
+                invalidateOptionsMenu(); // creates call to onPrepareOptionsMenu()
+            }
+        };
+
+        // Override ActionB
         mToolbar.setNavigationOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
-                mDrawer.openDrawer(Gravity.START);
+            public void onClick(View v) {
+                if (getSupportFragmentManager().getBackStackEntryCount() == 0)
+                    mDrawer.openDrawer(Gravity.START);
+                else
+                    getSupportFragmentManager().popBackStack();
             }
         });
 
-        mDrawer.setDrawerListener(new DrawerLayout.DrawerListener() {
-            @Override
-            public void onDrawerSlide(View drawerView, float slideOffset) {
-                // do nothing
-            }
-
-            @Override
-            public void onDrawerOpened(View drawerView) {
-                refreshProfileStats();
-            }
-
-            @Override
-            public void onDrawerClosed(View drawerView) {
-                // do nothing
-            }
-
-            @Override
-            public void onDrawerStateChanged(int newState) {
-                // do nothing
-            }
-        });
+        mDrawer.setDrawerListener(mDrawerToggle);
+        mDrawerToggle.syncState();
 
         if (mAirShareFragment == null) {
             mAirShareFragment = AirShareFragment.newInstance(this);
             Timber.d("Adding airshare frag");
-            getFragmentManager().beginTransaction()
+            getSupportFragmentManager().beginTransaction()
                                 .add(mAirShareFragment, "airshare")
                                 .commit();
         }
@@ -178,13 +192,25 @@ public class MainActivity extends Activity implements LogConsumer,
 //        mPeerRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 //        mPeerRecyclerView.setAdapter(mPeerAdapter);
 
-        getFragmentManager().addOnBackStackChangedListener(new FragmentManager.OnBackStackChangedListener() {
+        getSupportFragmentManager().addOnBackStackChangedListener(new android.support.v4.app.FragmentManager.OnBackStackChangedListener() {
             @Override
             public void onBackStackChanged() {
-                int numEntries = getFragmentManager().getBackStackEntryCount();
+                int numEntries = getSupportFragmentManager().getBackStackEntryCount();
                 if (numEntries == 0) {
-                    Log.d(TAG, "Animating in message fragment");
                     mMessagingFragment.animateIn();
+                    tintSystemBars(mPalette.getVibrantColor(R.color.primary), mPalette.getDarkVibrantColor(R.color.primaryDark),
+                            getResources().getColor(R.color.primary), getResources().getColor(R.color.primaryDark));
+
+                    // Hack animate the drawer icon
+                    ValueAnimator drawerAnimator = ValueAnimator.ofFloat(1f, 0f);
+                    drawerAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                        @Override
+                        public void onAnimationUpdate(ValueAnimator animation) {
+                            mDrawerToggle.onDrawerSlide(null, (Float) animation.getAnimatedValue());
+                        }
+                    });
+                    drawerAnimator.start();
+                    setTitle(getString(R.string.public_feed));
                 }
             }
         });
@@ -197,7 +223,7 @@ public class MainActivity extends Activity implements LogConsumer,
     private void revealChatViews() {
         mMessagingFragment = new MessagingFragment();
         mMessagingFragment.setDataStore(mClient.getDataStore());
-        getFragmentManager().beginTransaction()
+        getSupportFragmentManager().beginTransaction()
                 .add(R.id.container, mMessagingFragment, "messaging")
                 .commit();
 
@@ -304,16 +330,18 @@ public class MainActivity extends Activity implements LogConsumer,
             return;
         }
 
-        identictionView.setTransitionName(getString(R.string.identicon_transition_name));
-        usernameView.setTransitionName(getString(R.string.username_transition_name));
+        setTitle(peer.getAlias());
+
+//        identictionView.setTransitionName(getString(R.string.identicon_transition_name));
+//        usernameView.setTransitionName(getString(R.string.username_transition_name));
 
         Fragment profileFragment = ProfileFragment.createForPeer(mClient.getDataStore(), peer);
 
-        final TransitionSet sharedElementTransition = new TransitionSet();
-        sharedElementTransition.addTransition(new ChangeBounds());
-        sharedElementTransition.addTransition(new ChangeTransform());
-        sharedElementTransition.setInterpolator(new AccelerateDecelerateInterpolator());
-        sharedElementTransition.setDuration(200);
+//        final TransitionSet sharedElementTransition = new TransitionSet();
+//        sharedElementTransition.addTransition(new ChangeBounds());
+//        sharedElementTransition.addTransition(new ChangeTransform());
+//        sharedElementTransition.setInterpolator(new AccelerateDecelerateInterpolator());
+//        sharedElementTransition.setDuration(200);
 
         final TransitionSet slideTransition = new TransitionSet();
         slideTransition.addTransition(new Slide());
@@ -322,21 +350,41 @@ public class MainActivity extends Activity implements LogConsumer,
 
         profileFragment.setEnterTransition(slideTransition);
         profileFragment.setReturnTransition(slideTransition);
-        profileFragment.setSharedElementEnterTransition(sharedElementTransition);
+//        profileFragment.setSharedElementEnterTransition(sharedElementTransition);
         profileFragment.setAllowEnterTransitionOverlap(false);
         profileFragment.setAllowReturnTransitionOverlap(false);
 
         // Message fragment performs an exit when Profile is added, and an enter when profile is popped
 //        getFragmentManager().findFragmentByTag("messaging").setReenterTransition(slideTransition);
 //        getFragmentManager().findFragmentByTag("messaging").setExitTransition(slideTransition);
-        getFragmentManager().findFragmentByTag("messaging").setSharedElementEnterTransition(sharedElementTransition);
+//        getFragmentManager().findFragmentByTag("messaging").setSharedElementEnterTransition(sharedElementTransition);
 
-        getFragmentManager().beginTransaction()
+        getSupportFragmentManager().beginTransaction()
                 .replace(R.id.container, profileFragment)
                 .addToBackStack("profile")
-                .addSharedElement(identictionView, getString(R.string.identicon_transition_name))
-                .addSharedElement(usernameView, getString(R.string.username_transition_name))
+//                .addSharedElement(identictionView, getString(R.string.identicon_transition_name))
+//                .addSharedElement(usernameView, getString(R.string.username_transition_name))
                 .commit();
+
+        Bitmap bitmap = Notification.loadBitmapFromView(identictionView, 100, 100);
+        Palette.generateAsync(bitmap, new Palette.PaletteAsyncListener() {
+            public void onGenerated(Palette p) {
+                mPalette = p;
+                tintSystemBars(getResources().getColor(R.color.primary), getResources().getColor(R.color.primaryDark),
+                        p.getVibrantColor(R.color.primary), p.getDarkVibrantColor(R.color.primaryDark));
+
+            }
+        });
+
+        // Hack animate the drawer icon
+        ValueAnimator drawerAnimator = ValueAnimator.ofFloat(0, 1f);
+        drawerAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mDrawerToggle.onDrawerSlide(null, (Float) animation.getAnimatedValue());
+            }
+        });
+        drawerAnimator.start();
     }
 
     @Override
@@ -356,5 +404,39 @@ public class MainActivity extends Activity implements LogConsumer,
 //                mPeerAdapter.notifyPeerRemoved(remotePeer);
 //                break;
 //        }
+    }
+
+    @DebugLog
+    private void tintSystemBars(final int toolbarFromColor, final int statusbarFromColor,
+                                final int toolbarToColor, final int statusbarToColor) {
+
+        ValueAnimator toolbarAnim = ValueAnimator.ofArgb(toolbarFromColor, toolbarToColor);
+        ValueAnimator statusbarAnim = ValueAnimator.ofArgb(statusbarFromColor, statusbarToColor);
+
+        statusbarAnim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                getWindow().setStatusBarColor((Integer) animation.getAnimatedValue());
+            }
+        });
+
+        toolbarAnim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                getSupportActionBar().setBackgroundDrawable(new ColorDrawable((Integer) animation.getAnimatedValue()));
+            }
+        });
+
+        toolbarAnim.setDuration(500).start();
+        statusbarAnim.setDuration(500).start();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+            getSupportFragmentManager().popBackStack();
+        } else {
+            super.onBackPressed();
+        }
     }
 }

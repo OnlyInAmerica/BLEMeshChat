@@ -2,6 +2,8 @@ package pro.dbro.ble;
 
 import android.app.Application;
 
+import com.facebook.stetho.Stetho;
+
 import timber.log.Timber;
 
 /**
@@ -14,6 +16,14 @@ public class ChatApp extends Application {
 
         if (BuildConfig.DEBUG) {
             Timber.plant(new Timber.DebugTree());
+
+            Stetho.initialize(
+                    Stetho.newInitializerBuilder(this)
+                            .enableDumpapp(
+                                    Stetho.defaultDumperPluginsProvider(this))
+                            .enableWebKitInspector(
+                                    Stetho.defaultInspectorModulesProvider(this))
+                            .build());
         }
 
         // If we abandon Timber logging in this app, enable below line

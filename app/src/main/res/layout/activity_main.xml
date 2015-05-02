@@ -14,10 +14,11 @@
 
         <!-- We use a Toolbar so that our drawer can be displayed
              in front of the action bar -->
-        <Toolbar
+        <android.support.v7.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="50dp"
+            android:animateLayoutChanges="true"
             android:background="@color/primary"/>
         <!-- on API 21 background will be ?attr/colorPrimary -->
         <!-- on API 21 minHeight will be ?attr/actionBarSize-->
