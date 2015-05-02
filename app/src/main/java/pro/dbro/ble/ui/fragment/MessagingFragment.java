@@ -1,19 +1,28 @@
 package pro.dbro.ble.ui.fragment;
 
 
+import android.animation.Animator;
+import android.animation.AnimatorInflater;
+import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.Fragment;
+import android.app.SharedElementCallback;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.transition.Transition;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
+
+import java.util.List;
 
 import pro.dbro.ble.R;
 import pro.dbro.ble.data.DataStore;
@@ -36,6 +45,7 @@ public class MessagingFragment extends Fragment implements MessageAdapter.Messag
     RecyclerView mRecyclerView;
     MessageAdapter mAdapter;
     EditText mMessageEntry;
+    View mRoot;
 
     public MessagingFragment() {
         // Required empty public constructor
@@ -53,8 +63,8 @@ public class MessagingFragment extends Fragment implements MessageAdapter.Messag
             throw new IllegalStateException("MessageListFragment must be equipped with a DataStore. Did you call #setDataStore");
 
         // Inflate the layout for this fragment
-        View root = inflater.inflate(R.layout.fragment_message, container, false);
-        mMessageEntry = (EditText) root.findViewById(R.id.messageEntry);
+        mRoot = inflater.inflate(R.layout.fragment_message, container, false);
+        mMessageEntry = (EditText) mRoot.findViewById(R.id.messageEntry);
         mMessageEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
@@ -66,17 +76,17 @@ public class MessagingFragment extends Fragment implements MessageAdapter.Messag
                 return false;
             }
         });
-        root.findViewById(R.id.sendMessageButton).setOnClickListener(new View.OnClickListener() {
+        mRoot.findViewById(R.id.sendMessageButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 onSendMessageButtonClick(v);
             }
         });
-        mRecyclerView = (RecyclerView) root.findViewById(R.id.recyclerView);
+        mRecyclerView = (RecyclerView) mRoot.findViewById(R.id.recyclerView);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
         mAdapter = new MessageAdapter(getActivity(), null, mDataStore, this, MessageAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
         mRecyclerView.setAdapter(mAdapter);
-        return root;
+        return mRoot;
     }
 
     @Override
@@ -106,5 +116,14 @@ public class MessagingFragment extends Fragment implements MessageAdapter.Messag
     @Override
     public void onMessageSelected(View identiconView, View usernameView, int messageId, int peerId) {
         mCallback.onMessageSelected(identiconView, usernameView, messageId, peerId);
+    }
+
+    public void animateIn() {
+        mRoot.setAlpha(0);
+        ObjectAnimator animator = ObjectAnimator.ofFloat(mRoot, "alpha", 0f, 1f)
+                .setDuration(300);
+
+        animator.setStartDelay(550);
+        animator.start();
     }
 }

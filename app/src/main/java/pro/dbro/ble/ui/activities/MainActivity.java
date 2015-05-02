@@ -3,6 +3,7 @@ package pro.dbro.ble.ui.activities;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Fragment;
+import android.app.FragmentManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
@@ -10,12 +11,8 @@ import android.support.annotation.NonNull;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.transition.ArcMotion;
 import android.transition.ChangeBounds;
-import android.transition.ChangeImageTransform;
 import android.transition.ChangeTransform;
-import android.transition.Explode;
-import android.transition.Fade;
 import android.transition.Slide;
 import android.transition.TransitionSet;
 import android.util.Log;
@@ -29,6 +26,8 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toolbar;
+
+import com.nispok.snackbar.Snackbar;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,7 +61,7 @@ public class MainActivity extends Activity implements LogConsumer,
     private ChatClient mClient;
     private AirShareFragment mAirShareFragment;
 
-    private PeerAdapter mPeerAdapter;
+//    private PeerAdapter mPeerAdapter;
 
     @InjectView(R.id.status_spinner)
     Spinner mStatusSpinner;
@@ -125,7 +124,7 @@ public class MainActivity extends Activity implements LogConsumer,
 
                     case 2: // Offline
                         mClient.makeUnavailable();
-                        mPeerAdapter.clearPeers();
+//                        mPeerAdapter.clearPeers();
                         break;
                 }
                 PrefsManager.setStatus(MainActivity.this, position);
@@ -175,9 +174,20 @@ public class MainActivity extends Activity implements LogConsumer,
                                 .commit();
         }
 
-        mPeerAdapter = new PeerAdapter(this, new ArrayList<Peer>());
-        mPeerRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        mPeerRecyclerView.setAdapter(mPeerAdapter);
+//        mPeerAdapter = new PeerAdapter(this, new ArrayList<Peer>());
+//        mPeerRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+//        mPeerRecyclerView.setAdapter(mPeerAdapter);
+
+        getFragmentManager().addOnBackStackChangedListener(new FragmentManager.OnBackStackChangedListener() {
+            @Override
+            public void onBackStackChanged() {
+                int numEntries = getFragmentManager().getBackStackEntryCount();
+                if (numEntries == 0) {
+                    Log.d(TAG, "Animating in message fragment");
+                    mMessagingFragment.animateIn();
+                }
+            }
+        });
     }
 
     /**
@@ -303,7 +313,7 @@ public class MainActivity extends Activity implements LogConsumer,
         sharedElementTransition.addTransition(new ChangeBounds());
         sharedElementTransition.addTransition(new ChangeTransform());
         sharedElementTransition.setInterpolator(new AccelerateDecelerateInterpolator());
-        sharedElementTransition.setDuration(300);
+        sharedElementTransition.setDuration(200);
 
         final TransitionSet slideTransition = new TransitionSet();
         slideTransition.addTransition(new Slide());
@@ -331,20 +341,20 @@ public class MainActivity extends Activity implements LogConsumer,
 
     @Override
     public void onAppPeerStatusUpdated(@NonNull Peer remotePeer, @NonNull ChatPeerFlow.Callback.ConnectionStatus status) {
-//        Snackbar.with(getApplicationContext())
-//                .text(String.format("%s %s",
-//                                    remotePeer.getAlias(),
-//                                    status == ChatPeerFlow.Callback.ConnectionStatus.CONNECTED ? "connected" : "disconnected"))
-//        .show(this);
+        Snackbar.with(getApplicationContext())
+                .text(String.format("%s %s",
+                                    remotePeer.getAlias(),
+                                    status == ChatPeerFlow.Callback.ConnectionStatus.CONNECTED ? "connected" : "disconnected"))
+        .show(this);
 
-        switch (status) {
-            case CONNECTED:
-                mPeerAdapter.notifyPeerAdded(remotePeer);
-                break;
-
-            case DISCONNECTED:
-                mPeerAdapter.notifyPeerRemoved(remotePeer);
-                break;
-        }
+//        switch (status) {
+//            case CONNECTED:
+//                mPeerAdapter.notifyPeerAdded(remotePeer);
+//                break;
+//
+//            case DISCONNECTED:
+//                mPeerAdapter.notifyPeerRemoved(remotePeer);
+//                break;
+//        }
     }
 }
