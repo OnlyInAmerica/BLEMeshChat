@@ -23,6 +23,7 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.AdapterView;
 import android.widget.EditText;
@@ -390,10 +391,11 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
     @Override
     public void onAppPeerStatusUpdated(@NonNull Peer remotePeer, @NonNull ChatPeerFlow.Callback.ConnectionStatus status) {
         Snackbar.with(getApplicationContext())
+                .position(Snackbar.SnackbarPosition.TOP)
                 .text(String.format("%s %s",
-                                    remotePeer.getAlias(),
-                                    status == ChatPeerFlow.Callback.ConnectionStatus.CONNECTED ? "connected" : "disconnected"))
-        .show(this);
+                        remotePeer.getAlias(),
+                        status == ChatPeerFlow.Callback.ConnectionStatus.CONNECTED ? "connected" : "disconnected"))
+        .show((ViewGroup) findViewById(R.id.container));
 
 //        switch (status) {
 //            case CONNECTED:
@@ -406,7 +408,6 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
 //        }
     }
 
-    @DebugLog
     private void tintSystemBars(final int toolbarFromColor, final int statusbarFromColor,
                                 final int toolbarToColor, final int statusbarToColor) {
 
