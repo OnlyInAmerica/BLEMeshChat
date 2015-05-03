@@ -41,7 +41,8 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
         public TextView senderView;
         public TextView messageView;
         public TextView authoredView;
-        SymmetricIdenticon identicon;
+        public SymmetricIdenticon identicon;
+        public Peer peer;
 
 
         public ViewHolder(View v) {
@@ -84,12 +85,14 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
     @Override
     public void onBindViewHolder(ViewHolder holder, Cursor cursor) {
         holder.container.setTag(R.id.view_tag_msg_id, cursor.getInt(cursor.getColumnIndex(MessageTable.id)));
-        // TODO: cache message sender alias to avoid additional query
-        Peer peer = mDataStore.getPeerById(cursor.getInt(cursor.getColumnIndex(MessageTable.peerId)));
-        if (peer != null) {
-            holder.container.setTag(R.id.view_tag_peer_id, peer.getId());
-            holder.senderView.setText(peer.getAlias());
-            holder.identicon.show(new String(peer.getPublicKey()));
+
+        if (holder.peer == null)
+            holder.peer = mDataStore.getPeerById(cursor.getInt(cursor.getColumnIndex(MessageTable.peerId)));
+
+        if (holder.peer != null) {
+            holder.container.setTag(R.id.view_tag_peer_id, holder.peer.getId());
+            holder.senderView.setText(holder.peer.getAlias());
+            holder.identicon.show(new String(holder.peer.getPublicKey()));
         } else {
             holder.senderView.setText("?");
             holder.identicon.show(UUID.randomUUID());
