@@ -28,8 +28,8 @@ import pro.dbro.ble.data.model.Peer;
 public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.ViewHolder> {
     public static final String TAG = "MessageAdapter";
 
-    public static interface MessageSelectedListener {
-        public void onMessageSelected(View identiconView, View usernameView, int messageId, int peerId);
+    public interface MessageSelectedListener {
+        void onMessageSelected(View identiconView, View usernameView, int messageId, int peerId);
     }
 
     private DataStore mDataStore;
@@ -86,7 +86,7 @@ public class MessageAdapter extends RecyclerViewCursorAdapter<MessageAdapter.Vie
     public void onBindViewHolder(ViewHolder holder, Cursor cursor) {
         holder.container.setTag(R.id.view_tag_msg_id, cursor.getInt(cursor.getColumnIndex(MessageTable.id)));
 
-        if (holder.peer == null)
+        if (holder.peer == null) // TODO : Should do this lookup on a background thread
             holder.peer = mDataStore.getPeerById(cursor.getInt(cursor.getColumnIndex(MessageTable.peerId)));
 
         if (holder.peer != null) {

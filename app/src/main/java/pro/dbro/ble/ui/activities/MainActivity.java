@@ -11,6 +11,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
@@ -51,11 +52,13 @@ import pro.dbro.ble.ui.Notification;
 import pro.dbro.ble.ui.adapter.StatusArrayAdapter;
 import pro.dbro.ble.ui.fragment.MessagingFragment;
 import pro.dbro.ble.ui.fragment.ProfileFragment;
+import pro.dbro.ble.ui.fragment.WelcomeFragment;
 import timber.log.Timber;
 
 public class MainActivity extends AppCompatActivity implements LogConsumer,
-                                                      AirShareFragment.AirShareCallback,
-                                                      MessagingFragment.ChatFragmentCallback, ChatClient.Callback {
+        WelcomeFragment.WelcomeFragmentCallback,
+        AirShareFragment.AirShareCallback,
+        MessagingFragment.ChatFragmentCallback, ChatClient.Callback {
 
     public static final String TAG = "MainActivity";
 
@@ -93,8 +96,6 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
 
     @InjectView(R.id.profile_identicon)
     SymmetricIdenticon mProfileIdenticon;
-
-    private String mNewUsername;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -185,8 +186,8 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
             mAirShareFragment = AirShareFragment.newInstance(this);
             Timber.d("Adding airshare frag");
             getSupportFragmentManager().beginTransaction()
-                                .add(mAirShareFragment, "airshare")
-                                .commit();
+                    .add(mAirShareFragment, "airshare")
+                    .commit();
         }
 
 //        mPeerAdapter = new PeerAdapter(this, new ArrayList<Peer>());
@@ -225,7 +226,8 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
         mMessagingFragment = new MessagingFragment();
         mMessagingFragment.setDataStore(mClient.getDataStore());
         getSupportFragmentManager().beginTransaction()
-                .add(R.id.container, mMessagingFragment, "messaging")
+                .replace(R.id.container, mMessagingFragment, "messaging")
+                .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
                 .commit();
 
         mProfileIdenticon.show(new String(mUserIdentity.publicKey));
@@ -237,7 +239,9 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
         mMessagesPassedCount.setText(String.valueOf(mClient.getDataStore().countMessagesPassed()));
     }
 
-    /** LogConsumer interface */
+    /**
+     * LogConsumer interface
+     */
 
     @Override
     public void onLogEvent(final String event) {
@@ -262,41 +266,47 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
 
         } else {
 
-            View dialogView = ((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE))
-                    .inflate(R.layout.dialog_welcome, null);
-            final EditText aliasEntry = ((EditText) dialogView.findViewById(R.id.aliasEntry));
+            mToolbar.setVisibility(View.GONE);
+            getWindow().setStatusBarColor(getResources().getColor(R.color.welcome_status_bar));
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.container, new WelcomeFragment())
+                    .commit();
 
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            final AlertDialog dialog = builder.setTitle(getString(R.string.dialog_welcome_greeting))
-                    .setView(dialogView)
-                    .setPositiveButton(getString(R.string.dialog_ok), new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialogInterface, int i) {
-                            mNewUsername = aliasEntry.getText().toString();
-                        }
-                    })
-                    .setOnDismissListener(new DialogInterface.OnDismissListener() {
-                        @Override
-                        public void onDismiss(DialogInterface dialog) {
-                            if (mNewUsername != null) {
-                                mClient.createPrimaryIdentity(mNewUsername);
-                                mAirShareFragment.registerUserForService(aliasEntry.getText().toString(), ChatClient.AIRSHARE_SERVICE_NAME);
-                                mNewUsername = null;
-                            }
-
-                            // TODO If user didn't select a username we should respond appropriately
-                        }
-                    })
-                    .show();
-
-            aliasEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-                @Override
-                public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
-                    mNewUsername = textView.getText().toString();
-                    dialog.dismiss();
-                    return false;
-                }
-            });
+//            View dialogView = ((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE))
+//                    .inflate(R.layout.dialog_welcome, null);
+//            final EditText aliasEntry = ((EditText) dialogView.findViewById(R.id.aliasEntry));
+//
+//            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+//            final AlertDialog dialog = builder.setTitle(getString(R.string.dialog_welcome_greeting))
+//                    .setView(dialogView)
+//                    .setPositiveButton(getString(R.string.dialog_ok), new DialogInterface.OnClickListener() {
+//                        @Override
+//                        public void onClick(DialogInterface dialogInterface, int i) {
+//                            mNewUsername = aliasEntry.getText().toString();
+//                        }
+//                    })
+//                    .setOnDismissListener(new DialogInterface.OnDismissListener() {
+//                        @Override
+//                        public void onDismiss(DialogInterface dialog) {
+//                            if (mNewUsername != null) {
+//                                mClient.createPrimaryIdentity(mNewUsername);
+//                                mAirShareFragment.registerUserForService(aliasEntry.getText().toString(), ChatClient.AIRSHARE_SERVICE_NAME);
+//                                mNewUsername = null;
+//                            }
+//
+//                            // TODO If user didn't select a username we should respond appropriately
+//                        }
+//                    })
+//                    .show();
+//
+//            aliasEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+//                @Override
+//                public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
+//                    mNewUsername = textView.getText().toString();
+//                    dialog.dismiss();
+//                    return false;
+//                }
+//            });
         }
     }
 
@@ -306,6 +316,7 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
 
         mClient.setAirShareServiceBinder(serviceBinder);
         mClient.setCallback(this);
+        mClient.makeAvailable();
         mStatusSpinner.setEnabled(true);
         mStatusSpinner.setSelection(PrefsManager.getStatus(this));
         revealChatViews();
@@ -395,7 +406,7 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
                 .text(String.format("%s %s",
                         remotePeer.getAlias(),
                         status == ChatPeerFlow.Callback.ConnectionStatus.CONNECTED ? "connected" : "disconnected"))
-        .show((ViewGroup) findViewById(R.id.container));
+                .show((ViewGroup) findViewById(R.id.container));
 
 //        switch (status) {
 //            case CONNECTED:
@@ -439,5 +450,13 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
         } else {
             super.onBackPressed();
         }
+    }
+
+    @Override
+    public void onNameChosen(String name) {
+        mToolbar.setVisibility(View.VISIBLE);
+        getWindow().setStatusBarColor(getResources().getColor(R.color.primaryDark));
+        mClient.createPrimaryIdentity(name);
+        mAirShareFragment.registerUserForService(name, ChatClient.AIRSHARE_SERVICE_NAME);
     }
 }
