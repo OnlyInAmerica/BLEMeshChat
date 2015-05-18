@@ -2,6 +2,7 @@ package pro.dbro.ble;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -27,12 +28,13 @@ import timber.log.Timber;
  * Created by davidbrodsky on 10/13/14.
  */
 public class ChatClient implements AirShareService.Callback,
-                                   ChatPeerFlow.DataOutlet, ChatPeerFlow.Callback {
+                                   ChatPeerFlow.DataOutlet,
+                                   ChatPeerFlow.Callback {
 
-    public static interface Callback {
+    public interface Callback {
         /** Client should not invoke remotePeer#close() */
-        public void onAppPeerStatusUpdated(@NonNull Peer remotePeer,
-                                           @NonNull ConnectionStatus status);
+        void onAppPeerStatusUpdated(@NonNull Peer remotePeer,
+                                    @NonNull ConnectionStatus status);
     }
 
     public static final String TAG = "ChatApp";
@@ -48,8 +50,6 @@ public class ChatClient implements AirShareService.Callback,
 
     /** AirShare Peer -> BLEMeshChat Peer id */
     private BiMap<pro.dbro.airshare.session.Peer, Integer> mConnectedPeers = HashBiMap.create();
-
-    private LogConsumer mLogger;
 
     // <editor-fold desc="Public API">
 
@@ -70,12 +70,6 @@ public class ChatClient implements AirShareService.Callback,
     }
 
     // <editor-fold desc="Identity & Availability">
-
-    public void setLogConsumer(LogConsumer logger) {
-        mLogger = logger;
-
-//        if (mTransport != null) mTransport.setLogConsumer(mLogger);
-    }
 
     public void makeAvailable() {
         if (mDataStore.getPrimaryLocalPeer() == null) {
@@ -188,7 +182,7 @@ public class ChatClient implements AirShareService.Callback,
     }
 
     @Override
-    public void onDataRecevied(byte[] data, pro.dbro.airshare.session.Peer sender, Exception exception) {
+    public void onDataRecevied(@NonNull AirShareService.ServiceBinder binder, @Nullable byte[] data, @NonNull pro.dbro.airshare.session.Peer sender, @Nullable Exception exception) {
         ChatPeerFlow flow = mFlows.get(sender);
 
         if (flow == null) {
@@ -204,7 +198,7 @@ public class ChatClient implements AirShareService.Callback,
     }
 
     @Override
-    public void onDataSent(byte[] data, pro.dbro.airshare.session.Peer recipient, Exception exception) {
+    public void onDataSent(@NonNull AirShareService.ServiceBinder binder, @Nullable byte[] data, @NonNull pro.dbro.airshare.session.Peer recipient, @Nullable Exception exception) {
         ChatPeerFlow flow = mFlows.get(recipient);
 
         if (flow == null) {
@@ -220,7 +214,7 @@ public class ChatClient implements AirShareService.Callback,
     }
 
     @Override
-    public void onPeerStatusUpdated(pro.dbro.airshare.session.Peer peer, Transport.ConnectionStatus newStatus, boolean peerIsHost) {
+    public void onPeerStatusUpdated(@NonNull AirShareService.ServiceBinder binder, @NonNull pro.dbro.airshare.session.Peer peer, @NonNull Transport.ConnectionStatus newStatus, boolean peerIsHost) {
         if (newStatus == Transport.ConnectionStatus.CONNECTED) {
             mConnectedPeers.put(peer, null); // We will add the BLEMeshChat peer id after identity is received
             Timber.d("Beginning flow with %s as %s", peer.getAlias(), peerIsHost ? "host" : "client");
@@ -238,6 +232,14 @@ public class ChatClient implements AirShareService.Callback,
             Peer remotePeer = mDataStore.getPeerById(blePeerId);
             onAppPeerStatusUpdated(mFlows.get(peer), remotePeer, ConnectionStatus.DISCONNECTED);
         }
+    }
+
+    @Override
+    public void onPeerTransportUpdated(@NonNull AirShareService.ServiceBinder binder,
+                                       @NonNull pro.dbro.airshare.session.Peer peer,
+                                       int newTransportCode,
+                                       @Nullable Exception exception) {
+        // unused. The networking demands of this app appear to works fine over BLE
     }
 
     @Override

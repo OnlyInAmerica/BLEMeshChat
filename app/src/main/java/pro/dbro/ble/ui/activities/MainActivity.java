@@ -57,7 +57,7 @@ import timber.log.Timber;
 
 public class MainActivity extends AppCompatActivity implements LogConsumer,
         WelcomeFragment.WelcomeFragmentCallback,
-        AirShareFragment.AirShareCallback,
+        AirShareFragment.Callback,
         MessagingFragment.ChatFragmentCallback, ChatClient.Callback {
 
     public static final String TAG = "MainActivity";
@@ -182,13 +182,7 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
         mDrawer.setDrawerListener(mDrawerToggle);
         mDrawerToggle.syncState();
 
-        if (mAirShareFragment == null) {
-            mAirShareFragment = AirShareFragment.newInstance(this);
-            Timber.d("Adding airshare frag");
-            getSupportFragmentManager().beginTransaction()
-                    .add(mAirShareFragment, "airshare")
-                    .commit();
-        }
+        checkUserRegistered();
 
 //        mPeerAdapter = new PeerAdapter(this, new ArrayList<Peer>());
 //        mPeerRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
@@ -256,57 +250,34 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
         */
     }
 
-    @Override
-    public void registrationRequired() {
+    /**
+     * Check if a username has been registered and take appropriate action.
+     *
+     * If a username has not yet been selected, show WelcomeFragment
+     * If a username has been selected, initialize AirShare
+     */
+    private void checkUserRegistered() {
         Peer localPeer = mClient.getPrimaryLocalPeer();
         if (localPeer != null) {
 
-            // TODO : No reason (besides debugging) to expose application username to AirShare in this case. Add API endpoint excluding alias
-            mAirShareFragment.registerUserForService(localPeer.getAlias(), ChatClient.AIRSHARE_SERVICE_NAME);
+            // Register ourselves with the AirShare Service, using our own user model's alias
+            if (mAirShareFragment == null) {
+                mAirShareFragment = AirShareFragment.newInstance(localPeer.getAlias(), ChatClient.AIRSHARE_SERVICE_NAME, this);
+                Timber.d("Adding airshare frag");
+                getSupportFragmentManager().beginTransaction()
+                        .add(mAirShareFragment, "airshare")
+                        .commit();
+            }
 
         } else {
 
+            // Show WelcomeFragment to collect the user's desired username
+            // will be notified of result via #onNameChosen
             mToolbar.setVisibility(View.GONE);
             getWindow().setStatusBarColor(getResources().getColor(R.color.welcome_status_bar));
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.container, new WelcomeFragment())
                     .commit();
-
-//            View dialogView = ((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE))
-//                    .inflate(R.layout.dialog_welcome, null);
-//            final EditText aliasEntry = ((EditText) dialogView.findViewById(R.id.aliasEntry));
-//
-//            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//            final AlertDialog dialog = builder.setTitle(getString(R.string.dialog_welcome_greeting))
-//                    .setView(dialogView)
-//                    .setPositiveButton(getString(R.string.dialog_ok), new DialogInterface.OnClickListener() {
-//                        @Override
-//                        public void onClick(DialogInterface dialogInterface, int i) {
-//                            mNewUsername = aliasEntry.getText().toString();
-//                        }
-//                    })
-//                    .setOnDismissListener(new DialogInterface.OnDismissListener() {
-//                        @Override
-//                        public void onDismiss(DialogInterface dialog) {
-//                            if (mNewUsername != null) {
-//                                mClient.createPrimaryIdentity(mNewUsername);
-//                                mAirShareFragment.registerUserForService(aliasEntry.getText().toString(), ChatClient.AIRSHARE_SERVICE_NAME);
-//                                mNewUsername = null;
-//                            }
-//
-//                            // TODO If user didn't select a username we should respond appropriately
-//                        }
-//                    })
-//                    .show();
-//
-//            aliasEntry.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-//                @Override
-//                public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
-//                    mNewUsername = textView.getText().toString();
-//                    dialog.dismiss();
-//                    return false;
-//                }
-//            });
         }
     }
 
@@ -457,6 +428,6 @@ public class MainActivity extends AppCompatActivity implements LogConsumer,
         mToolbar.setVisibility(View.VISIBLE);
         getWindow().setStatusBarColor(getResources().getColor(R.color.primaryDark));
         mClient.createPrimaryIdentity(name);
-        mAirShareFragment.registerUserForService(name, ChatClient.AIRSHARE_SERVICE_NAME);
+        checkUserRegistered();
     }
 }
